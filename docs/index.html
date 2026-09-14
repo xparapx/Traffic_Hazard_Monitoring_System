@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>엣지 AI기반 통학 시간대 교통 위험 모니터링 시스템 구축 및 인식_프로젝트개요</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---- tokens: hub/web/app.css (multinode_aq dashboard). light = 기본 ---- */
+:root, :root[data-theme="light"]{
+  --bg:#f5f6f8; --side:#eaedf1; --panel:#ffffff; --panel2:#eef0f3; --plot:#f3f5f8;
+  --ink:#1a1d24; --dim:#5b6472; --grid:#d9dde3; --rowline:#e6e9ee; --foot:#8a929e;
+  --blue:#3d7cc9; --orange:#d97a2e; --green:#1f9d8a; --red:#d9534f; --purple:#8b6fd6;
+  --yellow:#b8a400; --cyan:#2aa3a0; --gray:#7a7f87; --pink:#c95aa6; --brown:#a5794a;
+  --badge-ink:#ffffff; --acc:#b87a00;
+  --rg-clean:#0fa8a2; --rg-matter:#d39a00; --rg-human:#7a5fe0; --rg-mixed:#d63f5a;
+  --chip2-bg:#f7f8fa; --chip2-bd:#dfe3ea;
+  --n1:#d6338a; --n2:#6a5bd9; --n3:#00a67f; --n4:#cc8f00; --n5:#1e9fd6; --n6:#5a9e2f; --n7:#c2410c; --n8:#4f6d9e;
+  --shadow:0 1px 2px rgba(26,29,36,.05), 0 6px 18px rgba(26,29,36,.05);
+  --sans:"IBM Plex Sans KR","Pretendard",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#1a1d24; --side:#14171d; --panel:#242832; --panel2:#2b303b; --plot:#1e222b;
+  --ink:#e6e8ec; --dim:#aab2bd; --grid:#3a414e; --rowline:#2f3541; --foot:#6b7482;
+  --blue:#a1c9f4; --orange:#ffb482; --green:#8de5a1; --red:#ff9f9b; --purple:#d0bbff;
+  --yellow:#fffea3; --cyan:#b9f2f0; --gray:#cfcfcf; --pink:#fab0e4; --brown:#debb9b;
+  --badge-ink:#111; --acc:#FFB300;
+  --rg-clean:#12CBC4; --rg-matter:#FFC312; --rg-human:#9980FA; --rg-mixed:#ED4C67;
+  --chip2-bg:#1a1f29; --chip2-bd:#333b49;
+  --n1:#FF5CA8; --n2:#8B7CFF; --n3:#00E5B0; --n4:#FFB300; --n5:#4DD2FF; --n6:#C4FF4D; --n7:#FF8A5C; --n8:#EAEAEA;
+  --shadow:none;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.62}
+a{color:var(--blue)} a:hover{color:var(--cyan)}
+code,kbd,pre,.mono{font-family:var(--mono)}
+code{background:var(--chip2-bg);border:1px solid var(--chip2-bd);border-radius:5px;padding:1px 6px;font-size:.88em;color:var(--purple)}
+pre{position:relative;background:var(--plot);border:1px solid var(--grid);border-radius:10px;padding:14px 16px;overflow:auto;font-size:12.5px;line-height:1.55;margin:10px 0;color:var(--ink);tab-size:4}
+pre code{background:none;border:0;padding:0;color:inherit;font-size:inherit}
+pre .c{color:var(--foot)} pre .s{color:var(--green)} pre .k{color:var(--purple)} pre .n{color:var(--orange)}
+pre .copy{position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:10.5px;padding:3px 9px;border-radius:6px;border:1px solid var(--grid);background:var(--panel);color:var(--dim);cursor:pointer}
+pre .copy:hover{color:var(--ink);border-color:var(--dim)}
+.ftag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--badge-ink);background:var(--purple);padding:2px 10px;border-radius:6px 6px 0 0;margin:14px 0 -10px 0}
+h1,h2,h3,h4{margin:0;font-weight:600;line-height:1.3}
+p{margin:8px 0}
+ul,ol{margin:6px 0 6px 18px;padding:0} li{margin:3px 0}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ---- layout: sidebar + main (대시보드와 같은 뼈대) ---- */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{background:var(--side);border-right:1px solid var(--grid);padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column}
+.brand{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.04em}
+.brand b{display:block;color:var(--ink);font-family:var(--sans);font-size:14.5px;font-weight:600;margin-top:4px;line-height:1.35}
+.nav{display:flex;flex-direction:column;gap:3px;margin-top:18px}
+.nav a{padding:7px 10px;border-radius:8px;display:flex;gap:10px;align-items:center;color:var(--dim);text-decoration:none;font-size:13.5px}
+.nav a:hover{background:var(--panel);color:var(--ink)}
+.nav a .n{font-family:var(--mono);font-size:10.5px;min-width:22px;height:18px;padding:0 4px;border-radius:5px;display:grid;place-items:center;background:var(--grid);color:var(--ink)}
+.nav .grp{font-family:var(--mono);font-size:10px;color:var(--foot);letter-spacing:.1em;margin:14px 10px 4px;text-transform:uppercase}
+.nav a.s1 .n{background:var(--cyan);color:var(--badge-ink)}
+.nav a.s2 .n{background:var(--blue);color:var(--badge-ink)}
+.nav a.s3 .n{background:var(--purple);color:var(--badge-ink)}
+.nav a.s4 .n{background:var(--orange);color:var(--badge-ink)}
+.nav a.sf .n{background:var(--acc);color:var(--badge-ink)}
+.nav a.sf{font-weight:600;color:var(--ink)}
+.theme{margin-top:16px;display:flex;gap:6px}
+.theme button{flex:1;background:var(--panel2);border:1px solid var(--grid);color:var(--dim);padding:6px 8px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+.theme button.on{color:var(--ink);border-color:var(--dim)}
+.side .foot{margin-top:auto;font-size:11px;color:var(--foot);font-family:var(--mono);line-height:1.5;padding-top:16px}
+main{padding:28px 44px 90px;min-width:0;max-width:1180px}
+@media (max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto}main{padding:20px 18px 60px}}
+
+/* ---- hero ---- */
+.hero{padding:10px 0 26px;border-bottom:1px solid var(--grid);margin-bottom:8px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;color:var(--cyan);letter-spacing:.12em}
+.hero h1{font-size:30px;margin:8px 0 6px;letter-spacing:-.01em}
+.hero .sub{color:var(--dim);font-size:15px;max-width:740px}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:6px;background:var(--chip2-bg);border:1px solid var(--chip2-bd);color:var(--dim)}
+
+/* ---- signature: 데이터 파이프라인 지도 ---- */
+.pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin:18px 0 6px;position:relative}
+.pipe::before{content:"";position:absolute;left:8%;right:8%;top:22px;height:2px;background:var(--grid);z-index:0}
+.pipe .seg{position:relative;z-index:1;text-align:center;padding:0 4px}
+.pipe .dot{width:44px;height:44px;margin:0 auto;border-radius:12px;background:var(--panel);border:1px solid var(--grid);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--dim);transition:transform .2s;box-shadow:var(--shadow)}
+.pipe .lbl{font-size:12px;color:var(--dim);margin-top:8px;font-weight:500}
+.pipe .why{font-size:10.5px;color:var(--foot);font-family:var(--mono);margin-top:2px}
+.pipe .seg.on .dot{background:color-mix(in srgb,var(--pc) 16%,var(--panel));border-color:var(--pc);color:var(--pc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pc) 16%,transparent);transform:translateY(-2px);font-weight:600}
+.pipe .seg.on .lbl{color:var(--ink)}
+.pipe .seg[data-p="1"]{--pc:var(--green)} .pipe .seg[data-p="2"]{--pc:var(--cyan)} .pipe .seg[data-p="3"]{--pc:var(--orange)}
+.pipe .seg[data-p="4"]{--pc:var(--blue)} .pipe .seg[data-p="5"]{--pc:var(--purple)} .pipe .seg[data-p="6"]{--pc:var(--acc)}
+.pipe.mini{margin:6px 0 14px} .pipe.mini .dot{width:30px;height:30px;border-radius:8px;font-size:10px} .pipe.mini .lbl{font-size:11px} .pipe.mini .why{display:none} .pipe.mini::before{top:15px}
+@media (max-width:640px){.pipe .why{display:none}.pipe .lbl{font-size:10.5px}}
+
+/* ---- section chips ---- */
+section{margin-top:44px;scroll-margin-top:16px}
+.sec{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.sec .chip{display:inline-flex;align-items:center;gap:10px;padding:7px 16px 7px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--grid);font-weight:600;font-size:15px;box-shadow:var(--shadow)}
+.sec .chip .n{font-family:var(--mono);font-size:11px;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--badge-ink);background:var(--sc,var(--cyan))}
+.sec .line{flex:1;height:1px;background:var(--grid)}
+.sec .est{font-family:var(--mono);font-size:11px;color:var(--foot)}
+h3{font-size:16px;margin:22px 0 8px;color:var(--ink)}
+h3 .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin-right:8px;font-weight:400}
+
+/* ---- panels ---- */
+.panel{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:16px 18px;margin:12px 0;box-shadow:var(--shadow)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px} .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px} .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:12px 0}
+@media (max-width:900px){.grid4{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+.grid2>*,.grid3>*,.grid4>*{min-width:0}
+.fmt>div{margin:0 0 18px}
+.metric{background:var(--panel2);border-radius:8px;padding:10px 12px}
+.metric .l{font-size:11px;color:var(--dim)} .metric .v{font-family:var(--mono);font-size:17px;font-weight:600;margin:2px 0} .metric .d{font-size:11.5px;color:var(--dim)}
+
+/* 박스 4종: 색 = 박스의 역할 (WHY / TIP / 함정 / AI) */
+.box{border-left:3px solid var(--bc,var(--blue));background:color-mix(in srgb,var(--bc,var(--blue)) 7%,var(--panel));padding:10px 14px;border-radius:0 10px 10px 0;margin:12px 0;font-size:14px}
+.box .lbl{display:block;font-weight:600;color:var(--bc,var(--blue));font-size:12.5px;margin-bottom:3px;font-family:var(--mono);letter-spacing:.04em}
+.box.why{--bc:var(--rg-human)} .box.tip{--bc:var(--rg-clean)} .box.warn{--bc:var(--rg-mixed)} .box.ai{--bc:var(--rg-matter)}
+.box.key{--bc:var(--acc);border-width:3px;border-style:solid;border-radius:10px;background:color-mix(in srgb,var(--acc) 6%,var(--panel))}
+
+/* 용어 카드 */
+.gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.gl .t{background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.gl .t>b{display:block;font-size:14px;margin-bottom:3px} .gl .t p b{display:inline} .gl .t>b small{font-family:var(--mono);color:var(--dim);font-weight:400;margin-left:6px;font-size:11px}
+.gl .t p{margin:0;font-size:13px;color:var(--dim)}
+.gl .t.g1{border-top:3px solid var(--green)} .gl .t.g2{border-top:3px solid var(--cyan)} .gl .t.g3{border-top:3px solid var(--orange)} .gl .t.g4{border-top:3px solid var(--blue)} .gl .t.g5{border-top:3px solid var(--purple)} .gl .t.g6{border-top:3px solid var(--acc)} .gl .t.g0{border-top:3px solid var(--gray)}
+
+/* 표 */
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
+th,td{border-bottom:1px solid var(--rowline);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--dim);font-weight:500;font-size:12px;font-family:var(--mono);letter-spacing:.04em}
+td code{white-space:nowrap}
+
+/* 체크리스트 */
+.check{list-style:none;margin:6px 0;padding:0}
+.check li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed var(--rowline);font-size:14px}
+.check input{margin-top:5px;accent-color:var(--green)}
+.check li:has(input:checked){color:var(--dim);text-decoration:line-through var(--green)}
+
+/* 단계 */
+.steps{counter-reset:s;margin:8px 0}
+.steps>div{position:relative;padding:8px 0 8px 40px;border-left:1px solid var(--grid);margin-left:14px}
+.steps>div::before{counter-increment:s;content:counter(s);position:absolute;left:-14px;top:8px;width:27px;height:27px;border-radius:8px;background:var(--panel);border:1px solid var(--grid);display:grid;place-items:center;font-family:var(--mono);font-size:11.5px;color:var(--ink);box-shadow:var(--shadow)}
+.steps>div>b{display:block;margin-bottom:2px}
+.steps>div p{margin:2px 0;font-size:14px;color:var(--dim)}
+
+/* 프롬프트 블록 (AI 실습) */
+.prompt{background:color-mix(in srgb,var(--rg-matter) 7%,var(--panel));border:1px dashed color-mix(in srgb,var(--rg-matter) 60%,transparent);border-radius:10px;padding:12px 14px;font-size:13.2px;margin:8px 0;white-space:pre-wrap;line-height:1.55;font-family:var(--sans)}
+.prompt::before{content:"프롬프트 예시 · 그대로 붙여넣기";display:block;font-family:var(--mono);font-size:10.5px;color:var(--rg-matter);letter-spacing:.1em;margin-bottom:6px}
+.prompt .ctx{display:block;font-family:var(--mono);font-size:12px;color:var(--dim);border-left:2px solid color-mix(in srgb,var(--rg-matter) 60%,transparent);padding-left:10px;margin:2px 0 8px}
+
+/* 비교 */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vs>div{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.vs h4{font-size:14px;margin-bottom:6px;font-family:var(--mono);font-weight:500}
+.vs .a h4{color:var(--orange)} .vs .b h4{color:var(--green)}
+@media (max-width:760px){.vs{grid-template-columns:1fr}}
+
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.small{font-size:12.5px;color:var(--dim)}
+.wire{font-family:var(--mono);font-size:12.5px}
+</style>
+<style>
+/* 매뉴얼 전용 소량 추가 (템플릿 토큰만 사용) */
+.formula{font-family:var(--mono);font-size:14px;background:var(--plot);border:1px solid var(--grid);border-radius:10px;padding:12px 16px;margin:8px 0;line-height:1.9}
+.formula b{color:var(--orange);font-weight:600}
+table.spec td:first-child{white-space:nowrap;font-weight:500}
+td .small{display:block}
+.archify{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow);margin:12px 0}
+.archify svg{width:100%;height:auto;display:block}
+.gate{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--red) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--red) 50%,transparent);color:var(--red);font-weight:600}
+.week{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:8px 0}
+.week>div{height:22px;border-radius:5px;background:var(--panel2);font-family:var(--mono);font-size:10px;color:var(--dim);display:grid;place-items:center}
+.week>div.on{background:color-mix(in srgb,var(--wc,var(--blue)) 25%,var(--panel));color:var(--ink);border:1px solid var(--wc,var(--blue))}
+.msg{background:color-mix(in srgb,var(--green) 7%,var(--panel));border:1px dashed color-mix(in srgb,var(--green) 60%,transparent);border-radius:10px;padding:10px 14px;font-size:13.5px;margin:8px 0;white-space:pre-wrap;line-height:1.55}
+.msg::before{content:"알림 문안 예시";display:block;font-family:var(--mono);font-size:10.5px;color:var(--green);letter-spacing:.1em;margin-bottom:6px}
+.week.w14{grid-template-columns:repeat(14,1fr)}
+.prompt .ctx{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand">edge_vision · schoolzone · 프로젝트 개요<b>엣지 AI 통학 시간대<br>교통 위험 모니터링</b></div>
+  <nav class="nav">
+    <div class="grp">들어가며</div>
+    <a href="#overview"><span class="n">0</span>개요 · 필요성 · 범위</a>
+    <a href="#issues" class="sf"><span class="n">!</span>두 문서 사이의 쟁점 · 판단</a>
+    <a href="#system"><span class="n">S</span>시스템 큰그림</a>
+    <a href="#process"><span class="n">P</span>프로세스 맵 · 게이트 4개</a>
+    <a href="#hw" class="s1"><span class="n">H</span>하드웨어 2트랙 · 런타임</a>
+    <a href="#basics" class="s1"><span class="n">K</span>기초 지식 · 용어</a>
+    <div class="grp">설계</div>
+    <a href="#vars" class="s2"><span class="n">1</span>측정 가능성 · 지표 · 연구 질문</a>
+    <a href="#privacy" class="s2"><span class="n">2</span>프라이버시 · GATE 0</a>
+    <a href="#pipeline" class="s3"><span class="n">3</span>Fast / Slow Loop 파이프라인</a>
+    <a href="#modes" class="s3"><span class="n">4</span>운용 대안 · 자원 실측</a>
+    <a href="#schema" class="s3"><span class="n">5</span>DB 스키마 · 수집 페이로드</a>
+    <a href="#insight" class="s3"><span class="n">6</span>분석 · 소셜 임팩트 · UI 설계</a>
+    <div class="grp">구축</div>
+    <a href="#dev" class="s4"><span class="n">7</span>개발 환경 · 저장소 · CLAUDE.md</a>
+    <a href="#stages" class="s4"><span class="n">8</span>구축 단계 R0 ~ R8</a>
+    <div class="grp">마무리</div>
+    <a href="#plan" class="sf"><span class="n">→</span>일정 · 역할 · 완료 기준</a>
+    <a href="#cheat"><span class="n">≡</span>치트시트 · 참고</a>
+  </nav>
+  <div class="theme"><button data-theme="light" class="on">라이트</button><button data-theme="dark">다크</button></div>
+  <div class="foot">v0.2 · 2026-09-14 (현장 기하 반영)<br>palette: hub/web/app.css<br>Jetson Orin Nano Super 8GB (주) · Pi 5 8GB + AI HAT+ 2 (대체)</div>
+</aside>
+
+<main>
+<!-- ======================= HERO ======================= -->
+<header class="hero" id="overview">
+  <div class="eyebrow">EDGE AI · SCHOOL-ZONE RISK MONITOR · SYSTEM · DATA · INSIGHT · AWARENESS</div>
+  <h1>엣지 AI 기반 통학 시간대<br>교통 위험 모니터링 시스템 구축 및 인식 개선 — 프로젝트 개요</h1>
+  <p class="sub"><b>문제:</b> 등교 시간 교문 앞 도로의 과속 · 정차 구역 밖 정차 · 횡단 학생 근접은 체감과 민원만 있고 <b>숫자가 없음</b>. <b>해법:</b> 창 안쪽 엣지 디바이스(Jetson Orin Nano)가 영상을 저장하지 않고 통행을 세어 지표 3개(K1~K3)를 만들고, 위험 이벤트 순간에만 시각-언어 모델(VLM)이 "그 정차가 무엇이었는가"를 한 줄 태그로 붙여 오탐을 줄임. 숫자는 안내판 · 규범 메시지 · 건의서로 돌아가 운전자 · 학부모의 행동과 지자체의 결정을 바꿈. <b>연구:</b> 같은 이벤트에 YOLO 단독 · VLM 단독 · 하이브리드 판정을 나란히 기록해 8GB 엣지 보드에서 하이브리드가 무엇을 더 주고 무엇을 비용으로 치르는지(fps · 지연 · 메모리 · 전력) 실측함. <b>증명:</b> 개입 전 2주와 개입 후를 같은 요일 · 시간대로 비교해 공개함.</p>
+
+  <div class="pipe" aria-label="문제에서 효과까지">
+    <div class="seg on" data-p="1"><div class="dot">WHY</div><div class="lbl">문제 · 가설</div><div class="why">과속 · 정차 · 횡단</div></div>
+    <div class="seg on" data-p="2"><div class="dot">CAM</div><div class="lbl">측정 · 판정</div><div class="why">YOLO 상시 · VLM 이벤트</div></div>
+    <div class="seg on" data-p="3"><div class="dot">KPI</div><div class="lbl">지표 3 + 맥락 1</div><div class="why">K1 · K2 · K3 · C1</div></div>
+    <div class="seg on" data-p="4"><div class="dot">DB</div><div class="lbl">5분 집계 · 추론 기록</div><div class="why">traffic.db</div></div>
+    <div class="seg on" data-p="5"><div class="dot">ACT</div><div class="lbl">개입</div><div class="why">안내판 · 규범 · 건의</div></div>
+    <div class="seg on" data-p="6"><div class="dot">FX</div><div class="lbl">효과 · 검증</div><div class="why">전후 비교 · 벤치 공개</div></div>
+  </div>
+  <p class="small">이 문서의 모든 절은 이 여섯 마디 중 하나에 속함. 절 3 이후의 지도는 파이프라인 마디(CAM · DET · TRK · VLM · DB · ANL · MSG)로 바뀌어 다시 나타남. 이 문서는 <code>docs/index.html</code>로 저장소에 들어가 GitHub Pages의 "프로젝트개요"가 됨.</p>
+  <div class="meta">
+    <span class="tag">관측 대상: 교문 앞 도로 통행 (신원 · 학교 관련 여부 불문)</span><span class="tag">범위 밖: 얼굴 · 번호판 · 학생 여부 · 사고 예측 · 야간</span><span class="tag">주 하드웨어: Jetson Orin Nano Super 8GB + ELP AR0234 글로벌 셔터 USB (2.8-12mm CS)</span><span class="tag">설치 지점: 본관 3층 중앙탑 창 · 교문 정면 축</span><span class="tag">대체 트랙: Pi 5 8GB + AI HAT+ 2 + Camera Module 3</span><span class="tag">원칙: 프레임 무저장 · 텍스트만 저장 · 사람 승인 후 발송</span><span class="tag">개발: 로컬 PC 작업 폴더 + Claude Code + GitHub + 기기 SSH</span>
+  </div>
+</header>
+
+<h3><span class="k">0-1</span>두 문서가 만나는 자리 — 문제 우선 위에 연구 트랙을 얹는다</h3>
+<div class="grid2">
+  <div class="panel" style="margin:0">
+    <b>계승하는 것 (교통카운터 매뉴얼)</b>
+    <p class="small">"모델이 확실히 잴 수 있는 것만 지표로" · 프레임 무저장 · 가상선 · 호모그래피 · 5분 버킷 · QC · 수동 대조 GATE · 검토 큐 · 규범 메시지 · 전후 비교. 이 뼈대는 VLM이 없어도 그대로 돌아가야 하며, <b>VLM이 죽어도 K1~K3는 나온다</b>가 설계의 첫 조건.</p>
+    <b>추가하는 것 (연구 계획서)</b>
+    <p class="small">위험 이벤트 순간에만 도는 Slow Loop(VLM) · YOLO / VLM / HYBRID 3중 기록 · 자원(FPS · 지연 · 메모리 · 전력) 실측 · 안전 지수 · 학술 벤치마크. 계획서의 "동시 적재 가능 · 5.2 GB · 30→24 fps · 오탐 60%↓ · Recall 95%"는 <b>실측 전 가정</b>이므로 이 개요에서는 전부 가설(R1~R3)과 측정 프로토콜로 바꿈.</p>
+    <b>무엇을 바꾸려는가</b>
+    <p class="small">학교가 직접 제어할 장치는 없음. 바꿀 수 있는 것은 운전자 · 학부모의 행동(정보 · 규범 메시지)과 지자체의 결정(정확도가 붙은 건의서). 시스템의 출력은 알림과 리포트이고, 성공은 K1~K3의 변화 + 벤치마크 표 1장으로 정의함.</p>
+  </div>
+  <div>
+    <table class="spec">
+      <tr><th>가설</th><th>내용</th><th>지표 · 검증</th></tr>
+      <tr><td>H1</td><td>등교 시간대 통과 차량 상당수가 30 km/h를 초과한다</td><td>K1</td></tr>
+      <tr><td>H2</td><td>정차 구역 밖 정차가 시야를 가려 횡단 위험을 만든다</td><td>K2</td></tr>
+      <tr><td>H3</td><td>횡단과 차량 통과가 겹치는 순간이 특정 15분에 집중된다</td><td>K3</td></tr>
+      <tr><td>R1</td><td>VLM 태그를 붙이면 "정차 = 위험"으로 세던 오탐(승하차 · 대기 등 정상 정차)이 줄어든다</td><td>C1 · 사람 라벨 대비 FPR</td></tr>
+      <tr><td>R2</td><td>Slow Loop가 돌 때 Fast Loop fps 저하가 QC 임계(15 fps) 안에 머문다</td><td>fps · tegrastats</td></tr>
+      <tr><td>R3</td><td>8GB 통합 메모리에서 YOLO + 2~3B VLM Q4 동시 상주가 스왑 없이 유지된다</td><td>mem · swap · 온도</td></tr>
+    </table>
+    <div class="box key"><span class="lbl">핵심 지표 3개 + 맥락 태그 1개</span>
+      <b>K1</b> 등교 시간대 4륜 차량의 30 km/h 초과 비율 (%) · <b>K2</b> 정차 구역 밖 20초 이상 정차 건수 (건/등교일) · <b>K3</b> 횡단보도에 보행자가 있는 동안 4륜 차량이 2 m 이내로 접근한 건수 (건/등교일, 프록시) · <b>C1</b> K2 이벤트의 정차 사유 태그 분포 (VLM, 고정 선택지 4개, <b>GATE 2 통과 후에만 리포트</b>) · <b>C2</b> 등교 시간 교문 통과(교내 진입 · 진출) 차량 수 (가림 없는 진입로에서, 오차 최소). 정의와 오차는 절 1.</div>
+  </div>
+</div>
+
+<h3><span class="k">0-2</span>범위 — 무엇을 하고, 무엇을 주장하지 않는가</h3>
+<div class="grid3">
+  <div class="metric"><div class="l">기대 효과 · 안전</div><div class="v">K1 · K2 · K3 ↓</div><div class="d">등교 시간 과속 · 위험 정차 · 횡단 중 근접이 줄어드는 것을 숫자로 확인</div></div>
+  <div class="metric"><div class="l">기대 효과 · 연구</div><div class="v">벤치 표 1장</div><div class="d">YOLO / VLM / HYBRID × (FPR · Recall · fps · ms · MB · W) — 같은 이벤트 키로</div></div>
+  <div class="metric"><div class="l">기대 효과 · 제도 · 교육</div><div class="v">건의서 1건 · 발표 1회</div><div class="d">정확도 부록이 붙은 데이터로 지자체와 대화 · 학생이 가설 → 검증 → 공개를 수행</div></div>
+</div>
+<div class="box warn"><span class="lbl">함정 · 이 프로젝트가 주장할 수 없는 것</span>카메라는 "지나가는 차 · 서 있는 차 · 걷는 사람"을 볼 뿐 그 차가 학교 관련인지, 걷는 사람이 학생인지, 어린이인지 모름. VLM이 붙어도 마찬가지 — VLM 태그는 "정차의 모양"(문 열림 · 사람 승하차 동작 · 정지 상태)에 대한 판정이지 신원 · 연령 · 소속에 대한 판정이 아님. 따라서 "학부모 차량의 n%", "어린이 n명", "학원 승합차" 같은 문장은 어떤 리포트에도 쓰지 않음. 계획서 예시 문장 "학원 승합차 어린이 승하차 지도 중"은 이 문서에서 <b>"차량 정차 · 승하차 동작 관찰됨 (tag = boarding)"</b>으로 바뀜.</div>
+
+<!-- ======================= 쟁점 ======================= -->
+<section id="issues">
+  <div class="sec" style="--sc:var(--acc)"><div class="chip"><span class="n">!</span>두 문서 사이의 쟁점 · 이 개요의 판단</div><div class="line"></div><span class="est">착수 전 읽기 15분</span></div>
+  <div class="box why"><span class="lbl">WHY</span>계획서는 <b>모델에서 출발</b>(YOLO + VLM을 8GB에 올려 비교)하고, 카운터 매뉴얼은 <b>문제에서 출발</b>(잴 수 있는 것만 지표로)함. 두 문서를 그대로 합치면 서로 어긋나는 여덟 곳이 있고, 설치 지점 사진을 본 뒤 기하 문제 하나(9번)가 더해짐. 아래 표는 각 쟁점에서 무엇이 확인된 사실이고 무엇이 가정인지 가르고, 이 개요가 택한 결정을 적음. 결정이 마음에 들지 않으면 <b>이 표를 먼저 고친 뒤</b> 뒤의 절을 고칠 것.</div>
+  <table class="spec">
+    <tr><th>#</th><th>쟁점</th><th>계획서</th><th>카운터 매뉴얼</th><th>확인된 사실 · 이 개요의 결정</th></tr>
+    <tr><td>1</td><td><b>Camera Module 3를 Jetson에</b></td><td>RTSP 1080p30 카메라 가정</td><td>Pi 5 + CM3 (picamera2 · 22핀)</td><td>CM3(IMX708)는 Jetson 공식 지원 센서가 아님. 커뮤니티 드라이버(RidgeRun)가 있으나 JetPack 5.1.1 / 6.0 커널 패치 기준이고 단일 모드(4608×2592 @ 14 fps)만 제공 → 현재 보드의 JetPack 7.2.1(커널 6.8)에는 그대로 적용되지 않을 가능성이 큼. <b>결정:</b> Jetson 트랙은 <b>USB UVC 카메라</b>(무드라이버 · 1080p30 · 오토포커스 끔) 또는 <b>IMX477 / IMX219 CSI</b>(네이티브 드라이버)로 시작하고, CM3는 Pi 트랙 전용. CM3를 Jetson에 반드시 써야 한다면 R1에서 <b>1일 한도</b>로 시도하고 실패 시 되돌림.</td></tr>
+    <tr><td>2</td><td><b>JetPack 버전</b></td><td>"JetPack 6 세팅, NanoLLM"</td><td>—</td><td>보유 보드는 JetPack 7.2.1(L4T r39.2.1 · Ubuntu 24.04 · CUDA 13 · TensorRT 10.x · Python 3.12)이 이미 설치됨. JetPack 6 시대 자료(jetson-containers · NanoLLM · cu126 휠)는 그대로 쓰이지 않고, TensorRT 엔진은 <b>보드에서 다시 빌드</b>해야 함. <b>결정:</b> 계획서의 1단계 "OS 세팅"을 "<b>JetPack 7.2.1 위에서 툴체인 검증</b>"으로 바꾸고 R1에 1주를 줌. VLM 런타임은 NanoLLM 대신 <b>llama.cpp(CUDA 빌드)</b>를 1순위, Ollama(arm64 CUDA)를 2순위로 실측 후 선택.</td></tr>
+    <tr><td>3</td><td><b>수치의 출처</b></td><td>5.2 GB 점유 · 30→24 fps · GPU 42→85% · FPR 60%↓ · Recall ≥ 95%</td><td>"수동 대조 ≤ 10% 통과 뒤에만 보고"</td><td>계획서 수치는 어느 것도 이 보드에서 잰 값이 아님(문헌 · 추정치). 8GB는 OS · 데스크톱 · CUDA 컨텍스트 · 카메라 버퍼와 <b>공유</b>되므로 "모델 파일 크기의 합"으로 판단할 수 없음. <b>결정:</b> 모두 절 4의 <b>실측 프로토콜</b>로 대체. 목표치는 "Fast Loop ≥ 15 fps(QC 임계) · 스왑 0 · VLM 이벤트당 ≤ 4 s · 정상 정차 오탐 감소를 사람 라벨로 확인"으로 낮춰 잡음. 95% Recall은 목표가 아니라 <b>측정 결과</b>임.</td></tr>
+    <tr><td>4</td><td><b>스몸비 · 승하차 지도 · 사각지대 궤적</b></td><td>VLM이 정황 판정 (핵심 위험 트리거)</td><td>"모델이 확실히 잴 수 있는 것만"</td><td>2~3층 창에서 본 보행자의 "고개 숙임 · 스마트폰"은 원경 · 저해상(얼굴 판독 불가 거리)이라는 프라이버시 전제와 정면 충돌하고 측정 가능성 등급이 <b>낮음</b>. <b>결정:</b> 스몸비 · 어린이 관련 판정은 <b>제외</b>. VLM의 역할은 <b>K2 정차 이벤트의 사유 태그(C1)</b> 하나로 좁힘 — 고정 선택지 <code>boarding · waiting · delivery · other</code>. 사각지대 궤적은 K3 기하(거리 · 시간)로만 다룸.</td></tr>
+    <tr><td>5</td><td><b>2안 · 원본 영상 녹화 후 순차 벤치마크</b></td><td>RTSP → NVMe에 H.264 저장, 3회 재실행</td><td>영상 · 이미지 파일 저장 금지 (디버그 포함)</td><td>학교 창에서 공공 도로를 녹화해 보관하는 것은 GATE 0 자체를 통과하지 못할 가능성이 큼. <b>결정:</b> 운영 카메라로는 <b>어떤 모드에서도 녹화 없음</b>. 순차 벤치마크가 필요하면 (a) 교직원 · 학생 자원자가 연출한 <b>통제 세션</b>(학교 안 도로 · 참여 동의 · 암호화 · 세션 후 30일 폐기)이나 (b) <b>공개 교통 영상 데이터셋</b>으로만 함. 1안(섀도 로깅)이 기본이며, 이것만으로 3중 기록이 되므로 2안 없이도 논문 표는 채워짐(자원 경합이 있는 상태의 벤치라는 것을 명시).</td></tr>
+    <tr><td>6</td><td><b>VLM 묘사 텍스트</b></td><td>"한국어 정황 묘사"를 DB에 저장 · CQA 점수 평가</td><td>"특정 차량 · 특정 사람 언급 없음"</td><td>자유 문장은 색 · 차종 · 인상착의 · 연령 추정을 담기 쉬워 텍스트여도 식별 정보가 됨. <b>결정:</b> VLM 출력은 <b>JSON 고정 선택지</b>만 저장(<code>tag · confidence · door_open · person_near</code>). 자유 묘사는 개발 중 화면 확인용으로만 쓰고 DB에 넣지 않음. 금칙어 필터(색상 · 차종 · 성별 · 연령 · 번호판 패턴)를 <code>PARSE</code>에 둠.</td></tr>
+    <tr><td>7</td><td><b>일정에 게이트가 없음</b></td><td>10주 · 1~5단계 직선</td><td>12주 · GATE 0/1/2 · 실패 시 되돌아감</td><td>VLM 판정을 사람 라벨과 대조하는 절차가 계획서에 없고(<code>is_ground_truth_hazard</code>만 NULLABLE로 존재), 그것 없이는 FPR · Recall을 계산할 수 없음. <b>결정:</b> 게이트를 4개로(G0 협의 · G1 수동 대조 · <b>G2 VLM 판정 검증</b> · G3 발송 승인) 늘리고 14주로 다시 짬. 사람 라벨은 <b>창가 실시간 육안 기록</b>으로 만듦(영상 없이도 가능한 유일한 방법).</td></tr>
+    <tr><td>8</td><td><b>단일 테이블</b></td><td><code>traffic_monitoring_events</code> 한 장에 모델별 행</td><td>10개 테이블 · 5분 버킷 · 이벤트 · QC · 검증 · 검토 큐</td><td>한 이벤트에 3개 모델 결과와 사람 라벨이 붙으므로 "이벤트"와 "추론"과 "라벨"은 다른 표여야 조인이 됨. <b>결정:</b> 카운터의 10개 표를 그대로 두고 <b>inferences · labels · bench_runs</b> 3개를 추가(절 5). 계획서의 단일 표는 <code>VIEW</code>로 제공해 분석 코드의 편의는 유지.</td></tr>
+    <tr><td>9</td><td><b>설치 지점의 기하</b> (사진 확인 후 추가)</td><td>RTSP 카메라 위치 미정</td><td>2~3층 창 · 20~40° 사선 · 8~15 m 가상선 구간</td><td>항공사진으로 보면 카메라(3층 중앙탑 창)는 교문 정면 축 위에 있고 도로는 교문 너머 좌우 방향. 사진 축척 추정으로 교문까지 30~40 m, 도로 중심까지 45~55 m로 진술(20 m)과 차이가 크며, 시선 각은 약 11°로 권장보다 얕음. 교문 기둥과 담장 가로수가 좌우 도로를 가려 <b>도로는 교문 틈(11~15 m)으로만</b> 보이고, 두 횡단보도는 축에서 비켜 가로수 뒤일 가능성. <b>결정:</b> ① 거리를 지도 거리 재기로 실측한 뒤 렌즈 초점거리 확정(절 H-04) ② 가림 없는 <b>교내 진입로</b>를 K2와 교문 통과 차량 수(C2)의 주 관측 구간으로 승격 ③ K1 가상선은 교문 틈 안에 ④ K3는 R1 시험 캡처에서 횡단보도 가시성을 확인한 뒤 채택/보류를 결정.</td></tr>
+  </table>
+  <div class="box tip"><span class="lbl">TIP · 한 줄 요약</span>"YOLO가 세고, VLM은 정차 사유만 태그하고, 사람이 라벨하고, 숫자는 5분 버킷에만 남는다." 이 한 줄에서 벗어나는 요구(스몸비 · 녹화 · 자유 묘사)는 프라이버시 담당자에게 가기 전에 여기서 걸러짐.</div>
+</section>
+
+<!-- ======================= S ======================= -->
+<section id="system">
+  <div class="sec" style="--sc:var(--cyan)"><div class="chip"><span class="n">S</span>시스템 큰그림 — 컴포넌트와 데이터 흐름</div><div class="line"></div><span class="est">읽기 10분</span></div>
+  <p class="small">상자 안은 코드명, 이름은 상자 바깥. 회색 점선 = 엣지 보드 한 대 안(Jetson 또는 Pi), 붉은 점선 = 영상이 존재하는 두 구간(프레임 · 크롭, 모두 메모리). 카운터 매뉴얼의 지도에 <code>QUE · VLM · MON</code> 세 상자와 <code>inferences</code> 층이 추가된 것이 전부이며, 초록 경로만으로도 K1~K3가 나옴.</p>
+  <div class="archify"><svg viewBox="0 0 1200 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="시스템 큰그림"
+ style="font-family:var(--mono);font-size:15px">
+<defs>
+ <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--dim)"/></marker>
+ <marker id="ah-e" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--green)"/></marker>
+ <marker id="ah-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--red)"/></marker>
+ <marker id="ah-p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--purple)"/></marker>
+ <pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" style="fill:none;stroke:var(--grid);stroke-width:.5"/></pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#gr)"/>
+<rect x="190" y="30" width="830" height="600" rx="12" style="fill:var(--panel2);stroke:var(--grid);stroke-width:1.2;stroke-dasharray:6 6"/><text x="204" y="52" style="fill:var(--dim);font-size:13px;font-weight:600;letter-spacing:.06em">EDGE DEVICE · Jetson Orin Nano Super 8GB (대체: Pi 5 8GB + AI HAT+ 2)</text><rect x="200" y="62" width="300" height="128" rx="12" style="fill:none;stroke:var(--red);stroke-width:1.2;stroke-dasharray:5 4"/><text x="204" y="204" text-anchor="start" style="fill:var(--red);font-size:12px;font-family:var(--mono)">프레임 존재 구간 · 메모리만 · 파일 없음</text><rect x="540" y="202" width="310" height="112" rx="12" style="fill:none;stroke:var(--red);stroke-width:1.2;stroke-dasharray:5 4"/><text x="544" y="328" text-anchor="start" style="fill:var(--red);font-size:12px;font-family:var(--mono)">VLM 크롭 · 메모리만 · 처리 후 폐기</text><rect x="30" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--gray);stroke-width:1.8"/><text x="92.0" y="113.0" text-anchor="middle" style="fill:var(--gray);font-size:18px;font-weight:600">ROAD</text><text x="92.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">교문 앞 도로 · 관측 대상</text><rect x="215" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="277.0" y="107.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">CAM</text><text x="277.0" y="127.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">15~30 fps</text><text x="277.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">카메라 · 창 안쪽</text><rect x="365" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="427.0" y="107.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">DET</text><text x="427.0" y="127.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">TRT / .hef</text><text x="427.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">검출 · YOLO11</text><rect x="555" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--cyan);stroke-width:1.8"/><text x="617.0" y="107.0" text-anchor="middle" style="fill:var(--cyan);font-size:18px;font-weight:600">TRK</text><text x="617.0" y="127.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">ByteTrack · H행렬</text><text x="617.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">추적 · 가상선 · 이벤트</text><rect x="715" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="777.0" y="113.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">ACC</text><text x="777.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">5분 집계 · QC</text><rect x="870" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--blue);stroke-width:1.8"/><text x="932.0" y="107.0" text-anchor="middle" style="fill:var(--blue);font-size:18px;font-weight:600">DB</text><text x="932.0" y="127.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">버킷·이벤트·추론</text><text x="932.0" y="70" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">traffic.db (SQLite WAL)</text><rect x="1050" y="80" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--gray);stroke-width:1.8"/><text x="1112.0" y="113.0" text-anchor="middle" style="fill:var(--gray);font-size:18px;font-weight:600">EXT</text><text x="1112.0" y="152" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">기상청 · 학사일정</text><rect x="555" y="220" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="617.0" y="247.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">QUE</text><text x="617.0" y="267.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">Queue(8)</text><text x="617.0" y="292" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">비동기 큐 · 이벤트 크롭</text><rect x="715" y="220" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="777.0" y="247.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">VLM</text><text x="777.0" y="267.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">Q4 · JSON enum</text><text x="777.0" y="292" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">맥락 판정 · Qwen-VL</text><rect x="365" y="220" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="427.0" y="247.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">MON</text><text x="427.0" y="267.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">tegrastats · 전력</text><text x="427.0" y="292" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">자원 계측</text><rect x="555" y="380" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="617.0" y="407.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">ANL</text><text x="617.0" y="427.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">systemd timer</text><text x="617.0" y="452" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">배치 분석 · M0~M4 · 벤치</text><rect x="715" y="380" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="777.0" y="407.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">LLM</text><text x="777.0" y="427.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">숫자 검증기</text><text x="777.0" y="452" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">로컬 LLM · 리포트 초안</text><rect x="870" y="380" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--blue);stroke-width:1.8"/><text x="932.0" y="407.0" text-anchor="middle" style="fill:var(--blue);font-size:18px;font-weight:600">WEB</text><text x="932.0" y="427.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">공개/관리 포트</text><text x="932.0" y="452" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">FastAPI + React</text><rect x="870" y="520" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--acc);stroke-width:1.8"/><text x="932.0" y="547.0" text-anchor="middle" style="fill:var(--acc);font-size:18px;font-weight:600">MSG</text><text x="932.0" y="567.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">outbox: approved</text><text x="932.0" y="592" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">발송 · 승인된 것만</text><rect x="1050" y="440" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--gray);stroke-width:1.8"/><text x="1112.0" y="473.0" text-anchor="middle" style="fill:var(--gray);font-size:18px;font-weight:600">PPL</text><text x="1112.0" y="512" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">운전자 · 학부모 · 지자체</text><path d="M 154 107 L 212 107" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 339 107 L 362 107" style="fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4" marker-end="url(#ah-r)"/><text x="352" y="72" text-anchor="middle" style="fill:var(--red);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">frame</text><path d="M 489 107 L 552 107" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><text x="522" y="72" text-anchor="middle" style="fill:var(--green);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">box · track_id</text><path d="M 679 107 L 712 107" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><text x="697" y="72" text-anchor="middle" style="fill:var(--green);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">통과 · 정차 · 근접</text><path d="M 839 107 L 867 107" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 1050 107 L 997 107" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 427 220 L 427 165 L 777 165 L 777 137" style="fill:none;stroke:var(--dim);stroke-width:1.2;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 427 134 L 427 217" style="fill:none;stroke:var(--dim);stroke-width:1.2;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 617 134 L 617 217" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><text x="668" y="196" text-anchor="middle" style="fill:var(--purple);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">이벤트 시 크롭</text><path d="M 679 247 L 712 247" style="fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4" marker-end="url(#ah-r)"/><path d="M 839 247 L 960 247 L 960 137" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><text x="990" y="205" text-anchor="middle" style="fill:var(--purple);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">tag · latency · mem</text><path d="M 932 134 L 932 377" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><text x="952" y="340" text-anchor="middle" style="fill:var(--dim);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">read</text><path d="M 892 134 L 892 345 L 617 345 L 617 377" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 679 407 L 712 407" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><text x="697" y="372" text-anchor="middle" style="fill:var(--dim);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">집계 JSON</text><path d="M 839 407 L 867 407" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><text x="853" y="372" text-anchor="middle" style="fill:var(--purple);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">outbox draft</text><path d="M 932 434 L 932 517" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><text x="975" y="492" text-anchor="middle" style="fill:var(--green);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">사람 승인</text><path d="M 994 407 L 1112 407 L 1112 437" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><text x="1050" y="400" text-anchor="middle" style="fill:var(--dim);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">공개 카드</text><path d="M 994 547 L 1022 547 L 1022 467 L 1047 467" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><text x="1075" y="551" text-anchor="middle" style="fill:var(--dim);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">승인된 알림</text><text x="30" y="645" text-anchor="start" style="fill:var(--foot);font-size:12px;font-family:var(--mono)">초록 = 상시 실시간 경로(Fast Loop) · 보라 = 이벤트 시 비동기 경로(Slow Loop) · 붉은 점선 = 영상 프레임이 존재하는 유일한 구간 · 이미지 파일은 어디에도 없음</text></svg></div>
+  <h3>컴포넌트 설명표 (지도의 코드명 순)</h3>
+  <table class="spec">
+    <tr><th>코드</th><th>이름</th><th>역할</th><th>Jetson 트랙</th><th>Pi 트랙</th><th>산출물 (저장되는 것)</th></tr>
+    <tr><td>CAM</td><td>카메라 · 창 안쪽</td><td>2~3층 창 안쪽 사선 구도, 1280×720 · 15~30 fps, 프레임은 메모리에서만</td><td>USB UVC(V4L2) 또는 IMX477/219(nvarguscamerasrc)</td><td>Camera Module 3 (picamera2)</td><td>없음</td></tr>
+    <tr><td>DET</td><td>검출</td><td>YOLO11n/s · COCO 6종 → veh4 · two_wheel · person 묶음</td><td>TensorRT FP16 <code>.engine</code> (ultralytics export, 보드에서 빌드)</td><td>Hailo-10H <code>.hef</code></td><td>상자 + 클래스 (메모리)</td></tr>
+    <tr><td>TRK</td><td>추적 · 가상선 · 이벤트</td><td>ByteTrack · 호모그래피 · 가상선 A/B · dwell/conflict 판정 · 이벤트 시 크롭을 큐로</td><td colspan="2">공통 Python (<code>trafficsvc/counter</code>) — 백엔드 무관</td><td>이벤트 · 5분 누적기</td></tr>
+    <tr><td>QUE</td><td>비동기 큐</td><td>이벤트 크롭 + 메타를 상한 8개까지 보관, 넘치면 오래된 것부터 버림(<code>dropped</code> 카운트)</td><td colspan="2">공통 (asyncio.Queue / 스레드)</td><td>없음 (드롭 수만 QC에)</td></tr>
+    <tr><td>VLM</td><td>맥락 판정</td><td>크롭 1장 + 고정 프롬프트 → JSON 태그. 처리 후 크롭 폐기</td><td>Qwen2.5-VL 3B / Qwen3-VL 2B GGUF Q4 · llama.cpp(CUDA) 서버</td><td>Hailo GenAI VLM (지원 시) 또는 CPU llama.cpp (배치)</td><td><code>inferences</code> 행 (텍스트)</td></tr>
+    <tr><td>MON</td><td>자원 계측</td><td>1 Hz로 GPU · RAM · 스왑 · 전력 · 온도 · 콜백 fps를 읽어 5분 QC 행과 벤치 실행 행에 붙임</td><td><code>tegrastats</code> / jtop</td><td><code>vcgencmd</code> · <code>hailortcli monitor</code></td><td><code>qc_5min</code> · <code>bench_runs</code></td></tr>
+    <tr><td>ACC</td><td>5분 집계 · QC</td><td>버킷 flush, 표본 &lt; 5면 null, calib_ver · qc 비트</td><td colspan="2">공통</td><td><code>counts_5min · ped_5min · events · qc_5min</code></td></tr>
+    <tr><td>DB</td><td>traffic.db</td><td>카운터 10개 표 + inferences · labels · bench_runs · VIEW</td><td colspan="2">SQLite WAL (단일 writer = trafficsvc)</td><td>표 13개 (절 5)</td></tr>
+    <tr><td>EXT</td><td>외부 데이터</td><td>기상청 강수 · 기온, 학사일정</td><td colspan="2">API · 수기 캘린더 (timer)</td><td><code>ext_wx · school_cal</code></td></tr>
+    <tr><td>ANL</td><td>배치 분석 · 벤치</td><td>M0~M4(카운터) + B1 혼동행렬 · B2 자원 곡선 · 안전지수</td><td colspan="2">systemd timer (야간)</td><td><code>analysis</code> · 주간 집계 JSON</td></tr>
+    <tr><td>LLM</td><td>로컬 LLM</td><td>집계 JSON → 리포트 문장 초안 · 숫자 검증기</td><td>같은 llama.cpp 서버의 텍스트 모델 (야간)</td><td>Hailo GenAI 또는 CPU</td><td>outbox draft</td></tr>
+    <tr><td>WEB</td><td>FastAPI + React</td><td>공개 카드 · 차트 · 벤치 뷰 · 검토 큐 · 라벨 입력 · PDF</td><td colspan="2">공개 포트 / 관리 포트 분리 (Mealboard 규칙)</td><td>—</td></tr>
+    <tr><td>MSG</td><td>발송</td><td>outbox status = approved 만 채널별 발송</td><td colspan="2">텔레그램 봇 · 안내판 텍스트 · PDF</td><td>발송 로그</td></tr>
+    <tr><td>PPL</td><td>이해관계자</td><td>운전자 · 학부모 · 학생안전부 · 지자체 · 경찰 — 숫자를 받아 행동 · 결정을 바꾸는 사람</td><td colspan="2">—</td><td>피드백 (전후 비교 대상)</td></tr>
+  </table>
+  <div class="box tip"><span class="lbl">TIP · 백엔드 경계는 두 곳뿐</span>Jetson과 Pi에서 달라지는 코드는 <code>detect/</code>(TensorRT vs Hailo)와 <code>vlm/</code>(llama.cpp vs Hailo GenAI) 두 패키지의 백엔드 클래스뿐. 카메라는 OpenCV/GStreamer/picamera2 소스를 <code>capture/</code>에서 같은 제너레이터 인터페이스로 감쌈. 나머지(추적 · 지표 · 집계 · DB · 웹 · 배치)는 한 벌.</div>
+</section>
+
+<!-- ======================= P ======================= -->
+<section id="process">
+  <div class="sec" style="--sc:var(--cyan)"><div class="chip"><span class="n">P</span>프로세스 맵 — 사람 게이트 4개와 되돌아가는 길</div><div class="line"></div><span class="est">읽기 10분</span></div>
+  <p class="small">문제 확인(1주 관찰)이 맨 앞에 오고, <span class="gate">GATE 0</span> <span class="gate">GATE 1</span> <span class="gate">GATE 2</span> <span class="gate">GATE 3</span> 네 곳은 사람이 통과를 결정함. 카운터 매뉴얼의 게이트 3개에 <b>GATE 2 · VLM 판정 검증</b>이 끼어든 것이 차이. VLM 트랙(R5)은 GATE 1을 지난 뒤에만 시작 — 지표가 먼저, 연구가 그 위에.</p>
+  <div class="archify"><svg viewBox="0 0 1200 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="프로세스 맵 · 게이트 4개"
+ style="font-family:var(--mono);font-size:15px">
+<defs>
+ <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--dim)"/></marker>
+ <marker id="ah-e" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--green)"/></marker>
+ <marker id="ah-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--red)"/></marker>
+ <marker id="ah-p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--purple)"/></marker>
+ <pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" style="fill:none;stroke:var(--grid);stroke-width:.5"/></pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#gr)"/>
+<rect x="40" y="60" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--gray);stroke-width:1.8"/><text x="98.0" y="93.0" text-anchor="middle" style="fill:var(--gray);font-size:18px;font-weight:600">OBS</text><text x="98.0" y="132" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">문제 확인 · 1주 관찰</text><polygon points="292.0,54 360,87.0 292.0,120 224,87.0" style="fill:color-mix(in srgb,var(--red) 10%,var(--panel));stroke:var(--red);stroke-width:1.8"/><text x="292.0" y="93.0" text-anchor="middle" style="fill:var(--red);font-size:16px;font-weight:700">G0</text><text x="292.0" y="46" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">협의 · 승인 · 안내문</text><rect x="428" y="60" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="486.0" y="93.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">R1</text><text x="486.0" y="132" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">런타임 · 카메라 · 캡처</text><rect x="622" y="60" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="680.0" y="93.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">R2</text><text x="680.0" y="50" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">검출 · 추적 · 지표</text><rect x="816" y="60" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="874.0" y="93.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">R3</text><text x="874.0" y="132" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">5분 집계 · QC · 서비스</text><polygon points="1068.0,54 1136,87.0 1068.0,120 1000,87.0" style="fill:color-mix(in srgb,var(--red) 10%,var(--panel));stroke:var(--red);stroke-width:1.8"/><text x="1068.0" y="93.0" text-anchor="middle" style="fill:var(--red);font-size:16px;font-weight:700">G1</text><text x="1068.0" y="46" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">수동 대조 ≤ 10%</text><path d="M 156 87 L 221 87" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 360 87 L 425 87" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 544 87 L 619 87" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 738 87 L 813 87" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 932 87 L 997 87" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><rect x="40" y="290" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="98.0" y="323.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">R5</text><text x="98.0" y="280" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">VLM Slow Loop · 벤치</text><polygon points="292.0,284 360,317.0 292.0,350 224,317.0" style="fill:color-mix(in srgb,var(--red) 10%,var(--panel));stroke:var(--red);stroke-width:1.8"/><text x="292.0" y="323.0" text-anchor="middle" style="fill:var(--red);font-size:16px;font-weight:700">G2</text><text x="292.0" y="276" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">VLM 판정 검증</text><rect x="428" y="290" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--blue);stroke-width:1.8"/><text x="486.0" y="323.0" text-anchor="middle" style="fill:var(--blue);font-size:18px;font-weight:600">R6</text><text x="486.0" y="280" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">대시보드 · 배치 · 알림</text><polygon points="680.0,284 748,317.0 680.0,350 612,317.0" style="fill:color-mix(in srgb,var(--red) 10%,var(--panel));stroke:var(--red);stroke-width:1.8"/><text x="680.0" y="323.0" text-anchor="middle" style="fill:var(--red);font-size:16px;font-weight:700">G3</text><text x="680.0" y="276" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">발송 승인</text><rect x="816" y="290" width="116" height="54" rx="10" style="fill:var(--panel);stroke:var(--acc);stroke-width:1.8"/><text x="874.0" y="323.0" text-anchor="middle" style="fill:var(--acc);font-size:18px;font-weight:600">FX</text><text x="874.0" y="362" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">전후 비교 · 공개 · 건의</text><path d="M 156 317 L 221 317" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 360 317 L 425 317" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 544 317 L 609 317" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 748 317 L 813 317" style="fill:none;stroke:var(--dim);stroke-width:1.6;stroke-dasharray:none" marker-end="url(#ah)"/><path d="M 1068.0 120 L 1068.0 200 L 18 200 L 18 317 L 37 317" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><text x="600" y="194" text-anchor="middle" style="fill:var(--green);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">GATE 1 통과 → baseline 2주 시작 · VLM 트랙 착수</text><path d="M 1098.0 120 L 1098.0 160 L 680.0 160 L 680.0 117" style="fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4" marker-end="url(#ah-r)"/><text x="876.0" y="176" text-anchor="middle" style="fill:var(--red);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">실패 → 구도 · 가상선 · 임계값 재보정 (calib_ver ↑)</text><path d="M 292.0 350 L 292.0 390 L 98.0 390 L 98.0 347" style="fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4" marker-end="url(#ah-r)"/><text x="197.0" y="406" text-anchor="middle" style="fill:var(--red);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">실패 → 트리거 · 프롬프트 · 모델 교체 (prompt_ver ↑)</text><path d="M 680.0 350 L 680.0 390 L 486.0 390 L 486.0 347" style="fill:none;stroke:var(--red);stroke-width:1.6;stroke-dasharray:5 4" marker-end="url(#ah-r)"/><text x="585.0" y="406" text-anchor="middle" style="fill:var(--red);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">반려 → 초안 수정</text><text x="40" y="455" text-anchor="start" style="fill:var(--foot);font-size:12.5px;font-family:var(--sans)">GATE = 사람이 통과를 결정. G0 카메라를 켜기 전 · G1 K1~K3가 리포트에 실리기 전 · G2 VLM 태그가 리포트에 실리기 전 · G3 발송 전.</text><text x="40" y="477" text-anchor="start" style="fill:var(--foot);font-size:12.5px;font-family:var(--sans)">LLM · VLM은 어느 게이트도 스스로 열지 못함. R4(수동 대조 프로토콜)는 G1 안에 포함.</text></svg></div>
+  <div class="grid4">
+    <div class="metric"><div class="l">GATE 0 · 협의 · 승인</div><div class="v">켜기 전</div><div class="d">개인정보 담당 확인 · 교육청 지침 · 안내문 게시 · 구도 승인 · <b>VLM 크롭 처리 방식과 통제 세션 여부</b>를 설계서에 명시</div></div>
+    <div class="metric"><div class="l">GATE 1 · 수동 대조</div><div class="v">오차 ≤ 10%</div><div class="d">15분 × 10회 육안 카운트 vs 자동. 속도 ±3 km/h. 넘으면 구도 · 가상선 · 임계값 재보정 (calib_ver ↑)</div></div>
+    <div class="metric"><div class="l">GATE 2 · VLM 판정 검증</div><div class="v">정밀도 ≥ 0.7</div><div class="d">K2 이벤트 ≥ 60건에 대해 창가 실시간 육안 라벨 vs VLM 태그. 미달이면 트리거 · 프롬프트 · 모델 교체 (prompt_ver ↑). 통과 전 C1은 리포트 금지</div></div>
+    <div class="metric"><div class="l">GATE 3 · 검토 · 승인</div><div class="v">발송 전</div><div class="d">알림 · 리포트는 담당 교사가 검토 큐에서 승인해야 나감. LLM 초안은 승인 대상일 뿐</div></div>
+  </div>
+  <table class="spec">
+    <tr><th>단계</th><th>주차</th><th>산출물</th><th>완료 기준</th><th>절</th></tr>
+    <tr><td>문제 확인</td><td>1</td><td>1주 관찰 로그 · 가설 H1~H3 · R1~R3 확정 · 카메라 결정(쟁점 1)</td><td>문제 진술 1장에 담당 교사 서명</td><td>0 · !</td></tr>
+    <tr><td>준비 · GATE 0</td><td>1~2</td><td>승인 문서 · 안내문 · JetPack 7.2.1 툴체인 검증 · 창 조준</td><td>GATE 0 통과 · 30분 무저장 실행 로그 · TensorRT 엔진 빌드 성공</td><td>H · R1</td></tr>
+    <tr><td>구현 + 검증</td><td>3~6</td><td>검출 · 추적 · 가상선 · 속도 · 5분 집계 · 수동 대조표</td><td>Fast Loop ≥ 15 fps · 속도 ±3 km/h · GATE 1 통과</td><td>R2 · R3 · R4</td></tr>
+    <tr><td>연구 트랙</td><td>6~9</td><td>Slow Loop · 자원 실측표 · 육안 라벨 60건 · 혼동행렬</td><td>GATE 2 통과 · 벤치 표 초안</td><td>R5</td></tr>
+    <tr><td>운영 + 전달</td><td>8~14</td><td>baseline 2주 · 대시보드 · 배치 · 알림 · LLM 리포트 · 개입 2회</td><td>주간 리포트 3회 · 전후 비교 1건 · 건의서 초안 · 벤치 표 공개</td><td>R6 · R7 · FX</td></tr>
+    <tr><td>이식 (선택)</td><td>12~14</td><td>Pi 5 + AI HAT+ 2 백엔드 · 같은 DB · 같은 UI</td><td>같은 통제 세션에서 두 보드 벤치 표 1장</td><td>R8</td></tr>
+  </table>
+</section>
+
+<!-- ======================= H ======================= -->
+<section id="hw">
+  <div class="sec" style="--sc:var(--cyan)"><div class="chip"><span class="n">H</span>하드웨어 2트랙 · 런타임 · 세팅</div><div class="line"></div><span class="est">준비 1~2주</span></div>
+  <div class="box why"><span class="lbl">WHY</span>두 보드는 "같은 일을 다른 가속기로" 함. 본 프로젝트는 Jetson으로 구축하고, Pi 트랙은 백엔드 두 개만 갈아 끼워 같은 DB · 같은 UI로 돌리는 <b>이식 실험</b>. 그래서 처음부터 백엔드 경계(<code>detect/</code> · <code>vlm/</code> · <code>capture/</code>)를 코드에 그어 둠. 아래 표의 "실측"은 R1에서 채움.</div>
+  <h3><span class="k">01</span>트랙 비교표</h3>
+  <table class="spec">
+    <tr><th>항목</th><th>Jetson 트랙 (본 프로젝트)</th><th>Pi 트랙 (이식)</th><th>비고</th></tr>
+    <tr><td>보드</td><td>Jetson Orin Nano Super 8GB 개발킷 · NVMe 부팅 · JetPack 7.2.1</td><td>Raspberry Pi 5 8GB + AI HAT+ 2 (Hailo-10H, 8GB) · Trixie · <code>hailo-h10-all</code></td><td>Pi는 운영 중인 Mealboard Pi와 <b>별도</b> 장비</td></tr>
+    <tr><td>메모리</td><td>8GB LPDDR5 <b>통합</b> — OS · CUDA 컨텍스트 · 카메라 버퍼 · 두 모델이 한 풀을 나눔</td><td>Pi RAM 8GB + HAT 전용 8GB — 검출/LLM은 HAT 메모리, 파이썬은 Pi RAM</td><td>Jetson은 데스크톱을 끄고(<code>multi-user.target</code>) 실측 시작</td></tr>
+    <tr><td>검출</td><td>YOLO11n/s → ONNX → TensorRT FP16 <code>.engine</code> (보드에서 빌드, JetPack 버전 종속)</td><td>Model Zoo YOLOv8/11 <code>.hef</code></td><td>커스텀 학습은 마지막에</td></tr>
+    <tr><td>추적</td><td colspan="2">ByteTrack (supervision) — 공통</td><td>track 단위 카운트</td></tr>
+    <tr><td>VLM</td><td>Qwen2.5-VL-3B 또는 Qwen3-VL-2B GGUF Q4 · llama.cpp CUDA 서버(<code>llama-server --mmproj</code>) · 대안 Ollama</td><td>Hailo GenAI VLM (지원 모델 한정) 또는 CPU llama.cpp 야간 배치</td><td>실측 tok/s · 이벤트당 ms 로 결정</td></tr>
+    <tr><td>텍스트 LLM</td><td>Qwen2.5 1.5B/3B Q4 · 같은 llama.cpp (야간)</td><td>Hailo GenAI 또는 Ollama CPU</td><td>카운터 매뉴얼 절 4 계승</td></tr>
+    <tr><td>카메라</td><td><b>ELP AR0234 2.3MP 컬러 글로벌 셔터 USB (UVC · MJPEG) + 2.8-12mm CS 가변 렌즈</b> — 실측 거리에 맞춰 초점거리 고정 후 링 나사 잠금. <span class="gate">CM3 비권장</span></td><td>Camera Module 3 (22핀 mini FPC)</td><td>쟁점 1 · 9 · 절 H-04</td></tr>
+    <tr><td>전력 · 발열</td><td>25 W 모드(MAXN SUPER) · 팬 상시 · <code>tegrastats</code>로 전력 읽기</td><td>27 W PD · Active Cooler</td><td>발열 throttling은 QC 비트</td></tr>
+    <tr><td>저장</td><td>NVMe (DB · 모델 · 로그) — 영상 없음</td><td>microSD 64GB A2</td><td><code>find</code> 결과 항상 0건</td></tr>
+    <tr><td>원격</td><td>SSH (Tailscale 노드 추가) · Claude Code 원격 세션</td><td>SSH (기존 rspi 방식 · 학교망 제약은 Mealboard CLAUDE.md 참고)</td><td>절 7</td></tr>
+  </table>
+
+  <h3><span class="k">02</span>Jetson 런타임 세팅 (R1 · 문서 순서대로)</h3>
+  <span class="ftag">scripts/setup_jetson.sh · 핵심만 (sudo 는 사람이)</span>
+<pre><code data-lang="sh"># 0) 현재 상태 확인 — 계획서의 "JetPack 6" 가정을 여기서 깸
+cat /etc/nv_tegra_release            # R39 (rel 39.2.x) 이면 JetPack 7.2.x
+apt list --installed 2>/dev/null | grep -E "nvidia-jetpack|tensorrt|cuda-toolkit"
+python3 --version                    # 3.12
+# 1) 전력 모드 · 데스크톱 끄기 · 계측 도구
+sudo nvpmodel -q ; sudo nvpmodel -m 0 ; sudo jetson_clocks      # MAXN SUPER 여부는 -q 출력에서 확인
+sudo systemctl set-default multi-user.target && sudo reboot     # GUI 메모리 반환 (필요 시 graphical 로 복귀)
+sudo pip3 install -U jetson-stats && jtop                        # 메모리 · 전력 · 온도 한눈에
+# 2) 프로젝트 venv (시스템 site-packages 상속 — CUDA · OpenCV 접근)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/xparapx/&lt;REPO&gt;.git ~/traffic && cd ~/traffic
+uv venv --system-site-packages && uv sync
+# 3) PyTorch/TensorRT 휠 — JetPack 7.2 (CUDA 13) 용 aarch64 휠을 NVIDIA PyPI(jp7) 또는 검증된 릴리스에서. cu126 휠은 동작하지 않음
+# 4) YOLO11 → TensorRT 엔진 (보드에서, 30분 내외)
+uv run yolo export model=yolo11n.pt format=engine half=True imgsz=640 device=0   # → yolo11n.engine (models/ · git 제외)
+# 5) llama.cpp CUDA 빌드 · VLM 서버 (모델 파일은 git 제외)
+git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && cmake -B build -DGGML_CUDA=ON && cmake --build build -j
+./build/bin/llama-server -m models/qwen2.5-vl-3b-q4_k_m.gguf --mmproj models/mmproj-qwen2.5-vl-3b-f16.gguf -ngl 99 -c 2048 --port 8090
+# 6) 카메라 확인
+v4l2-ctl --list-devices ; v4l2-ctl -d /dev/video0 --list-formats-ext        # ELP: MJPG 1920x1200 @30 확인
+v4l2-ctl -d /dev/video0 -c exposure_auto=1 -c exposure_absolute=150               # 수동 노출 고정 (역광 대비)
+gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! nvv4l2decoder mjpeg=1 ! nvvidconv ! video/x-raw,format=BGRx ! fakesink -v
+gst-launch-1.0 nvarguscamerasrc ! nvvidconv ! fakesink                       # CSI (IMX477/219)
+# 7) 원격
+curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up</code></pre>
+  <div class="box warn"><span class="lbl">함정 · JetPack 7.2.1에서 먼저 확인할 것</span>① 예제 · 컨테이너 · 휠의 상당수가 JetPack 6(CUDA 12.6 · Python 3.10) 기준 — 설치 전에 대상 JetPack을 확인하고 안 맞으면 소스 빌드(llama.cpp는 문제 없음). ② TensorRT 엔진은 <b>빌드한 보드 · 버전에서만</b> 동작 — PC에서 만든 엔진을 복사하지 않음. ③ 통합 메모리라 "GPU 메모리 여유"가 곧 "시스템 메모리 여유"임 — <code>free -h</code>와 <code>tegrastats</code>를 같이 봄. ④ 카메라 모듈 3는 절 !의 쟁점 1 — R1의 1일 한도 시도 후 되돌림. ⑤ 헤드리스로 바꾼 뒤 조준은 MJPEG 미리보기(카운터 매뉴얼 P1)로.</div>
+  <div class="box tip"><span class="lbl">TIP · Pi 트랙 세팅</span>카운터 매뉴얼 절 H의 <code>setup.sh</code>(Trixie · <code>hailo-h10-all</code> · <code>hailortcli fw-control identify</code>)를 그대로 씀. 이 저장소에서는 <code>scripts/setup_pi.sh</code>로 두고, 백엔드 선택은 <code>data/config.json</code>의 <code>"backend": "tensorrt" | "hailo"</code>.</div>
+
+  <h3><span class="k">03</span>백엔드 경계 — 코드에 그어 두는 두 줄</h3>
+  <span class="ftag">edge/trafficsvc/detect/__init__.py · 핵심만</span>
+<pre><code data-lang="py">from typing import Protocol, Iterator
+import numpy as np
+
+class Detection:  # 정규화 좌표 · 원 라벨 · 신뢰도 — 백엔드가 무엇이든 같은 모양
+    __slots__ = ("label", "conf", "x1", "y1", "x2", "y2")
+
+class Detector(Protocol):
+    def infer(self, frame_bgr: np.ndarray) -> list[Detection]: ...
+    def stats(self) -> dict: ...            # {"infer_ms": .., "backend": "tensorrt"}
+
+def load(cfg: dict) -> Detector:
+    if cfg["backend"] == "tensorrt":
+        from .tensorrt_yolo import TensorRTYolo   # ultralytics YOLO("yolo11n.engine")
+        return TensorRTYolo(cfg["engine"], conf=0.40, classes=[0, 1, 2, 3, 5, 7])
+    if cfg["backend"] == "hailo":
+        from .hailo_yolo import HailoYolo         # HailoRT .hef + 후처리
+        return HailoYolo(cfg["hef"], conf=0.40)
+    raise ValueError(cfg["backend"])
+
+# vlm/__init__.py 도 같은 꼴: class Tagger(Protocol): def tag(self, crop_bgr, meta) -> dict
+#   llama_cpp 백엔드 = HTTP(localhost:8090, OpenAI 호환) · hailo 백엔드 = GenAI SDK</code></pre>
+
+  <h3><span class="k">04</span>현장 기하 검토 — 3층 중앙탑 창에서 교문 · 도로까지 (사진 기반 추정 · 실측 전)</h3>
+  <p class="small">항공사진의 화살표 시작점(본관 3층 중앙탑 창)을 기준으로 시야 · 가림 · 거리 · 렌즈를 검토함. 아래 수치는 사진 축척 추정이며, R0에서 <b>지도 거리 재기(네이버 · 카카오맵)</b>와 창 높이 실측으로 바꿔 넣은 뒤 렌즈를 확정함.</p>
+  <div class="archify"><svg viewBox="0 0 1200 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="현장 기하 검토 (사진 기반 추정)"
+ style="font-family:var(--mono);font-size:15px">
+<defs>
+ <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--dim)"/></marker>
+ <marker id="ah-e" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--green)"/></marker>
+ <marker id="ah-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--red)"/></marker>
+ <marker id="ah-p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--purple)"/></marker>
+ <pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" style="fill:none;stroke:var(--grid);stroke-width:.5"/></pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#gr)"/>
+<text x="30" y="34" text-anchor="start" style="fill:var(--dim);font-size:13px;font-family:var(--sans)">평면 (위에서 본 그림 · 축척 약 1:250 · 수치는 사진 추정, 실측 전)</text><rect x="40" y="60" width="560" height="48" rx="6" style="fill:color-mix(in srgb,var(--brown) 30%,var(--panel));stroke:var(--brown);stroke-width:1.5"/><text x="60" y="90" text-anchor="start" style="fill:var(--ink);font-size:13px;font-family:var(--sans)">본관 (3층) · 중앙탑</text><circle cx="320" cy="108" r="7" style="fill:var(--red)"/><text x="334" y="104" text-anchor="start" style="fill:var(--red);font-size:12.5px;font-family:var(--sans)">CAM · 3층 중앙탑 창 · 높이 ≈ 10 m</text><ellipse cx="320" cy="190" rx="34" ry="24" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><text x="362" y="186" text-anchor="start" style="fill:var(--green);font-size:12px;font-family:var(--sans)">중앙 수목 (높이 6~8 m · 시야 간섭 후보)</text><path d="M 300 108 L 300 290 M 340 108 L 340 290" style="stroke:var(--grid);stroke-dasharray:4 4"/><text x="362" y="236" text-anchor="start" style="fill:var(--dim);font-size:12px;font-family:var(--sans)">교내 진입로 (붉은 포장)</text><line x1="40" y1="290" x2="600" y2="290" style="stroke:var(--ink);stroke-width:2"/><circle cx="60" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="88" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="116" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="144" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="172" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="200" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="228" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="256" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="380" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="408" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="436" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="464" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="492" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="520" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="548" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><circle cx="576" cy="276" r="11" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><text x="60" y="312" text-anchor="start" style="fill:var(--dim);font-size:12px;font-family:var(--sans)">담장 + 담장 안쪽 가로수 (은행나무 · 침엽수, 10 m급) — 좌우 도로를 가림</text><rect x="288" y="280" width="10" height="20" style="fill:var(--ink)"/><rect x="342" y="280" width="10" height="20" style="fill:var(--ink)"/><text x="292" y="257" text-anchor="start" style="fill:var(--ink);font-size:11.5px;font-family:var(--sans)">교문 (기둥 ≈ 4~5 m)</text><rect x="40" y="330" width="560" height="70" style="fill:var(--panel2);stroke:var(--grid)"/><line x1="40" y1="365" x2="600" y2="365" style="stroke:var(--dim);stroke-dasharray:10 8"/><text x="50" y="350" text-anchor="start" style="fill:var(--dim);font-size:12px;font-family:var(--sans)">도로 (좌↔우 통행 · 2~3차로)</text><rect x="190" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="198" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="206" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="214" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="222" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="230" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><text x="160" y="418" text-anchor="start" style="fill:var(--dim);font-size:11.5px;font-family:var(--sans)">횡단보도 (교문 왼쪽 · 가로수 뒤일 가능성)</text><rect x="470" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="478" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="486" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="494" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="502" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><rect x="510" y="333" width="4" height="64" style="fill:var(--ink);opacity:.6"/><text x="430" y="418" text-anchor="start" style="fill:var(--dim);font-size:11.5px;font-family:var(--sans)">횡단보도 · 주차 차량 (교문 오른쪽)</text><path d="M 320 108 L 238 400 L 402 400 Z" style="fill:color-mix(in srgb,var(--cyan) 14%,transparent);stroke:var(--cyan);stroke-width:1.4;stroke-dasharray:6 4"/><text x="240" y="440" text-anchor="start" style="fill:var(--cyan);font-size:12px;font-family:var(--sans)">교문 틈으로 보이는 도로 폭 ≈ 11~15 m (가상선 8~12 m 겨우 들어감)</text><text x="30" y="470" text-anchor="start" style="fill:var(--ink);font-size:12px;font-family:var(--sans)">① 카메라 축이 교문 정면 → 도로는 좌우 방향으로 지나감 = 가상선 배치에는 좋은 방향</text><text x="30" y="492" text-anchor="start" style="fill:var(--ink);font-size:12px;font-family:var(--sans)">② 교문 기둥 · 담장 가로수 뒤의 도로는 보이지 않음 → 가상선 구간은 교문 틈 안에서만</text><text x="30" y="514" text-anchor="start" style="fill:var(--ink);font-size:12px;font-family:var(--sans)">③ 교내 진입로(교문 ↔ 건물 사이)는 가림 없이 가깝게 보임 → K2(정차)와 교문 통과 차량 수의 최적 관측 구간</text><text x="30" y="536" text-anchor="start" style="fill:var(--ink);font-size:12px;font-family:var(--sans)">④ 두 횡단보도 모두 카메라 축에서 15 m 이상 비켜 있고 가로수 뒤 → K3는 시험 캡처로 가시성 확인 후 채택/보류</text><text x="650" y="34" text-anchor="start" style="fill:var(--dim);font-size:13px;font-family:var(--sans)">측면 (시선 높이 계산 · H = 10 m 가정)</text><line x1="660" y1="400" x2="1182" y2="400" style="stroke:var(--ink);stroke-width:1.5"/><rect x="624" y="268" width="36" height="132" style="fill:color-mix(in srgb,var(--brown) 30%,var(--panel));stroke:var(--brown)"/><circle cx="660" cy="280" r="6" style="fill:var(--red)"/><text x="650" y="270" text-anchor="start" style="fill:var(--red);font-size:11.5px;font-family:var(--sans)">CAM 10 m</text><ellipse cx="795" cy="340" rx="16" ry="30.0" style="fill:color-mix(in srgb,var(--green) 30%,var(--panel));stroke:var(--green)"/><text x="773" y="416" text-anchor="start" style="fill:var(--green);font-size:11px;font-family:var(--sans)">수목 15 m</text><rect x="972" y="346.0" width="6" height="54.0" style="fill:var(--ink)"/><text x="955" y="416" text-anchor="start" style="fill:var(--ink);font-size:11px;font-family:var(--sans)">교문 35 m</text><rect x="984" y="382.0" width="3" height="18.0" style="fill:var(--dim)"/><rect x="1065" y="398" width="90" height="4" style="fill:var(--dim)"/><text x="1061" y="416" text-anchor="start" style="fill:var(--dim);font-size:11px;font-family:var(--sans)">도로 45~55 m</text><line x1="660" y1="280" x2="1110" y2="400" style="stroke:var(--cyan);stroke-width:1.6"/><line x1="660" y1="280" x2="1182" y2="369.48571428571427" style="stroke:var(--red);stroke-width:1.2;stroke-dasharray:5 4"/><text x="840" y="318.0" text-anchor="start" style="fill:var(--cyan);font-size:11.5px;font-family:var(--sans)">시선 각 ≈ 11°</text><text x="930" y="318.2857142857143" text-anchor="start" style="fill:var(--red);font-size:11px;font-family:var(--sans)">기둥 위 시선: 기둥 뒤 도로는 63 m 이후만</text><text x="650" y="470" text-anchor="start" style="fill:var(--ink);font-size:11.5px;font-family:var(--sans)">h(d) = H·(1 − d/D) · D=50 m: 교문(35 m)에서 h=3 m → 담장은 넘고 기둥은 못 넘음</text><text x="650" y="492" text-anchor="start" style="fill:var(--ink);font-size:11.5px;font-family:var(--sans)">수목(15 m)에서 h=7 m → 수목이 7 m를 넘으면 도로가 가려짐 (잎 있는 계절 기준 확인)</text><text x="650" y="514" text-anchor="start" style="fill:var(--red);font-size:11.5px;font-family:var(--sans)">거리 D는 지도 거리 재기로 실측 — 사진 추정 45~55 m ≠ 진술 20 m (렌즈 결정의 전제)</text><text x="650" y="536" text-anchor="start" style="fill:var(--ink);font-size:11.5px;font-family:var(--sans)">11°는 권장(20~40°)보다 얕음 → 밀집 시 겹침 ↑ · 바닥점 오차 ↑ → 수동 대조로 확인</text></svg></div>
+  <table class="spec">
+    <tr><th>항목</th><th>사진 추정</th><th>영향</th><th>대응</th></tr>
+    <tr><td>카메라 → 교문 거리</td><td>30~40 m (진술 20 m)</td><td>렌즈 초점거리 · 픽셀당 크기가 2배 차이</td><td>지도 거리 재기로 실측 후 렌즈 확정. 20 m면 5~6 mm, 45~55 m면 10~12 mm</td></tr>
+    <tr><td>카메라 → 도로 중심</td><td>45~55 m</td><td>시선 각 ≈ 11° (권장 20~40°보다 얕음) → 밀집 시 차량 겹침 · 바닥점 오차</td><td>12 mm에서 1 px ≈ 1.2 cm, 보행자 ≈ 130 px로 검출은 충분. 겹침은 수동 대조(G1)에서 밀집 시간대 오차로 드러냄</td></tr>
+    <tr><td>교문 기둥 (4~5 m) · 담장 가로수 (10 m급)</td><td>기둥 뒤 · 가로수 뒤 도로는 보이지 않음</td><td>도로 가시 구간이 교문 틈 폭 11~15 m로 제한</td><td>가상선 A·B(8~12 m)를 교문 틈 안에 배치. 구간이 8 m 미만이면 K1은 p85 대신 "통과 시간" 프록시로 강등</td></tr>
+    <tr><td>중앙 수목 (건물 앞 15 m · 높이 6~8 m)</td><td>시선 높이 7 m와 겹칠 수 있음</td><td>여름철 잎이 도로 하단을 가릴 가능성</td><td>R1 시험 캡처에서 확인 · 가리면 창을 한 층 위(옥상 탑) 또는 좌우 창으로 검토</td></tr>
+    <tr><td>횡단보도 2곳</td><td>축에서 좌 · 우 15 m 이상 · 가로수 뒤 가능성</td><td>K3(횡단 중 근접)의 ROI를 못 잡을 수 있음</td><td>시험 캡처에서 횡단보도 다각형이 그려지면 채택, 안 되면 K3 보류 + 문제 진술에 명시 (스코프 축소는 실패가 아님)</td></tr>
+    <tr><td>교내 진입로 (교문 ↔ 건물)</td><td>가림 없음 · 10~35 m · 붉은 포장</td><td>가장 잘 보이는 구간이며 학부모 차량 정차 · 진입이 실제로 일어나는 곳</td><td><b>K2 정차 구역 다각형과 교문 통과 차량 수(C2, 진입/진출)의 주 관측 구간</b>으로 승격. 이곳은 사유지라 안내문 게시가 곧 근거</td></tr>
+    <tr><td>태양 방향</td><td>미상 (건물이 남향이면 카메라는 남향 → 등교 시간 역광)</td><td>08:00 전후 자동 노출 흔들림 · 유리 반사</td><td>R1 첫 날 07:40~08:30 시험 캡처로 확인 · 수동 노출 고정 · 후드 밀착 · 하늘을 화면 밖으로</td></tr>
+  </table>
+  <div class="box key"><span class="lbl">렌즈 초점거리 — 실측 거리별 (AR0234 1/2.6", 가로 5.76 mm)</span>
+    <table class="spec" style="margin:6px 0 0">
+      <tr><th>도로 중심까지</th><th>권장 초점거리</th><th>수평 화각 · 커버 폭</th><th>1 px ≈</th><th>보행자 (px)</th><th>번호판 글자 (px)</th></tr>
+      <tr><td>20~25 m</td><td>5~6 mm</td><td>51~58° · 20~25 m</td><td>1.1~1.3 cm</td><td>130~160</td><td>8~10 (판독 불가)</td></tr>
+      <tr><td>35~40 m</td><td>8 mm</td><td>40° · 26~29 m</td><td>1.1~1.2 cm</td><td>140~150</td><td>9~10 (판독 불가)</td></tr>
+      <tr><td>45~55 m</td><td>10~12 mm</td><td>27~32° · 24~30 m</td><td>1.2~1.4 cm</td><td>120~140</td><td>8~9 (판독 불가)</td></tr>
+    </table>
+    <p class="small" style="margin:6px 0 0">거리가 멀수록 초점거리를 올려도 번호판 글자가 10 px를 넘지 않으므로 "판독 불가" 원칙은 어느 행에서도 유지됨. 2.8-12 mm 가변 렌즈로 세 행을 모두 덮고, 확정 후 링 나사를 잠그고 마커 선을 그음(12 mm 이상은 이 프로젝트에서 쓰지 않음).</p>
+  </div>
+  <div class="box warn"><span class="lbl">함정 · 이 창의 세 가지 위험</span>① 교문 틈 폭이 8 m 미만이면 속도(K1)의 표본이 급감 — 그때는 K1을 보류하고 K2 · C2 중심으로 문제 진술을 고쳐 씀. ② 11°의 얕은 각은 승합차 · 버스가 뒤 차량을 완전히 가리므로 밀집 시간대 과소계수가 커짐 — G1 보정계수(M0)를 밀집 · 한산으로 나눠 구함. ③ 교내 진입로를 관측 구간으로 쓰면 "학교 안"이지만 촬영 대상은 여전히 불특정 차량 · 보행자이므로 안내문과 무저장 원칙은 동일하게 적용.</div>
+</section>
+
+<!-- ======================= K ======================= -->
+<section id="basics">
+  <div class="sec" style="--sc:var(--cyan)"><div class="chip"><span class="n">K</span>기초 지식 · 용어 정리</div><div class="line"></div><span class="est">읽기 20분</span></div>
+  <p class="small">카운터 매뉴얼 절 K(사선 구도 · 프레임 미저장 · track_id · 가상선 · 호모그래피 · p85 · 5분 버킷 · QC · ORB · 기준 프로파일 · 규범 메시지 · 검토 큐 · systemd)는 그대로 전제. 여기는 <b>이 프로젝트에서 새로 나오는 말</b>만.</p>
+  <div class="gl">
+    <div class="t g1"><b>통합 메모리<small>Jetson</small></b><p>CPU와 GPU가 같은 8GB를 씀. "VRAM 5.2 GB"라는 표현은 Jetson에서 성립하지 않고, OS · 버퍼 · 모델이 한 풀에서 경합함. 스왑이 생기면 fps가 급락.</p></div>
+    <div class="t g1"><b>TensorRT 엔진<small>.engine</small></b><p>ONNX 모델을 특정 GPU · JetPack 버전에 맞게 컴파일한 파일. FP16이면 정확도 손실 거의 없이 2배 안팎 빠름. 다른 보드 · 버전에서는 못 씀.</p></div>
+    <div class="t g2"><b>Fast Loop · Slow Loop<small>구조</small></b><p>Fast = 전 프레임에 도는 검출 · 추적 · 지표(동기). Slow = 이벤트당 한 번 도는 VLM(비동기). 둘은 큐 하나로만 만나고, Slow가 죽어도 Fast는 돔.</p></div>
+    <div class="t g2"><b>비동기 큐 · 상한<small>QUE</small></b><p>이벤트가 VLM 처리보다 빨리 오면 쌓임. 상한(8)을 두고 넘치면 오래된 것부터 버리며 <code>dropped</code>를 QC에 기록 — 무한히 쌓여 메모리를 먹는 것을 막음.</p></div>
+    <div class="t g5"><b>VLM<small>시각-언어 모델</small></b><p>이미지 + 텍스트 프롬프트 → 텍스트. 여기서는 "묘사"가 아니라 <b>고정 선택지 분류기</b>로만 씀. 2~3B · Q4 양자화면 Jetson에서 이벤트당 수 초.</p></div>
+    <div class="t g5"><b>Q4 · GGUF · mmproj<small>llama.cpp</small></b><p>가중치를 4비트로 줄인 형식(GGUF). VLM은 언어 모델 GGUF + 비전 인코더(mmproj) 두 파일. <code>-ngl 99</code>로 전 레이어를 GPU에.</p></div>
+    <div class="t g3"><b>섀도 로깅<small>1안</small></b><p>실시간 관제를 유지한 채 백그라운드에서 다른 모델의 판정을 "그림자처럼" 함께 기록. 같은 이벤트 키에 YOLO · VLM · HYBRID 3행이 붙음.</p></div>
+    <div class="t g3"><b>자원 경합 · 벤치 오염<small>MON</small></b><p>VLM이 GPU를 쓰는 순간 YOLO의 fps가 떨어짐. 그 상태에서 잰 fps는 "경합 있는 벤치"이며, 그렇게 표기하면 논문에 쓸 수 있음 — 숨기면 오염.</p></div>
+    <div class="t g4"><b>그라운드 트루스 · 라벨<small>labels</small></b><p>사람이 판정한 정답. 영상을 저장하지 않으므로 <b>이벤트 발생 순간 창가에서 육안</b>으로 기록하는 것이 이 프로젝트의 유일한 정답 생성법.</p></div>
+    <div class="t g4"><b>FPR · Recall · 정밀도<small>G2</small></b><p>FPR = 정상 정차를 위험으로 부른 비율. Recall = 진짜 위험을 놓치지 않은 비율. 정밀도 = 위험이라 부른 것 중 진짜 비율. 셋 다 라벨이 있어야 계산됨.</p></div>
+    <div class="t g6"><b>안전 지수<small>Safety Score</small></b><p>K1~K3를 baseline 대비 정규화해 100점으로 합친 표시용 값. 지표가 아니라 <b>커뮤니케이션 장치</b>이며, 리포트에는 항상 K1~K3 원값과 함께.</p></div>
+    <div class="t g0"><b>tegrastats · jtop<small>계측</small></b><p>Jetson의 RAM · GPU 사용률 · 전력(mW) · 온도를 1초마다 찍는 도구. 벤치 표의 MB · W 열은 여기서 옴.</p></div>
+  </div>
+</section>
+
+<!-- ======================= 1 ======================= -->
+<section id="vars">
+  <div class="sec" style="--sc:var(--blue)"><div class="chip"><span class="n">1</span>측정 가능성 · 지표 · 연구 질문 — 잴 수 있는 것만 지표로, 나머지는 실험 변수로</div><div class="line"></div><span class="est">설계 1주</span></div>
+  <div class="pipe mini"><div class="seg on" data-p="1"><div class="dot">CAM</div><div class="lbl">카메라</div></div><div class="seg on" data-p="2"><div class="dot">DET</div><div class="lbl">검출</div></div><div class="seg on" data-p="3"><div class="dot">TRK</div><div class="lbl">가상선</div></div><div class="seg on" data-p="5"><div class="dot">VLM</div><div class="lbl">태그</div></div><div class="seg" data-p="4"><div class="dot">DB</div><div class="lbl">5분 집계</div></div><div class="seg" data-p="6"><div class="dot">MSG</div><div class="lbl">알림</div></div></div>
+  <div class="box why"><span class="lbl">WHY · 등급이 곧 역할</span>카운터 매뉴얼의 등급표를 그대로 쓰되, VLM이 추가할 수 있다고 계획서가 주장한 변수들을 같은 잣대로 평가함. <b>높음 · 중상 → 핵심 지표(K)</b>, <b>중 → 맥락 또는 연구 변수(C · R, 게이트 통과 후 리포트)</b>, <b>낮음 · 불가 → 제외</b>. VLM이 붙는다고 등급이 올라가지 않음 — 등급은 사람 라벨 대조(G1 · G2)에서 실측으로 갱신.</div>
+  <h3><span class="k">01</span>후보 변수 측정 가능성 등급 (카운터 표 + VLM 후보)</h3>
+  <table class="spec">
+    <tr><th>후보 변수</th><th>모델이 재는 방법</th><th>주요 오차 원인</th><th>등급</th><th>채택</th></tr>
+    <tr><td>4륜 통과 수 · 방향 · 속도</td><td>veh4 track이 가상선 A·B 통과 · 시간차 × 실거리</td><td>겹침 · 가림 · 15 fps 타이밍</td><td>높음 · 중상</td><td>핵심 (K1)</td></tr>
+    <tr><td>정차 (≥ 20 s · 구역 밖)</td><td>같은 track 20 s 이동 &lt; 1 m · 다각형 안</td><td>구역 경계 · track 단절</td><td>높음</td><td>핵심 (K2) · <b>Slow Loop 트리거</b></td></tr>
+    <tr><td>횡단 중 차량 근접</td><td>crosswalk 안 person 존재 중 veh4 최근접 &lt; 2 m ≥ 1 s</td><td>바닥점 · 원근 · 군집</td><td>중</td><td>핵심 (K3) · 프록시 명시 + 육안 대조</td></tr>
+    <tr><td><b>정차 사유 태그</b> (boarding · waiting · delivery · other)</td><td>K2 이벤트 크롭 1장 → VLM 고정 선택지</td><td>원경 · 문 열림 가림 · 모델 편향 · 프롬프트 민감성</td><td>중 (실측 전)</td><td><b>연구 변수 C1</b> · G2 통과 후만 리포트</td></tr>
+    <tr><td>정차 중 문 열림 · 사람 접근 (보조 신호)</td><td>VLM boolean 2개 (door_open · person_near)</td><td>위와 같음</td><td>중</td><td>C1 보조 · 결합 규칙 입력</td></tr>
+    <tr><td>스마트폰 보행 (스몸비)</td><td>보행자 크롭 → VLM</td><td>원경 · 저해상 전제와 충돌, 자세 판독 불가</td><td>낮음</td><td><b>제외</b> (쟁점 4)</td></tr>
+    <tr><td>어린이 · 학생 · 학부모 여부</td><td>—</td><td>식별 · 연령 추정 = 설계상 하지 않음</td><td>불가</td><td>제외</td></tr>
+    <tr><td>통학버스 사각지대 궤적</td><td>bus 라벨 정차 중 person track이 차량 전방 2 m 진입</td><td>버스 ↔ 트럭 혼동 · 가림</td><td>중</td><td>K3의 변형으로만 기록 (zone = bus_front) · 리포트 보류</td></tr>
+    <tr><td><b>교문 통과 차량 수 · 방향</b> (진입 / 진출)</td><td>교내 진입로에 가상선 1개 — veh4 track 통과 · 순서</td><td>거의 없음 (가림 없는 구간)</td><td>높음</td><td><b>맥락 변수 C2</b> · "등교 시간 교내 진입 n대"로 K2와 함께 리포트</td></tr>
+    <tr><td>추론 지연 · 메모리 · 전력 · fps</td><td>MON 1 Hz + 이벤트별 타이머</td><td>계측 오버헤드 · 온도</td><td>높음</td><td><b>연구 변수 R</b> (벤치 표)</td></tr>
+  </table>
+  <h3><span class="k">02</span>정의 (등교 시간대 = 등교 시각 − 40분 ~ 등교 시각)</h3>
+  <div class="formula">
+<b>K1</b> = n_over30 / n_speed  (veh4, 등교 시간대, 주 단위) · 보조 n_over33 / n_speed<br>
+<b>K2</b> = Σ dwell(veh4, duration ≥ 20 s, zone = no_stop) / 등교일 수<br>
+<b>K3</b> = Σ conflict(person ∈ crosswalk, min dist(veh4) &lt; 2 m, ≥ 1 s) / 등교일 수  (프록시)<br>
+<b>C2</b> = Σ 교내 진입로 가상선 통과(veh4, 방향별) / 등교일 수  (가림 없는 구간 · 오차 최소)<br>
+<b>C1</b> = K2 이벤트별 tag 분포 {boarding, waiting, delivery, other, unknown} · G2 통과 후 · "정상 정차로 재분류된 비율"을 함께 표기<br>
+<b>R</b>  = 모델별 (fps_fast, latency_ms, mem_mb, power_w, FPR, Recall, precision) — 같은 event_id 기준, 라벨 있는 이벤트만<br>
+학교 기여분 = 지표(등교 시간대) − 지표(같은 요일 10:00~11:00)
+  </div>
+  <div class="box tip"><span class="lbl">TIP · 연구 질문의 정직한 형태</span>"하이브리드가 오탐을 60% 줄인다"가 아니라 <b>"K2로 잡힌 정차 중 사람이 정상(boarding · waiting)이라 판정한 비율이 얼마이고, VLM 태그가 그 비율을 얼마나 맞히며, 그 대가로 fps · 메모리 · 전력이 얼마나 드는가"</b>. 답이 "별로 못 맞힌다"여도 벤치 표는 완성되고 논문이 됨.</div>
+</section>
+
+<!-- ======================= 2 ======================= -->
+<section id="privacy">
+  <div class="sec" style="--sc:var(--blue)"><div class="chip"><span class="n">2</span>프라이버시 · 협의 · 안내문 <span class="gate">GATE 0</span></div><div class="line"></div><span class="est">준비 1~2주</span></div>
+  <div class="box why"><span class="lbl">WHY</span>카운터 매뉴얼 절 2를 전제로, VLM이 들어오면서 새로 생기는 세 지점 — <b>크롭</b>(프레임의 일부가 잠시 존재), <b>텍스트</b>(묘사가 식별 정보가 될 수 있음), <b>녹화 요구</b>(벤치마크용) — 를 여기서 닫음. 이 세 가지를 설계서에 명시한 뒤에만 담당자 확인을 받음.</div>
+  <h3><span class="k">01</span>하는 것 · 하지 않는 것 (VLM 추가분)</h3>
+  <div class="vs">
+    <div class="a"><h4>하는 것</h4>
+      <ul>
+        <li>K2 이벤트 순간 차량 상자 주변 크롭 1장(448 px, 여백 20%)을 <b>메모리에서</b> VLM에 전달, 응답 즉시 <code>del</code></li>
+        <li>VLM 출력은 <b>고정 선택지 JSON</b>만 저장: <code>tag · conf · door_open · person_near · latency_ms</code></li>
+        <li>사람 라벨은 창가 육안 기록 (시각 · 태그 · 라벨러) — 텍스트만</li>
+        <li>벤치마크는 1안 섀도 로깅(운영 중 자동) + 필요 시 통제 세션 · 공개 데이터셋</li>
+        <li>모델 · 프롬프트 버전을 모든 추론 행에 기록 (재현성)</li>
+      </ul></div>
+    <div class="b"><h4>하지 않는 것</h4>
+      <ul>
+        <li>운영 카메라의 영상 · 프레임 · 크롭 파일 저장 (어느 모드 · 디버그 포함)</li>
+        <li>VLM 자유 묘사 문장 저장 · 색상 · 차종 · 성별 · 연령 · 인상착의 · 번호판 질의</li>
+        <li>보행자 얼굴 · 자세 · 스마트폰 판정 (스몸비)</li>
+        <li>클라우드 API로 이미지 전송 (모든 추론은 보드 안)</li>
+        <li>VLM 태그의 자동 발송 · 자동 리포트 (G2 · G3 전에는 화면에도 안 나감)</li>
+      </ul></div>
+  </div>
+  <h3><span class="k">02</span>통제 세션 규칙 (2안이 필요할 때만)</h3>
+  <table class="spec">
+    <tr><th>항목</th><th>규칙</th></tr>
+    <tr><td>장소 · 시간</td><td>학교 부지 안 도로 또는 주차장, 수업 외 시간, 안내 표지 설치</td></tr>
+    <tr><td>참여자</td><td>교직원 · 자원 학생(보호자 동의) · 교직원 차량. 외부 통행이 섞이지 않는 구간</td></tr>
+    <tr><td>내용</td><td>정상 정차 시나리오(승하차 · 대기 · 배송 흉내) × n회, 위험 시나리오(정차 구역 밖 장기 정차 · 횡단 중 근접)를 안전 속도로 연출</td></tr>
+    <tr><td>저장</td><td>별도 NVMe 디렉터리, LUKS 암호화, <code>data/sessions/&lt;date&gt;/</code> — 운영 파이프라인이 읽지 못하는 경로. 세션 종료 30일 후 삭제 로그 남김</td></tr>
+    <tr><td>용도</td><td><code>run.py --source file --mode YOLO_ONLY | VLM_ONLY | HYBRID</code> 순차 벤치 (자원 경합 0). 라벨은 시나리오 대본이 곧 정답</td></tr>
+  </table>
+  <ul class="check">
+    <li><input type="checkbox"> 학교 개인정보 보호 담당자에게 설계서(절 1 · 2 · 3) 제출 · 확인 — VLM 크롭 처리 · 텍스트 저장 범위 · 통제 세션 여부 명시</li>
+    <li><input type="checkbox"> 교육청 영상정보처리기기 · 개인정보 지침 해당 여부 확인 (문의 기록)</li>
+    <li><input type="checkbox"> 학교장 · 학생안전부 승인 · 학부모회 사전 설명 (VLM은 "정차 사유 태그"로만 설명)</li>
+    <li><input type="checkbox"> 안내문 게시 (창 안쪽 · 교문) 후 카메라 전원 ON</li>
+    <li><input type="checkbox"> CLAUDE.md 프라이버시 조항 v1: "이미지 파일 쓰기 코드 금지 · VLM 출력은 enum JSON만 · 금칙어 필터 통과 전 DB 기록 금지"</li>
+  </ul>
+  <div class="msg">[안내] 이 창에는 교문 앞 통행량을 세는 장치가 설치되어 있습니다.
+- 영상이나 사진을 저장하지 않으며, 보행자·자전거·차량의 수와 속도, 정차 통계만 기록합니다.
+- 정차 차량은 "승하차·대기·배송·기타"로만 분류하며, 사람이나 차량을 식별하지 않습니다.
+- 번호판이나 얼굴을 식별할 수 없는 거리와 해상도로, 낮 시간에만 작동합니다.
+- 결과는 통학 안전 개선을 위해 학교·학부모회·지자체에 통계로 공유됩니다.
+문의: 공주고 인공지능정보부 (내선 000)</div>
+  <div class="box warn"><span class="lbl">함정 · 코드에서 새는 지점 (VLM 추가분)</span>① llama.cpp · Ollama 서버의 요청 로그가 이미지 base64를 디스크에 남길 수 있음 → <code>--log-disable</code> 또는 로그 경로 tmpfs, 설치 직후 확인. ② 개발 중 "VLM이 뭘 보는지" 확인하려고 크롭을 <code>cv2.imwrite</code>하는 습관 → 화면 표시(<code>imshow</code>)만, 그것도 개발 플래그 뒤에. ③ 프롬프트에 "묘사하라"가 들어가면 모델은 색 · 차종을 씀 → 선택지만 묻고 JSON 외 출력은 버림.</div>
+</section>
+
+<!-- ======================= 3 ======================= -->
+<section id="pipeline">
+  <div class="sec" style="--sc:var(--purple)"><div class="chip"><span class="n">3</span>Fast / Slow Loop 하이브리드 파이프라인</div><div class="line"></div><span class="est">설계 1주 · 구현 3주</span></div>
+  <div class="pipe mini"><div class="seg on" data-p="1"><div class="dot">CAM</div><div class="lbl">카메라</div></div><div class="seg on" data-p="2"><div class="dot">DET</div><div class="lbl">검출</div></div><div class="seg on" data-p="3"><div class="dot">TRK</div><div class="lbl">가상선</div></div><div class="seg on" data-p="5"><div class="dot">VLM</div><div class="lbl">태그</div></div><div class="seg on" data-p="4"><div class="dot">DB</div><div class="lbl">추론 기록</div></div><div class="seg" data-p="6"><div class="dot">MSG</div><div class="lbl">알림</div></div></div>
+  <div class="box why"><span class="lbl">WHY</span>계획서의 그림을 "이벤트가 언제 · 무엇을 · 어디로" 수준으로 내림. 핵심은 세 가지 — <b>Slow Loop는 K2 정차 이벤트에서만 깨어남</b>(K1 · K3는 기하로 끝), <b>큐는 상한이 있고</b>, <b>같은 event_id에 세 판정이 붙음</b>.</div>
+  <div class="archify"><svg viewBox="0 0 1200 545" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fast Loop / Slow Loop 파이프라인"
+ style="font-family:var(--mono);font-size:15px">
+<defs>
+ <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--dim)"/></marker>
+ <marker id="ah-e" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--green)"/></marker>
+ <marker id="ah-r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--red)"/></marker>
+ <marker id="ah-p" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" style="fill:var(--purple)"/></marker>
+ <pattern id="gr" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" style="fill:none;stroke:var(--grid);stroke-width:.5"/></pattern>
+</defs>
+<rect width="100%" height="100%" fill="url(#gr)"/>
+<rect x="20" y="20" width="1160" height="190" rx="12" style="fill:var(--panel2);stroke:var(--green);stroke-width:1.2;stroke-dasharray:6 6"/><text x="34" y="42" style="fill:var(--green);font-size:13px;font-weight:600;letter-spacing:.06em">FAST LOOP · 상시 · 15~30 fps · 스레드 1 · 전 프레임</text><rect x="20" y="260" width="1160" height="240" rx="12" style="fill:var(--panel2);stroke:var(--purple);stroke-width:1.2;stroke-dasharray:6 6"/><text x="34" y="282" style="fill:var(--purple);font-size:13px;font-weight:600;letter-spacing:.06em">SLOW LOOP · 이벤트당 1회 · 1~4 s · 스레드 2 · 크롭 1장</text><rect x="40" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="102.0" y="97.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">CAM</text><text x="102.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">1280×720</text><text x="102.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">캡처</text><rect x="205" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="267.0" y="97.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">PRE</text><text x="267.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">640 · FP16</text><text x="267.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">리사이즈 · 정규화</text><rect x="370" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--green);stroke-width:1.8"/><text x="432.0" y="97.0" text-anchor="middle" style="fill:var(--green);font-size:18px;font-weight:600">YOLO</text><text x="432.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">6종 → 3묶음</text><text x="432.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">검출 · TensorRT</text><rect x="535" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--cyan);stroke-width:1.8"/><text x="597.0" y="103.0" text-anchor="middle" style="fill:var(--cyan);font-size:18px;font-weight:600">TRK</text><text x="597.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">ByteTrack · track_id</text><rect x="700" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--cyan);stroke-width:1.8"/><text x="762.0" y="97.0" text-anchor="middle" style="fill:var(--cyan);font-size:18px;font-weight:600">GEO</text><text x="762.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">px → m</text><text x="762.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">호모그래피 · 가상선</text><rect x="865" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--cyan);stroke-width:1.8"/><text x="927.0" y="97.0" text-anchor="middle" style="fill:var(--cyan);font-size:18px;font-weight:600">EVT</text><text x="927.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">dwell·conflict</text><text x="927.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">이벤트 판정</text><rect x="1030" y="70" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="1092.0" y="97.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">ACC</text><text x="1092.0" y="117.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">flush → DB</text><text x="1092.0" y="142" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">5분 버킷 · QC</text><path d="M 164 97 L 202 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 329 97 L 367 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 494 97 L 532 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 659 97 L 697 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 824 97 L 862 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><path d="M 989 97 L 1027 97" style="fill:none;stroke:var(--green);stroke-width:2.0;stroke-dasharray:none" marker-end="url(#ah-e)"/><text x="40" y="170" text-anchor="start" style="fill:var(--green);font-size:12.5px;font-family:var(--sans)">K1 속도 · K2 정차 · K3 근접 은 여기서 끝남 — VLM 없이도 지표는 나옴 (카운터 문서 P2~P4 계승)</text><rect x="205" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="267.0" y="347.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">QUE</text><text x="267.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">max 8 · drop-old</text><text x="267.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">비동기 큐 · 상한 8</text><rect x="370" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="432.0" y="347.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">CROP</text><text x="432.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">여백 20%</text><text x="432.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">이벤트 크롭 · 448px</text><rect x="535" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="597.0" y="347.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">VLM</text><text x="597.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">llama.cpp CUDA</text><text x="597.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">Qwen-VL 2~3B · Q4</text><rect x="700" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--purple);stroke-width:1.8"/><text x="762.0" y="347.0" text-anchor="middle" style="fill:var(--purple);font-size:18px;font-weight:600">PARSE</text><text x="762.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">enum 외→unknown</text><text x="762.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">JSON 검증 · 금칙어</text><rect x="865" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="927.0" y="347.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">HYB</text><text x="927.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">YOLO ∧ VLM</text><text x="927.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">결합 규칙 · risk_level</text><rect x="1030" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--blue);stroke-width:1.8"/><text x="1092.0" y="347.0" text-anchor="middle" style="fill:var(--blue);font-size:18px;font-weight:600">INF</text><text x="1092.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">3 model_type</text><text x="1092.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">inferences 3행 기록</text><path d="M 329 347 L 367 347" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><path d="M 494 347 L 532 347" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><path d="M 659 347 L 697 347" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><path d="M 824 347 L 862 347" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><path d="M 989 347 L 1027 347" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><path d="M 927.0 124 L 927.0 235 L 267.0 235 L 267.0 317" style="fill:none;stroke:var(--purple);stroke-width:1.6;stroke-dasharray:4 4" marker-end="url(#ah-p)"/><text x="540" y="228" text-anchor="middle" style="fill:var(--purple);font-size:12px;paint-order:stroke;stroke:var(--bg);stroke-width:4px">put_nowait(crop, meta) — 큐가 차면 버리고 dropped++</text><rect x="40" y="320" width="124" height="54" rx="10" style="fill:var(--panel);stroke:var(--orange);stroke-width:1.8"/><text x="102.0" y="347.0" text-anchor="middle" style="fill:var(--orange);font-size:18px;font-weight:600">MON</text><text x="102.0" y="367.0" text-anchor="middle" style="fill:var(--dim);font-size:11.5px">tegrastats 1 Hz</text><text x="102.0" y="392" text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:13.5px;font-weight:500">자원 계측</text><path d="M 164 347 L 202 347" style="fill:none;stroke:var(--dim);stroke-width:1.2;stroke-dasharray:none" marker-end="url(#ah)"/><text x="40" y="440" text-anchor="start" style="fill:var(--purple);font-size:12.5px;font-family:var(--sans)">크롭은 처리 후 즉시 del · VLM 출력은 텍스트 태그만 저장 · 묘사 문장에 색·차종·인상착의·연령 언급 금지(프롬프트 + 금칙어 필터)</text><text x="40" y="465" text-anchor="start" style="fill:var(--dim);font-size:12.5px;font-family:var(--sans)">큐가 비어 있을 때 VLM 프로세스는 idle — GPU 경합은 이벤트 순간에만 생김. 그 순간의 fps 저하가 절 4의 실측 대상</text><text x="40" y="530" text-anchor="start" style="fill:var(--foot);font-size:12px;font-family:var(--mono)">실선 초록 = 프레임 단위 동기 경로 · 점선 보라 = 이벤트 단위 비동기 경로 · 두 스레드는 큐 하나로만 만남</text></svg></div>
+  <h3><span class="k">01</span>트리거 · 크롭 · 프롬프트 · 결합 규칙</h3>
+  <table class="spec">
+    <tr><th>단계</th><th>규칙</th><th>비고</th></tr>
+    <tr><td>트리거</td><td>K2 dwell 이벤트가 <b>20 s 조건을 만족하는 순간</b> 1회 (track당 1회). conflict(K3)는 트리거하지 않음</td><td>이벤트 빈도 ≈ 하루 10~30건 → VLM 부하 작음</td></tr>
+    <tr><td>크롭</td><td>차량 상자 + 여백 20%, 긴 변 448 px로 축소, BGR→RGB, 메모리 버퍼</td><td>얼굴 · 번호판이 판독되는 해상도가 아님을 G0 시험 캡처로 확인</td></tr>
+    <tr><td>프롬프트</td><td>고정 템플릿 v1 + 선택지 4개 + JSON 스키마. 온도 0. <code>max_tokens 64</code></td><td>prompt_ver를 추론 행에 기록</td></tr>
+    <tr><td>파싱</td><td>JSON 파싱 실패 · enum 외 값 · 금칙어 포함 → <code>tag=unknown</code>, 원문 폐기</td><td>unknown 비율도 벤치 지표</td></tr>
+    <tr><td>결합 (HYBRID)</td><td>YOLO_ONLY: dwell(no_stop) = DANGER · VLM_ONLY: tag 만으로 · HYBRID: dwell ∧ (tag ∈ {other, unknown} ∨ person_near ∧ zone = no_stop) = DANGER, tag ∈ {boarding, waiting, delivery} ∧ duration &lt; 60 s = WARNING, 그 외 SAFE</td><td>규칙은 <code>hybrid_rules.py</code> 한 파일 · 버전 기록</td></tr>
+    <tr><td>기록</td><td><code>inferences</code>에 3행 (model_type × 같은 event_id), 각 행에 latency · mem · power · model_ver · prompt_ver</td><td>절 5</td></tr>
+  </table>
+  <div class="prompt"><span class="ctx">[system] You classify a single road-side vehicle stop. Answer ONLY with JSON matching the schema. Never describe people, colors, brands, plates, age or gender.</span>[schema] {"tag": "boarding|waiting|delivery|other", "door_open": true|false, "person_near": true|false, "conf": 0.0-1.0}
+[user] The vehicle in the image has been stopped for {{duration_s}} s in a {{zone}} zone next to a school gate. Which tag fits best?</div>
+  <span class="ftag">edge/trafficsvc/slowloop.py · 핵심만</span>
+<pre><code data-lang="py">import asyncio, time, json, re, numpy as np
+from .vlm import load as load_tagger            # llama_cpp | hailo 백엔드
+ENUM = {"boarding", "waiting", "delivery", "other"}
+BAN  = re.compile(r"(색|흰|검정|빨간|파란|승용|SUV|승합|트럭|남성|여성|아이|어린이|노인|\d{2,3}[가-힣]\d{4})")
+
+class SlowLoop:
+    def __init__(s, cfg, db, mon):
+        s.q = asyncio.Queue(maxsize=cfg.get("queue_max", 8)); s.tagger = load_tagger(cfg); s.db, s.mon = db, mon; s.dropped = 0
+    def submit(s, event_id, crop_rgb, meta):     # Fast Loop 스레드에서 호출 · 절대 블록하지 않음
+        try: s.q.put_nowait((event_id, crop_rgb, meta))
+        except asyncio.QueueFull:
+            s.q.get_nowait(); s.q.put_nowait((event_id, crop_rgb, meta)); s.dropped += 1
+    async def run(s):
+        while True:
+            event_id, crop, meta = await s.q.get(); t0 = time.time(); m0 = s.mon.snapshot()
+            try:    out = s.tagger.tag(crop, meta)              # dict 또는 예외
+            except Exception as e: out = {"tag": "unknown", "err": type(e).__name__}
+            finally: del crop                                   # 크롭은 여기서 끝
+            tag = out.get("tag") if out.get("tag") in ENUM and not BAN.search(json.dumps(out, ensure_ascii=False)) else "unknown"
+            row = {"event_id": event_id, "model_type": "VLM_ONLY", "tag": tag, "door_open": bool(out.get("door_open")),
+                   "person_near": bool(out.get("person_near")), "conf": out.get("conf"),
+                   "latency_ms": int((time.time() - t0) * 1000), **s.mon.delta(m0)}   # mem_mb · power_w · gpu_pct
+            s.db.insert_inference(row); s.db.insert_inference(hybrid(meta, row))     # HYBRID 행 · YOLO_ONLY 행은 Fast Loop이 이미 씀</code></pre>
+  <div class="box warn"><span class="lbl">함정</span>① <code>submit</code>이 블록되면 Fast Loop fps가 떨어짐 — <code>put_nowait</code>만. ② VLM 서버 워밍업(첫 요청 10 s+)은 서비스 시작 시 더미 요청으로 미리. ③ llama.cpp 서버는 동시 요청 1로 고정(<code>--parallel 1</code>) — KV 캐시 중복 할당 방지. ④ 온도 throttling이 오면 latency가 2~3배 뛰고 그것이 곧 R2 · R3의 데이터임 — 숨기지 말고 QC 비트로.</div>
+</section>
+
+<!-- ======================= 4 ======================= -->
+<section id="modes">
+  <div class="sec" style="--sc:var(--purple)"><div class="chip"><span class="n">4</span>운용 대안 1 · 2 · 3 — 자원 실측 프로토콜</div><div class="line"></div><span class="est">실측 1주</span></div>
+  <div class="box why"><span class="lbl">WHY</span>계획서의 세 대안은 "메모리를 감당하는가"라는 질문에서 나왔고, 그 답은 표가 아니라 <b>이 보드에서 잰 곡선</b>임. 여기서는 세 대안을 무엇으로 결정할지(측정 항목 · 합격선)만 정하고, 표의 빈칸은 R5에서 채움.</div>
+  <h3><span class="k">01</span>대안 비교 · 이 개요의 결정</h3>
+  <table class="spec">
+    <tr><th>대안</th><th>동작</th><th>얻는 것</th><th>비용 · 위험</th><th>결정</th></tr>
+    <tr><td><b>1안 섀도 로깅</b> (실시간 비동기)</td><td>YOLO 상시 + VLM 상주, 이벤트 시 큐 → 같은 event_id에 3행</td><td>운영 · 알림 · 연구 데이터가 한 번의 가동으로</td><td>이벤트 순간 GPU 경합 → fps 순간 저하 (실측 대상)</td><td><b>기본</b>. Fast ≥ 15 fps · 스왑 0 이면 채택</td></tr>
+    <tr><td><b>2안 순차 벤치</b> (파일 재실행)</td><td>같은 파일에 <code>--mode</code> 3회</td><td>경합 0의 순수 벤치</td><td>운영 카메라 녹화 불가 (쟁점 5)</td><td><b>통제 세션 · 공개 데이터셋에서만</b></td></tr>
+    <tr><td><b>3안 동적 스위칭</b></td><td>피크 시간대에만 VLM 로드/언로드</td><td>비피크 전력 · 발열 감소</td><td>로드 지연 3~10 s · 복잡도 · 첫 이벤트 놓침</td><td>1안이 메모리 · 발열에서 실패할 때의 <b>대체안</b>. 구현은 <code>systemctl start vlm@peak</code> 타이머 수준으로 단순하게</td></tr>
+  </table>
+  <h3><span class="k">02</span>메모리 예산 — 가정을 적고 실측으로 지움</h3>
+  <table class="spec">
+    <tr><th>항목</th><th>가정 (착수 전)</th><th>실측 (R1 · R5에서 채움)</th><th>측정 방법</th></tr>
+    <tr><td>OS + 서비스 (헤드리스)</td><td>~1.0 GB</td><td>__ GB</td><td><code>free -h</code> 부팅 직후</td></tr>
+    <tr><td>CUDA 컨텍스트 + TensorRT YOLO11n FP16 + 카메라 버퍼</td><td>~1.0 GB</td><td>__ GB</td><td>Fast Loop만 10분 · tegrastats RAM 열</td></tr>
+    <tr><td>VLM 2~3B Q4 + mmproj + KV(2048)</td><td>~2.5~3.5 GB</td><td>__ GB</td><td>llama-server 기동 후 · 첫 요청 후</td></tr>
+    <tr><td>Python 런타임 (추적 · 웹 · DB)</td><td>~0.5 GB</td><td>__ GB</td><td>서비스별 RSS</td></tr>
+    <tr><td><b>합계 · 여유</b></td><td>~5~6 GB · 여유 2 GB</td><td>__ GB · 스왑 __</td><td><code>zramctl</code> · swap used 가 0을 벗어나면 R3 실패</td></tr>
+  </table>
+  <h3><span class="k">03</span>실측 프로토콜 (R5 · 통제 세션 또는 등교 3일)</h3>
+  <div class="steps">
+    <div><b>B0 · 기준선</b><p>Fast Loop만 30분. fps(콜백) · RAM · GPU% · 전력 · 온도 1 Hz. → <code>bench_runs(mode='YOLO_ONLY')</code></p></div>
+    <div><b>B1 · 상주만</b><p>VLM 서버를 띄우되 요청 없음, 30분. 상주 비용(메모리 · 유휴 전력)을 분리.</p></div>
+    <div><b>B2 · 경합</b><p>1안 그대로 등교 3일. 이벤트 순간 ±10 s 창의 fps 최저값 · 회복 시간 · VLM latency 분포(p50 · p95). → 계획서의 "30→24 fps" 자리에 실측값.</p></div>
+    <div><b>B3 · 스트레스</b><p>통제 세션에서 이벤트를 1분에 4회로 몰아 큐 드롭 · 온도 throttling 발생점을 찾음. 이 값이 3안으로 갈지 결정.</p></div>
+    <div><b>B4 · 순차 (선택)</b><p>통제 세션 파일로 <code>--mode</code> 3회. 경합 0 조건의 latency · 정확도. B2와 나란히 표에.</p></div>
+  </div>
+  <span class="ftag">edge/trafficsvc/mon.py · 핵심만</span>
+<pre><code data-lang="py">import subprocess, re, time, threading
+PAT = re.compile(r"RAM (\d+)/(\d+)MB.*?SWAP (\d+)/(\d+)MB.*?GR3D_FREQ (\d+)%.*?(?:VDD_IN|VIN_SYS_5V0) (\d+)mW.*?(?:gpu|GPU)@([\d.]+)C")
+class Mon:                                   # tegrastats 1 Hz 를 파싱해 최신값 유지 (Pi 백엔드는 vcgencmd)
+    def __init__(s): s.v = {}; threading.Thread(target=s._loop, daemon=True).start()
+    def _loop(s):
+        p = subprocess.Popen(["tegrastats", "--interval", "1000"], stdout=subprocess.PIPE, text=True)
+        for line in p.stdout:
+            m = PAT.search(line)
+            if m: s.v = dict(ts=time.time(), ram_mb=int(m[1]), swap_mb=int(m[3]), gpu_pct=int(m[5]), power_w=int(m[6]) / 1000, temp_c=float(m[7]))
+    def snapshot(s): return dict(s.v)
+    def delta(s, m0): now = s.v; return dict(mem_mb=now.get("ram_mb"), power_w=now.get("power_w"), gpu_pct=now.get("gpu_pct"), swap_mb=now.get("swap_mb"))
+# 정규식은 보드의 실제 tegrastats 한 줄로 R1 에서 맞춤 — 필드명이 JetPack 버전마다 다름</code></pre>
+  <div class="box ai"><span class="lbl">AI · 계획서 수치의 위치</span>"GPU 42 → 85%", "30 → 24 fps", "5.2 GB"는 이 표의 <b>가정 열</b>에 옮겨 적고 실측 열이 채워지면 지움. 논문 · 보고서에는 실측 열만 실림. 가정이 맞았는지 자체가 학생 발표의 한 장면이 됨.</div>
+</section>
+
+<!-- ======================= 5 ======================= -->
+<section id="schema">
+  <div class="sec" style="--sc:var(--purple)"><div class="chip"><span class="n">5</span>DB 스키마 · 수집 페이로드 — 카운터 10표 + 연구 3표</div><div class="line"></div><span class="est">설계 2일</span></div>
+  <div class="box why"><span class="lbl">WHY</span>카운터의 <code>counts_5min · ped_5min · events · qc_5min · calib · ext_wx · school_cal · validation · analysis · outbox</code>는 그대로. 연구를 위해 "한 이벤트에 여러 판정과 라벨이 붙는" 구조 세 장을 더함. 계획서의 단일 표는 <code>VIEW</code>로 남겨 분석 코드가 한 번에 읽게 함.</div>
+  <span class="ftag">edge/trafficsvc/schema.sql · 추가분 (카운터 절 1 스키마 뒤에)</span>
+<pre><code data-lang="sh">-- events 확장: Slow Loop 대상인지 · 최종 risk 는 HYBRID 행에서 가져오되 표시용으로 캐시
+ALTER TABLE events ADD COLUMN event_id TEXT;            -- UUID v4 · 3표 조인 키 (id 는 로컬 정수 유지)
+ALTER TABLE events ADD COLUMN risk_level TEXT;          -- SAFE | WARNING | DANGER (HYBRID 기준 캐시)
+ALTER TABLE qc_5min ADD COLUMN vlm_dropped INTEGER;     -- 큐 드롭 수
+ALTER TABLE qc_5min ADD COLUMN power_w REAL;            -- 5분 평균 전력 (MON)
+ALTER TABLE qc_5min ADD COLUMN mem_mb INTEGER;          -- 5분 최대 RAM
+ALTER TABLE qc_5min ADD COLUMN throttle INTEGER;        -- 온도 throttling 비트
+
+-- 판정: 같은 event_id 에 model_type 별 1행 (섀도 로깅)
+CREATE TABLE inferences(
+  id INTEGER PRIMARY KEY, event_id TEXT NOT NULL, ts TEXT NOT NULL,
+  model_type TEXT NOT NULL,            -- YOLO_ONLY | VLM_ONLY | HYBRID
+  risk_level TEXT NOT NULL,            -- SAFE | WARNING | DANGER
+  tag TEXT, door_open INTEGER, person_near INTEGER, conf REAL,   -- VLM 출력 (enum 만 · 자유 문장 없음)
+  latency_ms INTEGER, mem_mb INTEGER, power_w REAL, gpu_pct INTEGER, swap_mb INTEGER,
+  model_ver TEXT, prompt_ver TEXT, rules_ver TEXT, backend TEXT, -- 재현성 (yolo11n-fp16-trt10 · qwen2.5vl-3b-q4 · p1 · h1 · tensorrt|hailo)
+  UNIQUE(event_id, model_type));
+
+-- 사람 라벨: 창가 실시간 육안 기록 · 통제 세션 대본 — 이미지 없이 만드는 유일한 정답
+CREATE TABLE labels(
+  id INTEGER PRIMARY KEY, event_id TEXT NOT NULL, ts TEXT NOT NULL,
+  hazard INTEGER NOT NULL,             -- 1 = 실제 위험 정차 (구역 밖 · 시야 가림) · 0 = 정상
+  tag TEXT,                            -- boarding | waiting | delivery | other (사람 판정)
+  labeler TEXT NOT NULL, source TEXT NOT NULL,   -- live | session
+  note TEXT);
+
+-- 벤치 실행: B0~B4 각 실행의 요약 (초 단위 시계열은 qc_5min · inferences 에 이미 있음)
+CREATE TABLE bench_runs(
+  id INTEGER PRIMARY KEY, started TEXT, ended TEXT, board TEXT, mode TEXT,   -- jetson|pi · YOLO_ONLY|SHADOW|SEQ_*
+  fps_med REAL, fps_p05 REAL, lat_p50_ms INTEGER, lat_p95_ms INTEGER, mem_max_mb INTEGER,
+  swap_max_mb INTEGER, power_avg_w REAL, temp_max_c REAL, n_events INTEGER, n_dropped INTEGER, note TEXT);
+
+-- 계획서 호환 뷰: 단일 표처럼 읽기
+CREATE VIEW traffic_monitoring_events AS
+  SELECT i.event_id, i.ts AS timestamp, i.model_type, i.risk_level, i.tag AS context_tag,
+         i.latency_ms AS inference_latency_ms, i.mem_mb AS gpu_mem_used_mb, i.power_w AS power_draw_w,
+         l.hazard AS is_ground_truth_hazard, l.tag AS gt_tag, e.zone, e.duration_s
+  FROM inferences i JOIN events e ON e.event_id = i.event_id LEFT JOIN labels l ON l.event_id = i.event_id;
+CREATE INDEX ix_inf_event ON inferences(event_id); CREATE INDEX ix_lab_event ON labels(event_id);</code></pre>
+  <h3><span class="k">01</span>수집 페이로드 — 누가 어느 표에 쓰는가</h3>
+  <table class="spec">
+    <tr><th>쓰는 쪽</th><th>표</th><th>주기</th><th>비고</th></tr>
+    <tr><td>Fast Loop (ACC)</td><td>counts_5min · ped_5min · qc_5min</td><td>5분</td><td>표본 &lt; 5 → null · calib_ver · qc 비트 · MON 요약</td></tr>
+    <tr><td>Fast Loop (EVT)</td><td>events (+ event_id) · inferences(YOLO_ONLY)</td><td>이벤트</td><td>dwell 판정 즉시 YOLO_ONLY 행 기록 → 큐 submit</td></tr>
+    <tr><td>Slow Loop</td><td>inferences(VLM_ONLY · HYBRID) · events.risk_level</td><td>이벤트 + 1~4 s</td><td>실패 시 tag=unknown 행이라도 남김 (결측 ≠ 미실행)</td></tr>
+    <tr><td>라벨 화면 (관리 포트)</td><td>labels</td><td>이벤트 순간 · 세션</td><td>라벨러는 태그 알림을 받고 60 s 안에 입력 · 늦으면 note='late'</td></tr>
+    <tr><td>배치 (ANL)</td><td>analysis · bench_runs · outbox(draft)</td><td>매일 22:00 · 주간</td><td>M0~M4 + B1 혼동행렬 + 안전지수</td></tr>
+    <tr><td>사람 (검토)</td><td>outbox(approved) · validation</td><td>—</td><td>승인은 관리 포트에서만</td></tr>
+  </table>
+  <div class="box tip"><span class="lbl">TIP · 규약 네 줄</span>① 저장은 UTC, 표시만 KST. ② 표본이 없으면 null. ③ 모든 추론 행에 <code>model_ver · prompt_ver · rules_ver · backend</code>. ④ 라벨이 없는 이벤트는 FPR · Recall 계산에서 빠지고, "라벨 있는 이벤트 수"를 벤치 표에 함께 적음.</div>
+</section>
+
+<!-- ======================= 6 ======================= -->
+<section id="insight">
+  <div class="sec" style="--sc:var(--purple)"><div class="chip"><span class="n">6</span>분석 · 소셜 임팩트 · UI 설계 — 숫자가 사람에게 닿는 자리</div><div class="line"></div><span class="est">설계 1주 · 구현 3주</span></div>
+  <div class="pipe mini"><div class="seg" data-p="1"><div class="dot">CAM</div><div class="lbl">카메라</div></div><div class="seg" data-p="2"><div class="dot">DET</div><div class="lbl">검출</div></div><div class="seg" data-p="3"><div class="dot">TRK</div><div class="lbl">가상선</div></div><div class="seg on" data-p="4"><div class="dot">DB</div><div class="lbl">집계</div></div><div class="seg on" data-p="5"><div class="dot">ANL</div><div class="lbl">분석 · 벤치</div></div><div class="seg on" data-p="6"><div class="dot">MSG</div><div class="lbl">알림 · UI</div></div></div>
+  <div class="box why"><span class="lbl">WHY · 제어 대신 알림</span>교문 앞 도로에는 켤 장치가 없음. 그래서 분석의 목적은 "누구에게, 언제, 어떤 숫자를, 어떤 말로 보여 주면 행동이 바뀌는가"이고, 연구 트랙의 목적은 "그 숫자가 얼마나 믿을 만한가를 표 1장으로". 모델은 작고 설명 가능해야 하며(학생이 발표에서 설명), 출력은 전부 검토 큐를 거침.</div>
+  <h3><span class="k">01</span>인사이트 → 알림 매핑 (카운터 표 + 추가 3행)</h3>
+  <table class="spec">
+    <tr><th>인사이트</th><th>입력</th><th>모델 · 방법</th><th>알림 형태 · 수신자</th><th>기대하는 인식 · 행동 변화</th></tr>
+    <tr><td><b>K1</b> 30 km/h 초과 비율</td><td>counts_5min(veh4) · school_cal</td><td>주 단위 비율 + M2 추세 · 전후 검정</td><td>안내판 · 주간 메시지 · 건의서</td><td>운전자 감속 · 단속 건의</td></tr>
+    <tr><td><b>K2</b> 정차 구역 밖 정차</td><td>events(dwell, no_stop)</td><td>일 단위 건수 + M3 군집(핫스팟)</td><td>안내판 · 학부모 규범 메시지</td><td>하차는 드롭존에서 · 정차 시간 단축</td></tr>
+    <tr><td><b>K3</b> 횡단 중 차량 근접</td><td>events(conflict) · cross_n</td><td>일 단위 건수 + M4 위험 시간대</td><td>주간 리포트 · 건의서</td><td>안전요원 배치 시간 · 보행 신호 검토</td></tr>
+    <tr><td><b>C1</b> 정차 사유 분포 (G2 후)</td><td>inferences(HYBRID) · labels</td><td>태그 비율 + "정상 정차로 재분류된 비율"</td><td>주간 리포트 (학부모회) · 드롭존 설계 근거</td><td>"정차의 70%가 승하차 → 드롭존 위치 · 길이 조정"처럼 <b>비난 없는</b> 시설 제안</td></tr>
+    <tr><td><b>안전 지수</b> (표시용)</td><td>K1~K3 · baseline</td><td>100 − Σ w·clip((K − K_base)/K_base) · w = (0.4, 0.3, 0.3) · 주 단위</td><td>정문 모니터 · PWA 카드</td><td>한눈에 보는 추세. 원값 K1~K3 없이 단독 표기 금지</td></tr>
+    <tr><td><b>벤치 표</b> (연구)</td><td>inferences · labels · bench_runs</td><td>B1 혼동행렬(모델별 FPR · Recall · 정밀도) · B2 자원 곡선(fps · ms · MB · W)</td><td>관리 포트 벤치 뷰 · 보고서 부록</td><td>"하이브리드가 무엇을 주고 무엇을 치르는가"를 한 장으로</td></tr>
+    <tr><td>오늘의 이상 · 학교 기여분 · 개입 효과 · 내일 예보</td><td colspan="4">카운터 매뉴얼 절 3의 매핑 그대로 (M1 · M2 · M5)</td></tr>
+  </table>
+  <h3><span class="k">02</span>UI 설계 — 화면 · 포트 · 데이터 원천</h3>
+  <p class="small">Plant_Growth_Monitoring_Demo의 <code>web/</code>(React · Vite · Tailwind v4 · ECharts · PWA · 목 데이터 모드)를 셸로 가져오고, 페이지만 바꿈. 공개 포트는 <code>analysis</code>만 읽고, 이미지 · 라이브 프리뷰는 어느 포트에도 없음.</p>
+  <table class="spec">
+    <tr><th>페이지</th><th>포트</th><th>내용</th><th>읽는 표</th></tr>
+    <tr><td><b>오늘</b> <code>/</code></td><td>공개</td><td>아침 카드: 오늘 K1 · K2 · K3 잠정값 · 안전 지수 게이지 · 현재 5분 통행 · QC 통과율 · "자동 카운트 · 수동 대조 오차 ±n%"</td><td>analysis · counts_5min · qc_5min</td></tr>
+    <tr><td><b>프로파일</b> <code>/profile</code></td><td>공개</td><td>요일 기준 프로파일 + 오늘 곡선 · 이상 마커</td><td>analysis(M1)</td></tr>
+    <tr><td><b>속도</b> <code>/speed</code></td><td>공개</td><td>주간 p85 · 초과율 · 추세 · 개입 표시선</td><td>analysis(M2)</td></tr>
+    <tr><td><b>정차</b> <code>/dwell</code></td><td>공개</td><td>도로 평면 정차 히트맵(군집 3) · <b>G2 통과 후</b> 사유 태그 도넛</td><td>analysis(M3) · inferences</td></tr>
+    <tr><td><b>벤치</b> <code>/bench</code></td><td>관리</td><td>모델별 혼동행렬 · fps / latency / mem / power 시계열 · 이벤트 ±10 s fps 창 · B0~B4 요약 표 · 보드(jetson · pi) 토글</td><td>bench_runs · inferences · qc_5min · labels</td></tr>
+    <tr><td><b>라벨</b> <code>/label</code></td><td>관리 (모바일)</td><td>이벤트 알림 → 60 s 카운트다운 → hazard · tag 4버튼 · 라벨러 이름. 이미지 없음, 이벤트 시각 · 구역 · 지속시간만 표시</td><td>events → labels</td></tr>
+    <tr><td><b>검토 큐</b> <code>/outbox</code></td><td>관리</td><td>초안 목록 · 수정 · 승인 · 반려 · 검증기 결과 · 모델 버전</td><td>outbox</td></tr>
+    <tr><td><b>시스템</b> <code>/system</code></td><td>관리</td><td>서비스 4개 상태 · tegrastats 현재값 · 디스크 · DB 행 수 · config.json 편집 · "이미지 파일 0건" 검사 버튼</td><td>MON · config</td></tr>
+    <tr><td><b>월간 PDF</b> <code>/report/monthly.pdf</code></td><td>관리</td><td>K1~K3 · 정확도 부록 · (G2 후) C1 · 벤치 표 1장</td><td>Playwright 렌더</td></tr>
+  </table>
+  <div class="grid2">
+    <div class="panel wire" style="margin:0"><b style="font-family:var(--sans)">와이어 · 오늘 (공개 · 모바일 1열)</b>
+<pre style="margin:8px 0 0;font-size:12px">┌──────────────────────────────┐
+│ 교문 앞 통행 · 오늘 09/15(화)  │
+│ 안전 지수  ▮▮▮▮▮▮▮░░░ 72 (▲3) │
+│ K1 초과율 24% │ K2 6건 │ K3 3건 │
+│ 지금 5분: 차 14 · 이륜 3 · 보행 22│
+│ QC 통과 91% · 수동 대조 ±8%     │
+│ [지난주 리포트] [프로파일] [정차]│
+└──────────────────────────────┘</pre></div>
+    <div class="panel wire" style="margin:0"><b style="font-family:var(--sans)">와이어 · 라벨 (관리 · 모바일)</b>
+<pre style="margin:8px 0 0;font-size:12px">┌──────────────────────────────┐
+│ 이벤트 08:21:14 · no_stop · 27 s │
+│ 남은 시간 ●●●●○○ 41 s           │
+│ 위험한 정차였나요?  [예] [아니오] │
+│ 사유  [승하차][대기][배송][기타]  │
+│ 라벨러: 김○○   [저장]            │
+│ (이미지 없음 · 창가에서 보고 입력)│
+└──────────────────────────────┘</pre></div>
+  </div>
+  <h3><span class="k">03</span>인식 개선 루프 · 알림 규칙</h3>
+  <div class="steps">
+    <div><b>baseline 2주</b><p>GATE 1 통과 직후. 알림 없이 측정만. 이 기간의 프로파일 · p85 · 정차 건수가 비교 기준. Slow Loop는 돌지만 결과는 화면에 안 나감.</p></div>
+    <div><b>개입 1 · 정보 제공</b><p>PWA 카드 · 교문 안내판에 지난주 K1 · K2 게시. 2주.</p></div>
+    <div><b>개입 2 · 규범 메시지</b><p>"지난주 정차의 78%가 드롭존 안이었습니다"처럼 다수의 행동을 숫자로. G2를 통과했으면 C1로 "정차의 대부분은 승하차 → 드롭존 안내"까지. 2주.</p></div>
+    <div><b>전후 비교 공개 · 건의</b><p>같은 요일 · 시간대 짝지어 순열 검정. 효과 없음도 공개. 지자체 · 경찰에 월간 PDF(정확도 부록 + 벤치 표).</p></div>
+  </div>
+  <div class="box key"><span class="lbl">규칙 · 모든 알림에 적용 (카운터 6개 + 2개)</span>K1~K3 · C1과 맥락 변수만 말함 · 개인 · 특정 차량 언급 없음 · 규범 메시지 · 숫자마다 근거(기간 · 표본 · 정확도) · 사람 승인 후 발송 · 같은 종류 하루 1회 · <b>VLM 태그는 G2 통과 전 어떤 화면 · 문안에도 나오지 않음</b> · <b>"어린이 · 학생 · 학부모"를 주어로 쓰지 않음</b>.</div>
+  <div class="msg">[교문 앞 통행 · 이번 주] 10/12~10/16 등교 시간(08:00~08:40)
+· 통과 차량 298대 중 79%가 30 km/h 이하로 지났습니다 (지난주 74%).  ← K1
+· 정차 구역 밖 20초 이상 정차: 하루 평균 7건 → 5건. 정차의 71%는 승하차였습니다.  ← K2 · C1(검증 완료)
+· 보행자가 건너는 동안 차량이 2 m 안으로 접근한 경우: 하루 2건.  ← K3(근접 프록시)
+다음 주 목표: 정차 구역 밖 정차 4건 이하. (자동 카운트 · 수동 대조 오차 ±8% · 정차 사유 태그 정밀도 0.76)</div>
+</section>
+
+<!-- ======================= 7 ======================= -->
+<section id="dev">
+  <div class="sec" style="--sc:var(--orange)"><div class="chip"><span class="n">7</span>개발 환경 · 저장소 · CLAUDE.md — 로컬 PC가 메인, 기기는 pull만</div><div class="line"></div><span class="est">준비 2일</span></div>
+  <div class="box why"><span class="lbl">WHY</span>Plant_Growth_Monitoring_Demo에서 확정한 운영 구조(로컬 작업 폴더 메인 · <code>git push</code> → 기기 <code>git pull --ff-only</code> · <code>deploy.ps1</code> 한 번 · 기기 작업트리 항상 clean)를 그대로 씀. 기기가 둘(Jetson · Pi)이라도 저장소는 하나, 다른 것은 <code>config.json</code>의 <code>backend</code>와 설치 스크립트뿐. Claude Code는 로컬 세션이 주가 되고, 기기 위 확인은 SSH 원격 세션에서.</div>
+  <h3><span class="k">01</span>운영 구조</h3>
+  <table class="spec">
+    <tr><th>자리</th><th>역할</th><th>도구 · 규칙</th></tr>
+    <tr><td>로컬 PC 작업 폴더 (집 · 학교 · 노트북)</td><td>모든 편집 · 커밋 · 테스트(<code>TRAFFIC_FAKE_HW=1</code>) · 웹 빌드</td><td>Claude Code + GitHub. 다른 PC는 같은 저장소 clone 또는 Claude Code 원격제어. 기기에서 직접 편집 금지</td></tr>
+    <tr><td>GitHub <code>xparapx/&lt;REPO&gt;</code></td><td>단일 진실 · <code>main</code> 하나 · GitHub Pages(docs/) · 웹 릴리스 tarball</td><td>모델 가중치 · DB · <code>.env</code> · 세션 데이터는 <code>.gitignore</code></td></tr>
+    <tr><td>Jetson (<code>~/traffic</code>)</td><td>서비스 4개 실행 · 엔진 빌드(보드 종속) · 실측</td><td><code>scripts/deploy.ps1 -Target jetson</code> → push · pull · <code>install.sh --update</code> · 헬스체크. sudo · 발송은 사람</td></tr>
+    <tr><td>Pi (<code>~/traffic</code>, 이식 단계)</td><td>같은 서비스 · Hailo 백엔드</td><td><code>deploy.ps1 -Target pi</code>. 학교망 제약(Tailscale 차단)은 Mealboard CLAUDE.md의 Cloudflare 경로 참고</td></tr>
+    <tr><td>Claude Code 원격 세션 (SSH)</td><td>기기 위 확인 · 로그 · doctor · 실측 스크립트 실행</td><td>편집은 하지 않음 — 고칠 것이 보이면 로컬에서 고쳐 push</td></tr>
+  </table>
+  <h3><span class="k">02</span>저장소 구조 (Plant_Growth_Monitoring_Demo 포맷)</h3>
+<pre><code data-lang="sh">&lt;REPO&gt;/                       # 예: SchoolZone_Edge_Traffic_Demo
+  edge/trafficsvc/            # 패키지 (Plant 의 hub/plantsvc 대응): settings · schema · config · db
+    capture/                  #   uvc.py · csi_argus.py · picam.py — 같은 제너레이터 인터페이스 (프레임 파일 쓰기 없음)
+    detect/                   #   __init__.py(Protocol) · tensorrt_yolo.py · hailo_yolo.py
+    counter/                  #   tracker.py(ByteTrack) · geo.py(호모그래피·가상선) · counter.py · acc.py · drift.py(ORB)
+    vlm/                      #   __init__.py(Protocol) · llama_cpp.py · hailo_genai.py · prompts/p1.txt · hybrid_rules.py
+    slowloop.py · fastloop.py · mon.py · qc.py · api.py(공개/관리) · cli.py(serve·doctor·seed·bench·session) · doctor.py
+  analysis/                   # run_daily.py · run_weekly.py · m0_calib.py … m4_conflict.py · b1_confusion.py · b2_resource.py · safety_score.py
+  llm/                        # weekly_draft.py · validate.py · prompts/weekly_ko.txt
+  notify/                     # dispatch.py (approved 만)
+  web/                        # React + Vite + TS + Tailwind v4 + ECharts (src/features/{today,profile,speed,dwell,bench,label,outbox,system})
+  deploy/systemd/             # traffic-fast.service.tmpl · traffic-vlm.service.tmpl · traffic-web.service.tmpl · traffic-analysis.timer.tmpl
+  scripts/                    # setup_jetson.sh · setup_pi.sh · install.sh · deploy.ps1 · bench.sh · session.sh · rollback.sh
+  models/                     # export_trt.sh · fetch_gguf.sh · README (가중치 · 엔진은 git 제외)
+  tests/                      # pytest — 합성 궤적 · 큐 드롭 · 검증기 · dispatch(draft 무시) · 스키마 (하드웨어 없이)
+  docs/                       # index.html(이 문서) · manual.html(구축 매뉴얼 · 카운터 P1~P7 계승) · WORKLOG.md · GATES.md
+  data/                       # traffic.db · config.json · calib/ · sessions/ (전부 git 제외 · 이미지 없음)
+  CLAUDE.md  README.md  pyproject.toml  .gitignore</code></pre>
+  <h3><span class="k">03</span>CLAUDE.md 필수 조항 (첫 커밋에)</h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>프라이버시 (버전 관리)</b>
+      <ul class="small">
+        <li>이미지 · 영상 파일을 쓰는 코드(<code>imwrite · VideoWriter · save</code>) 금지. 디버그는 <code>--show</code> 플래그 뒤 화면 표시만</li>
+        <li>VLM 출력은 enum JSON만 DB에. 자유 문장 · 색 · 차종 · 성별 · 연령 · 번호판 필드 없음</li>
+        <li>통제 세션 파일은 <code>data/sessions/</code>에만, 운영 파이프라인이 읽지 못함</li>
+        <li>리포트 · 알림의 주어에 "어린이 · 학생 · 학부모" 금지</li>
+      </ul></div>
+    <div class="panel" style="margin:0"><b>운영 · 완료 기준 · 함정</b>
+      <ul class="small">
+        <li>기기 작업트리 clean · <code>main</code> 하나 · <code>deploy.ps1</code>만으로 배포</li>
+        <li>완료 기준: 절 8 각 단계의 ①~④를 그대로 복사</li>
+        <li>확인된 함정: JetPack 7.2.1 휠 · CM3 드라이버 · 엔진 이식 불가 · tegrastats 필드명 · llama-server 로그 · PowerShell 5.1 <code>&amp;&amp;</code> 없음</li>
+        <li>검증: <code>uv run pytest -q</code> · <code>cd web &amp;&amp; npm run lint &amp;&amp; npm run build</code> · <code>TRAFFIC_FAKE_HW=1 uv run trafficsvc serve</code></li>
+      </ul></div>
+  </div>
+  <div class="box tip"><span class="lbl">TIP · 더미 모드</span>Plant의 <code>PLANT_FAKE_HW</code>처럼 <code>TRAFFIC_FAKE_HW=1</code>이면 합성 궤적 생성기가 Fast Loop를 대신하고 VLM은 규칙 기반 가짜 태거가 됨. 노드 · 카메라 없이 전 화면과 배치가 돌고, 화면에 <code>DUMMY DATA</code> 배지. 학교 PC에서 UI를 다듬을 때 기기가 필요 없음.</div>
+</section>
+
+<!-- ======================= 8 ======================= -->
+<section id="stages">
+  <div class="sec" style="--sc:var(--orange)"><div class="chip"><span class="n">8</span>구축 단계 R0 ~ R8 — 완료 기준과 Claude Code 위임 프롬프트</div><div class="line"></div><span class="est">14주 · 단계별 완료 기준</span></div>
+  <p class="small">각 단계는 카운터 매뉴얼의 P1~P7에 대응하고(괄호), 상세 실습 절차는 <code>docs/manual.html</code>로 옮김. 여기는 <b>무엇을 · 언제 · 어디까지</b>와 위임 프롬프트의 컨텍스트 블록만. 프롬프트의 [컨텍스트]에 있는 것 이상을 Claude Code에 요구하지 않음 — 그것이 곧 CLAUDE.md의 현재 상태.</p>
+
+  <h3><span class="k">R0</span>문제 확인 · GATE 0 · 저장소 생성 <span class="small">(카운터 절 0 · 2) · 1~2주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small">1주 관찰 로그 · 문제 진술 1장(H1~H3 · R1~R3 · K1~K3 · C1 · C2 · 목표치) · <b>거리 · 창 높이 실측 → 렌즈 초점거리 확정(절 H-04)</b> · 카메라 · 렌즈 주문(ELP AR0234 + 2.8-12mm) · 승인 문서 · 안내문 · 저장소(구조 · CLAUDE.md · pyproject · 더미 모드 · 스키마 · 테스트 뼈대)</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 담당 교사 서명 ② GATE 0 문서 보관 ③ <code>TRAFFIC_FAKE_HW=1</code>로 서비스 기동 · 8 페이지 렌더 ④ <code>pytest</code> 통과 · GitHub Pages에 이 문서 게시</p></div>
+  </div>
+  <div class="prompt"><span class="ctx">[컨텍스트]
+- 저장소 새로 생성. 구조는 xparapx/Plant_Growth_Monitoring_Demo 포맷(edge/trafficsvc · analysis · llm · notify · web · deploy/systemd · scripts · tests · docs · data). 이 문서(docs/index.html)의 절 5 스키마와 절 7 구조를 그대로 따름
+- 첫 커밋 범위: pyproject(uv) · trafficsvc 패키지 뼈대(settings · schema.sql · db · cli serve/doctor/seed) · detect/vlm/capture 의 Protocol 과 fake 백엔드 · TRAFFIC_FAKE_HW=1 합성 궤적 생성기 · FastAPI 공개/관리 포트 · web/ 는 Plant 의 셸 복사 후 페이지 8개 자리만
+- 금지: 이미지 파일 쓰기 코드 일체 · VLM 자유 문장 저장 필드 · 실제 하드웨어 의존 import 를 모듈 최상위에 두는 것
+- 완료 기준: uv run pytest 통과(스키마 생성 · 더미 이벤트 → inferences 3행 · dispatch 가 draft 를 건드리지 않음), TRAFFIC_FAKE_HW=1 uv run trafficsvc serve 로 8 페이지 200 응답</span>위 구조로 첫 커밋을 만들어 줘. CLAUDE.md 에는 이 문서의 절 7-03 조항을 그대로 넣고, 각 파일 상단에 읽는 표 · 쓰는 표를 주석으로 명시해.</div>
+
+  <h3><span class="k">R1</span>Jetson 런타임 · 카메라 · 미저장 캡처 <span class="small">(H · P1) · 2주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small">JetPack 7.2.1 툴체인 검증 로그 · <code>yolo11n.engine</code> 빌드 · llama-server 기동 · ELP UVC(MJPEG → <code>nvv4l2decoder</code>) 캡처 확인 · 창 조준(MJPEG 미리보기) · <b>07:40~08:30 역광 시험 캡처 · 교문 틈 도로 폭 · 횡단보도 가시성 · 중앙 수목 가림 확인 → K1 · K3 채택/보류 판정</b> · ORB 기준점 · B0 · B1 기준선 · 메모리 예산 실측 열</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 30분 캡처 루프 fps ≥ 15 · 이미지 파일 0건 ② 엔진 단독 추론 ≤ 15 ms/frame (640) ③ VLM 서버 더미 요청 응답 · 상주 메모리 기록 ④ 절 4-02 표의 실측 열 채움 · 스왑 0</p></div>
+  </div>
+  <div class="box warn"><span class="lbl">함정</span>이 단계의 시험 캡처 결과로 K1 · K3의 채택 여부가 갈리므로(절 H-04), 캡처 화면 위에 가상선 A·B 후보 · 횡단보도 다각형 · 정차 구역 다각형을 그려 담당 교사와 함께 판정하고 그 화면(저장 없이 캡처 보드 촬영이 아니라 <b>도면으로 옮겨 그린 것</b>)을 GATE 0 문서에 넣음. CM3를 Jetson에 붙이는 시도는 <b>1일</b>로 제한 — 커널 패치 · 디바이스 트리 작업은 JetPack 7.2.1에서 검증된 자료가 없으므로 실패해도 프로젝트 손실이 아님. 실패 기록을 CLAUDE.md "확인된 함정"에 남기고 UVC로 진행.</div>
+
+  <h3><span class="k">R2</span>검출 · 추적 · 가상선 · 속도 · 정차 · 근접 <span class="small">(P2 · P3) · 3~4주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small"><code>tensorrt_yolo.py</code>(ultralytics engine 로드 · 6종 · conf 0.40 · 묶음) · ByteTrack · 호모그래피 4점 실측 · <code>counter.py</code>(카운터 매뉴얼 P3 이식) · 이벤트에 event_id · YOLO_ONLY 추론 행</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 콜백 fps ≥ 15 · track_id 유지(10대) ② 4점 재투영 &lt; 0.3 m · 자전거 속도 ±3 km/h ③ 합성 궤적 pytest(직진 · 정차 30 s · 횡단 중 근접) ④ dwell 판정 시 <code>inferences(YOLO_ONLY)</code> 1행 · 파일 저장 없음</p></div>
+  </div>
+  <div class="prompt"><span class="ctx">[컨텍스트]
+- 보드: Jetson Orin Nano Super 8GB · JetPack 7.2.1 · yolo11n.engine(FP16, 640) 빌드됨 · 카메라 소스 capture/uvc.py 동작(1280×720 @ 30)
+- 목표: detect/tensorrt_yolo.py — ultralytics YOLO(engine) 로 6종(person·bicycle·car·motorcycle·bus·truck) conf ≥ 0.40, GROUP 으로 veh4/two_wheel/person, 정규화 상자 반환. counter/ 는 카운터 매뉴얼 P3 의 Counter(가상선·방향·속도·dwell ≥20 s·conflict &lt;2 m)를 이식하되 dwell 확정 순간 events.event_id(uuid4) 생성 → inferences(YOLO_ONLY, risk=DANGER if zone=no_stop) 기록 → slowloop.submit(crop, meta) 호출(크롭은 여백 20%·긴 변 448)
+- 금지: 프레임·크롭 저장, 화면 표시는 --show 뒤에만
+- 완료 기준: 15 fps 이상 로그 · pytest 합성 궤적 3종 통과 · submit 이 블록되지 않음(put_nowait)</span>위 조건으로 detect/tensorrt_yolo.py · counter/counter.py · fastloop.py 와 pytest 를 작성하고 실행 · 확인 명령을 알려줘.</div>
+
+  <h3><span class="k">R3</span>5분 집계 · QC · MON · 서비스 등록 <span class="small">(P4) · 4~5주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small"><code>acc.py</code>(카운터 P4) + <code>mon.py</code>(tegrastats 파서) → <code>qc_5min</code>에 power · mem · throttle · vlm_dropped · systemd 유닛 4개 템플릿 · <code>install.sh</code> · <code>deploy.ps1</code></p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 등교일 하루 주간 버킷 132개 · qc=0 ≥ 80% ② 표본 부족 버킷 null ③ 재부팅 후 4 서비스 자동 복구 ④ <code>deploy.ps1</code> 한 번으로 push → pull → update → 헬스체크</p></div>
+  </div>
+
+  <h3><span class="k">R4</span>수동 대조 <span class="gate">GATE 1</span> <span class="small">(P5) · 5~6주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>프로토콜</b><p class="small">카운터 P5 그대로: 15분 × 10회, 학생 2인 클리커 + 1인 근접 육안 기록. <b>추가:</b> 같은 시간에 <code>/label</code> 화면을 처음 써 보며 정차 이벤트가 오면 hazard · tag를 입력(G2용 라벨 축적 시작).</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준 · GATE 1</b><p class="small">veh4 오차 ≤ 10% · 속도 ±3 km/h · conflict 정밀도 ≥ 0.7 · 카운터 간 일치 ≥ 95% · 정확도 표 작성. <b>통과 시점부터 baseline 2주 시작</b>, VLM 트랙(R5) 착수.</p></div>
+  </div>
+
+  <h3><span class="k">R5</span>Slow Loop · 자원 실측 · 라벨 60건 <span class="gate">GATE 2</span> <span class="small">(신규) · 6~9주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small"><code>vlm/llama_cpp.py</code>(OpenAI 호환 HTTP · 이미지 base64 · 온도 0 · JSON 스키마) · <code>slowloop.py</code> · <code>hybrid_rules.py</code> · 프롬프트 p1 · B2 · B3 실측(등교 3일 + 통제 세션 1회) · <code>/label</code> 실운영 · <code>b1_confusion.py</code> · <code>b2_resource.py</code> · 벤치 뷰</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준 · GATE 2</b><p class="small">① 이벤트당 latency p95 ≤ 4 s · 이벤트 순간 fps 최저 ≥ 15 · 스왑 0 ② 라벨 ≥ 60건 · unknown ≤ 15% ③ HYBRID 정밀도 ≥ 0.7 · YOLO_ONLY 대비 FPR 감소를 수치로(감소 폭은 결과) ④ 절 4 표 완성. 미달이면 p2 프롬프트 · 모델 교체(Qwen3-VL 2B ↔ Qwen2.5-VL 3B) 후 재시도, 2회 실패 시 C1은 "연구 결과: 미달"로 보고하고 운영 리포트에서 제외</p></div>
+  </div>
+  <div class="prompt"><span class="ctx">[컨텍스트]
+- R2·R3 완료 · fastloop 이 dwell 확정 시 slowloop.submit(event_id, crop_rgb, meta{zone,duration_s,ts}) 호출 · llama-server 가 localhost:8090 (qwen2.5-vl-3b q4 + mmproj, --parallel 1) 에서 OpenAI 호환 /v1/chat/completions 제공 · mon.Mon 이 tegrastats 최신값 제공
+- 요구: (1) vlm/llama_cpp.py — 크롭을 JPEG 메모리 인코딩 → base64 → 프롬프트 p1(prompts/p1.txt) + 이미지 · 온도 0 · max_tokens 64 · 응답 JSON 파싱, enum 외/파싱 실패/금칙어 → tag=unknown (2) slowloop.py — asyncio.Queue(8) · drop-old · 처리 후 del crop · inferences(VLM_ONLY, HYBRID) 기록 · latency/mem/power 포함 (3) vlm/hybrid_rules.py — 이 문서 절 3-01 결합 규칙 · rules_ver='h1' (4) analysis/b1_confusion.py — labels 와 조인해 model_type 별 FPR·Recall·정밀도 (5) 벤치 페이지 API
+- 금지: 크롭·프레임 파일 쓰기 · 자유 묘사 저장 · 서버 요청 로그에 이미지 남기기(--log-disable 확인)
+- 완료 기준: pytest — 큐 상한 초과 시 오래된 것부터 드롭 · 금칙어 포함 응답 → unknown · 라벨 없는 이벤트는 혼동행렬에서 제외</span>위 조건으로 구현하고, 등교 3일 B2 실측을 돌리는 scripts/bench.sh 와 결과를 bench_runs 에 넣는 코드를 함께 작성해 줘.</div>
+
+  <h3><span class="k">R6</span>대시보드 · 배치 · 알림 · 검토 큐 <span class="small">(P6) · 8~11주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small">공개 페이지 4 + 관리 페이지 4 · <code>run_daily.py</code>(M0~M4 + 안전지수) · <code>dispatch.py</code> · 개입 1 · 2 문안 · 월간 PDF(정확도 부록 + 벤치 표)</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 공개 카드 QR · QC 통과율 표시 ② 매일 배치가 analysis · outbox(draft) 채움 ③ draft 상태 발송 0건(테스트) ④ 주간 리포트 1회 실제 발송 · C1은 G2 통과 시에만 노출</p></div>
+  </div>
+
+  <h3><span class="k">R7</span>로컬 LLM 리포트 · 전후 비교 · 건의 <span class="gate">GATE 3</span> <span class="small">(P7) · 11~14주차</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small">주간 집계 JSON → llama.cpp 텍스트 모델 → 검증기 → outbox · 톤 3안 · 전후 비교(순열 검정) · 월간 건의 PDF · 학생 발표 자료 · 벤치 표 공개</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 초안 2분 내 · 검증기 통과 · 숫자 변조 초안 rejected ② 주간 리포트 3회 발송(승인 로그) ③ 개입 2회 + 전후 비교 1건 공개(효과 없음 포함) ④ 건의서 1건 제출 또는 제출 준비</p></div>
+  </div>
+
+  <h3><span class="k">R8</span>Pi 5 + AI HAT+ 2 이식 <span class="small">(선택 · 12~14주차)</span></h3>
+  <div class="grid2">
+    <div class="panel" style="margin:0"><b>산출물</b><p class="small"><code>capture/picam.py</code>(CM3) · <code>detect/hailo_yolo.py</code> · <code>vlm/hailo_genai.py</code> 또는 CPU 배치 · <code>setup_pi.sh</code> · 같은 통제 세션 파일로 B4 재실행</p></div>
+    <div class="panel" style="margin:0"><b>완료 기준</b><p class="small">① 같은 DB 스키마 · 같은 UI에 <code>board='pi'</code> 벤치 행 ② 두 보드 벤치 표 1장(fps · ms · MB · W · FPR · Recall) ③ 이식에 바뀐 파일이 <code>capture/ · detect/ · vlm/ · scripts/</code> 밖에 없음을 <code>git diff --stat</code>으로 확인</p></div>
+  </div>
+</section>
+
+<!-- ======================= PLAN ======================= -->
+<section id="plan">
+  <div class="sec" style="--sc:var(--acc)"><div class="chip"><span class="n">→</span>일정 · 역할 · 완료 기준</div><div class="line"></div><span class="est">14주 · 2026-09-14 ~ 12-18</span></div>
+  <h3>14주 일정 (주차 격자 · 1주차 = 9/14 주)</h3>
+  <table>
+    <tr><th>작업</th><th>주차</th></tr>
+    <tr><td>R0 문제 확인 · GATE 0 · 저장소 · 카메라 결정</td><td><div class="week w14" style="--wc:var(--gray)"><div class="on">1</div><div class="on">2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R1 JetPack 7.2.1 런타임 · 카메라 · 캡처 · B0/B1</td><td><div class="week w14" style="--wc:var(--cyan)"><div>1</div><div class="on">2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R2 검출 · 추적 · 가상선 · 속도 · 이벤트</td><td><div class="week w14" style="--wc:var(--green)"><div>1</div><div>2</div><div class="on">3</div><div class="on">4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R3 5분 집계 · QC · MON · 서비스 · deploy.ps1</td><td><div class="week w14" style="--wc:var(--orange)"><div>1</div><div>2</div><div>3</div><div class="on">4</div><div class="on">5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R4 수동 대조 · GATE 1</td><td><div class="week w14" style="--wc:var(--red)"><div>1</div><div>2</div><div>3</div><div>4</div><div class="on">5</div><div class="on">6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>baseline 2주 (측정만 · Slow Loop 섀도)</td><td><div class="week w14" style="--wc:var(--gray)"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div class="on">7</div><div class="on">8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R5 Slow Loop · 자원 실측 · 라벨 60건 · GATE 2</td><td><div class="week w14" style="--wc:var(--purple)"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div class="on">6</div><div class="on">7</div><div class="on">8</div><div class="on">9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R6 대시보드 · 배치 · 알림 · 개입 1 · 2</td><td><div class="week w14" style="--wc:var(--blue)"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div class="on">8</div><div class="on">9</div><div class="on">10</div><div class="on">11</div><div>12</div><div>13</div><div>14</div></div></td></tr>
+    <tr><td>R7 로컬 LLM 리포트 · GATE 3 · 전후 비교 · 건의 · 발표</td><td><div class="week w14" style="--wc:var(--acc)"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div class="on">11</div><div class="on">12</div><div class="on">13</div><div class="on">14</div></div></td></tr>
+    <tr><td>R8 Pi 5 + AI HAT+ 2 이식 (선택)</td><td><div class="week w14" style="--wc:var(--pink)"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div class="on">12</div><div class="on">13</div><div class="on">14</div></div></td></tr>
+  </table>
+  <div class="box tip"><span class="lbl">TIP · 일정의 두 갈래</span>GATE 1이 6주차에 통과하지 않으면 R5는 밀리지만 baseline · R6 · R7은 VLM 없이 그대로 진행함 — 운영 트랙과 연구 트랙이 독립이라는 것이 이 일정의 보험. 12월 셋째 주 이후는 기말 · 방학이므로 14주 안에 못 끝난 R8은 겨울방학 과제.</div>
+
+  <h3>역할 (팀 5명 기준 · 겸임 가능)</h3>
+  <div class="gl">
+    <div class="t g1"><b>현장 · 하드웨어<small>설치 · 실측</small></b><p>창 거치, 4점 실측, 속도 검증 주행, 통제 세션 연출, 청소 · 이동 점검 로그</p></div>
+    <div class="t g2"><b>파이프라인<small>R1 · R2 · R3</small></b><p>런타임 검증, 검출 백엔드, Counter, 누적기, 서비스. Claude Code 위임 프롬프트 작성 · 검수</p></div>
+    <div class="t g5"><b>연구 · 벤치<small>R5</small></b><p>프롬프트 · 결합 규칙 · 실측 프로토콜 · 혼동행렬 · 자원 곡선 · 벤치 표. 라벨 캠페인 조직</p></div>
+    <div class="t g4"><b>데이터 · 분석<small>R4 · M0~M4</small></b><p>수동 대조 설계, 정확도 표, 기준 프로파일, 전후 검정, 안전지수</p></div>
+    <div class="t g6"><b>리포트 · 커뮤니케이션<small>R6 · R7</small></b><p>알림 문안, 규범 메시지 3안, UI 문구, 학부모회 · 지자체 대응, 발표</p></div>
+    <div class="t g0"><b>교사 (게이트 담당)<small>G0 · G1 · G2 · G3</small></b><p>협의 · 승인, 검증 판정, VLM 판정 검증 판정, 발송 승인. sudo 와 발송은 교사가</p></div>
+  </div>
+
+  <h3>프로젝트 완료 기준 (전부 체크되면 종료)</h3>
+  <ul class="check">
+    <li><input type="checkbox"> 문제 진술 1장(H1~H3 · R1~R3 · K1~K3 · C1 · 목표치)에 담당 교사 서명</li>
+    <li><input type="checkbox"> GATE 0 문서(확인 · 승인 · 안내문 사진 · VLM 처리 방식 명시) 보관</li>
+    <li><input type="checkbox"> 이미지 · 영상 파일 0건 — 저장소 · Jetson · Pi 전체 검색 결과 첨부 (통제 세션 디렉터리는 별도 삭제 로그)</li>
+    <li><input type="checkbox"> 등교일 20일 이상 5분 버킷, qc=0 ≥ 80%</li>
+    <li><input type="checkbox"> GATE 1 정확도 표 — 차량류 오차 ≤ 10%</li>
+    <li><input type="checkbox"> GATE 2 결과 — 라벨 ≥ 60건, 모델별 혼동행렬, 자원 실측표(절 4) 완성 (통과 여부와 무관하게 공개)</li>
+    <li><input type="checkbox"> K1 · K2 · K3 baseline 2주 + 개입 2회 + 전후 비교 결과 공개 (효과 없음 포함)</li>
+    <li><input type="checkbox"> 주간 리포트 3회 발송(승인 로그) · 로컬 LLM 실측표</li>
+    <li><input type="checkbox"> 월간 건의 리포트 PDF 1건(정확도 부록 + 벤치 표) 제출 또는 제출 준비</li>
+    <li><input type="checkbox"> 벤치 표 1장: YOLO / VLM / HYBRID × (FPR · Recall · 정밀도 · fps · ms · MB · W) — 계획서의 가정 열과 실측 열 나란히</li>
+    <li><input type="checkbox"> 학생 발표: "우리 데이터로 무엇이 바뀌었고, 하이브리드는 무엇을 주고 무엇을 치렀는가"</li>
+  </ul>
+</section>
+
+<!-- ======================= CHEAT ======================= -->
+<section id="cheat">
+  <div class="sec" style="--sc:var(--gray)"><div class="chip"><span class="n">≡</span>치트시트 · 참고</div><div class="line"></div></div>
+  <h3>명령 (Jetson)</h3>
+<pre><code data-lang="sh">cat /etc/nv_tegra_release                 # JetPack 7.2.x = R39
+jtop / tegrastats --interval 1000         # RAM · GPU · 전력 · 온도
+sudo nvpmodel -q ; sudo jetson_clocks     # 전력 모드 확인 · 클럭 고정
+v4l2-ctl --list-devices                   # 카메라
+systemctl status traffic-fast traffic-vlm traffic-web ; journalctl -u traffic-fast -f
+systemctl list-timers | grep traffic      # 배치
+curl -s localhost:8090/health             # llama-server
+sqlite3 data/traffic.db "SELECT model_type, COUNT(*) FROM inferences GROUP BY 1;"
+sqlite3 data/traffic.db "SELECT * FROM bench_runs ORDER BY id DESC LIMIT 5;"
+find ~/traffic -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.h264"   # 항상 0건 (data/sessions 제외)
+tailscale status</code></pre>
+  <h3>참고 자료</h3>
+  <div class="gl">
+    <div class="t g1"><b>Jetson Orin Nano · JetPack 7.2.1<small>공식</small></b><p>Jetson ISO 설치 · L4T r39.2.x · Ubuntu 24.04 · CUDA 13. <code>docs.nvidia.com/jetson/orin-nano-devkit</code> · 포럼 "JetPack 7.2 Getting Started" 스레드</p></div>
+    <div class="t g1"><b>Camera Module 3 on Jetson<small>쟁점 1</small></b><p>RidgeRun IMX708 커뮤니티 드라이버(JetPack 5.1.1 / 6.0 패치 · 단일 모드 4608×2592@14). <code>developer.ridgerun.com</code> · 7.2.1 적용 여부 미확인 → 1일 한도</p></div>
+    <div class="t g1"><b>ELP AR0234 글로벌 셔터 USB · CS 렌즈<small>카메라</small></b><p>UVC · MJPEG 1920×1200/1080 @30 · 수동 노출 · 2.8-12mm 가변 렌즈 확정 후 잠금. Jetson: <code>v4l2src ! image/jpeg ! nvv4l2decoder mjpeg=1 ! nvvidconv</code></p></div>
+    <div class="t g2"><b>Ultralytics YOLO11 · TensorRT export<small>검출</small></b><p><code>yolo export format=engine half=True</code> · Jetson 가이드 · 엔진은 보드에서 빌드</p></div>
+    <div class="t g2"><b>ByteTrack · supervision<small>추적</small></b><p><code>github.com/roboflow/supervision</code> · 카운터 매뉴얼 P2 경로 B</p></div>
+    <div class="t g5"><b>llama.cpp · Qwen-VL GGUF<small>VLM · LLM</small></b><p><code>github.com/ggml-org/llama.cpp</code> · <code>llama-server --mmproj</code> · OpenAI 호환 API · <code>--log-disable</code></p></div>
+    <div class="t g5"><b>Ollama (arm64 · CUDA)<small>대안</small></b><p>qwen2.5vl · qwen3-vl 태그 · JetPack 7 지원 여부를 설치 전 확인</p></div>
+    <div class="t g3"><b>Raspberry Pi AI HAT+ 2 · hailo-rpi5-examples<small>Pi 트랙</small></b><p>Hailo-10H · Trixie · <code>hailo-h10-all</code> · GenAI 예제. 카운터 매뉴얼 절 H · P2</p></div>
+    <div class="t g4"><b>Telraam<small>선례</small></b><p>창문 안쪽 시민과학 교통 카운터 · 영상 미저장 · EU WeCount. <code>telraam.net</code></p></div>
+    <div class="t g6"><b>지난 프로젝트<small>계승 코드</small></b><p>Plant_Growth_Monitoring_Demo(저장소 구조 · uv · deploy.ps1 · 더미 모드 · React 셸), Mealboard(FastAPI · PWA · Funnel · Playwright PDF · 포트 분리), multinode_aq(5분 버킷 · analysis · CLAUDE.md 관행), 스쿨존 교통카운터 매뉴얼(P1~P7 · 게이트 · 규범 메시지)</p></div>
+  </div>
+  <p class="small" style="margin-top:28px">글꼴 IBM Plex Sans KR / Mono · 색 토큰은 대시보드 <code>hub/web/app.css</code>와 동일(라이트 기본, 다크 토글) · 세 지도는 archify 규약(상자 안 코드명 · 이름은 바깥 · 큰 글꼴)으로 작성한 인라인 SVG · 이 파일은 외부 의존성 없이 단독 열림(글꼴만 온라인) · 원본: 스쿨존_교통카운터.html(v0.2) + 스쿨존_교통_위험_연구_계획서.html · 확인 기준일 2026-09-14</p>
+</section>
+</main>
+</div>
+<script>
+(function(){
+  const root=document.documentElement, btns=document.querySelectorAll('.theme button');
+  function apply(t){root.setAttribute('data-theme',t);btns.forEach(b=>b.classList.toggle('on',b.dataset.theme===t));try{localStorage.setItem('ev-schoolzone-theme',t)}catch(e){}}
+  btns.forEach(b=>b.addEventListener('click',()=>apply(b.dataset.theme)));
+  try{const s=localStorage.getItem('ev-schoolzone-theme');if(s)apply(s)}catch(e){}
+})();
+(function(){
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const RE={py:/("""[\s\S]*?"""|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|#.*$)/gm, sh:/(#.*$|--.*$)/gm};
+  document.querySelectorAll('pre code[data-lang]').forEach(el=>{
+    const re=RE[el.dataset.lang]; const t=el.textContent; if(!re){return}
+    let out='',last=0,m;
+    while((m=re.exec(t))){out+=esc(t.slice(last,m.index));const s=m[0];
+      const cls=(s.startsWith('#')||s.startsWith('--'))?'c':'s';
+      out+='<span class="'+cls+'">'+esc(s)+'</span>';last=m.index+s.length}
+    out+=esc(t.slice(last)); el.innerHTML=out;
+  });
+  document.querySelectorAll('pre').forEach(pre=>{
+    const b=document.createElement('button');b.className='copy';b.type='button';b.textContent='복사';
+    b.addEventListener('click',()=>{const c=pre.querySelector('code');navigator.clipboard.writeText((c||pre).textContent).then(()=>{b.textContent='복사됨';setTimeout(()=>b.textContent='복사',1200)})});
+    pre.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

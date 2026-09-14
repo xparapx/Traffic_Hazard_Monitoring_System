@@ -1,0 +1,35 @@
+# 데이터 · 세션 (이미지·DB·개인정보 관련 — 절대 커밋 금지)
+data/
+
+# 모델 가중치 · 엔진 (보드 종속, models/ 스크립트로 취득)
+*.engine
+*.gguf
+*.onnx
+*.pt
+*.hef
+
+# 비밀값 · 환경
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / web
+node_modules/
+web/dist/
+
+# 로그 · 백업 · 임시
+*.log
+*.bak
+*.bak.*
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
