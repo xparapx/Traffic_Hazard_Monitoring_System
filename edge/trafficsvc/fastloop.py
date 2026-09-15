@@ -57,4 +57,7 @@ class FastLoop:
             ev = self.synth.maybe_event()
             if ev:
                 self.record_event(ev)
+            # 횡단 중 근접(K3)도 가끔 발생시켜 conflict 경로를 훈련
+            if self.synth.rng.random() < 0.08:
+                self.record_event(self.synth.make_conflict())
             await asyncio.sleep(tick_s)

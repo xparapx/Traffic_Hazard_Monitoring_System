@@ -4,6 +4,11 @@
 
 ## 2026-09
 
+### 2026-09-15 (10) — analysis 배치 · CD 무개입 2연속 검증 · v0.1-dummy
+- `trafficsvc analyze`: K1(버킷 p85 가중 근사)·K2·K3·안전지수(baseline 5일+, 부족 시 null)·M1(요일 프로파일) → analysis 표. 주간 초안은 검증기(숫자 변조·금칙 주어 거부) 통과 시에만 outbox(draft). `traffic-analysis.timer` 매일 22:00 KST(월 --weekly).
+- CD 무개입 배포 2연속 성공(93648fd, 24fa29f): CI→릴리스→orin 자동 수거·타이머 자동 등록까지 사람 손 0회. **`v0.1-dummy` 태그** = CD 첫 배포 커밋.
+- orin 첫 analyze 실행 — 대시보드 K1=86.7%·K2·K3 실숫자 표시, 안전지수는 "baseline 축적 중" 정직 표시. 더미 루프에 conflict 발생 추가(K3 경로 훈련). 발견: orin 시간대가 AKDT — sudoers 목록에 timedatectl 추가 기록.
+
 ### 2026-09-15 (9) — CI/CD 완성 (pull형 GitOps)
 - CI(GitHub Actions): push마다 pytest·doctor·eslint·build를 독립 머신이 재검증 — 전역 "검증 루프" 규칙의 기계 확인 경로.
 - CD: 두 검증 잡 통과 시 web dist를 `latest` 릴리스로 자동 발행(sha 명시) → orin `traffic-autoupdate.timer`(5분)가 수거·설치·헬스체크·실패 시 자동 롤백. **배포 시점이 에이전트 재량에서 파이프라인으로 이관됨.** 이 커밋 자체가 CD 경로로 배포되는 첫 커밋(E2E 증명).
