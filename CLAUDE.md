@@ -25,7 +25,7 @@
 ## sudo 정책 (2026-09-15, 원격 위임 운용)
 - 상주·배포·빌드·모델·배치는 전부 sudo 없이 운용한다 (uv·cron @reboot·setsid — 현행).
 - **sudo가 불가피한 작업 목록** (집에서 보드 앞에 있을 때 몰아서, 또는 아래 sudoers 등록 후 원격):
-  apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger
+  apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger · **timedatectl set-timezone Asia/Seoul** (orin 이 현재 AKDT 로 설정돼 있음 — sudoers 목록에 추가 필요)
 - 원격 위임용 표준 해법: `/etc/sudoers.d/traffic`에 위 명령만 NOPASSWD 등록(1회, 사람 몫). 전체 루트 개방 금지.
 
 ## 기기 접속
@@ -50,6 +50,9 @@
 - tegrastats 필드명이 버전마다 다름 — 파서 작성 시 실제 출력으로 확인.
 - llama-server 요청 로그에 이미지가 남을 수 있음 — `--log-disable` 확인.
 - PowerShell 5.1에는 `&&` 없음 — `deploy.ps1` 등에서 `; if ($?) { }` 사용.
+
+## 완료 보고 규칙 (2026-09-15)
+- 큰 위임 작업의 완료 보고에는 **"묻지 않고 가정한 것"** 절을 포함한다 — 코드 리뷰의 대체물. 사용자가 요청하지 않아도 생략하지 않는다.
 
 ## 검증 명령
 ```

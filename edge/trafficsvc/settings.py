@@ -10,6 +10,20 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
 
+def load_env_file() -> None:
+    """data/traffic.env 를 읽어 미설정 변수만 채움 — CLI 단독 실행(doctor 등)이
+    systemd 서비스와 같은 설정을 보게 한다. 이미 설정된 환경변수가 우선."""
+    p = data_dir() / "traffic.env"
+    if not p.exists():
+        return
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip())
+
+
 def fake_hw() -> bool:
     return _env("TRAFFIC_FAKE_HW", "0") == "1"
 

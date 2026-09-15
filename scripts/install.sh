@@ -41,10 +41,13 @@ if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "ye
   cp deploy/systemd/traffic-app.service "$HOME/.config/systemd/user/"
   cp deploy/systemd/traffic-autoupdate.service "$HOME/.config/systemd/user/"
   cp deploy/systemd/traffic-autoupdate.timer "$HOME/.config/systemd/user/"
+  cp deploy/systemd/traffic-analysis.service "$HOME/.config/systemd/user/"
+  cp deploy/systemd/traffic-analysis.timer "$HOME/.config/systemd/user/"
   chmod +x scripts/autoupdate.sh
   systemctl --user daemon-reload
   systemctl --user enable traffic-app.service >/dev/null 2>&1 || true
   systemctl --user enable --now traffic-autoupdate.timer >/dev/null 2>&1 || true
+  systemctl --user enable --now traffic-analysis.timer >/dev/null 2>&1 || true
   systemctl --user restart traffic-app.service
   echo "[install] systemd user 유닛으로 상주 (linger on) + autoupdate 타이머(5분, pull형 CD)"
 else

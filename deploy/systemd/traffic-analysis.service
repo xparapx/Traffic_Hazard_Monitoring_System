@@ -1,0 +1,11 @@
+# 일간 분석 배치 — traffic-analysis.timer 가 매일 13:00 UTC(=22:00 KST) 호출
+# 월요일에는 --weekly 로 지난주 리포트 초안(검증기 통과분)을 outbox(draft) 에 넣는다.
+[Unit]
+Description=traffic daily analysis (K1-K3, safety index, M1)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/traffic
+ExecStart=/bin/bash -c 'W=""; [ "$(date -u +%%u)" = "1" ] && W="--weekly"; exec %h/.local/bin/uv run trafficsvc analyze $W'
+StandardOutput=append:%h/traffic/data/analysis.log
+StandardError=append:%h/traffic/data/analysis.log

@@ -10,6 +10,7 @@ from . import db, settings
 
 
 def main(argv: list[str] | None = None) -> int:
+    settings.load_env_file()   # 서비스(EnvironmentFile)와 단독 CLI 가 같은 설정을 보도록
     ap = argparse.ArgumentParser(prog="trafficsvc")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("serve", help="공개·관리 API 서버 기동 (TRAFFIC_FAKE_HW=1 이면 더미 루프 동반)")
@@ -19,6 +20,9 @@ def main(argv: list[str] | None = None) -> int:
     p_seed.add_argument("--events", type=int, default=4)
     p_exp = sub.add_parser("export", help="수동 분석용 CSV 일괄 추출 (기본 data/export/<UTC시각>/)")
     p_exp.add_argument("--out", default=None)
+    p_anl = sub.add_parser("analyze", help="일간 배치: K1~K3·안전지수·M1 → analysis 표 (매일 22:00 KST 타이머)")
+    p_anl.add_argument("--date", default=None, help="KST 날짜 YYYY-MM-DD (기본 오늘)")
+    p_anl.add_argument("--weekly", action="store_true", help="주간 리포트 초안 생성(검증기 통과 시 outbox draft)")
     args = ap.parse_args(argv)
 
     if args.cmd == "doctor":
@@ -27,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
         return _seed(args.buckets, args.events)
     if args.cmd == "export":
         return _export(args.out)
+    if args.cmd == "analyze":
+        return _analyze(args.date, args.weekly)
     if args.cmd == "serve":
         return _serve()
     return 2
@@ -80,6 +86,20 @@ def _export(out: str | None) -> int:
     for name in EXPORT_TABLES:
         (dst / f"{name}.csv").write_text(table_csv(con, name), encoding="utf-8")
     print(f"exported {len(EXPORT_TABLES)} tables -> {dst}")
+    return 0
+
+
+def _analyze(date: str | None, weekly: bool) -> int:
+    from . import analysis
+    con = _open_db()
+    out = analysis.run_daily(con, date)
+    vals = {k: out[k].get("value") for k in ("k1", "k2", "k3", "safety")}
+    print(f"analyze {date or analysis.kst_today()}: {json.dumps(vals, ensure_ascii=False)}")
+    if weekly:
+        ok, body = analysis.run_weekly(con, date)
+        print("weekly draft:", "outbox(draft) 저장됨" if ok else f"검증 실패 — {body}")
+        if not ok:
+            return 1
     return 0
 
 
