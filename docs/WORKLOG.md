@@ -1,41 +1,44 @@
-# 작업 이력 (WORKLOG)
+# ?묒뾽 ?대젰 (WORKLOG)
 
-최신이 위. 의미 있는 변경마다 갱신(커밋마다는 아님).
+理쒖떊???? ?섎? ?덈뒗 蹂寃쎈쭏??媛깆떊(而ㅻ컠留덈떎???꾨떂).
 
 ## 2026-09
 
-### 2026-09-15 (6) — orin 첫 배포 (더미 모드 · 테일넷 URL)
-- 계획 재편(사용자 결정): 주차 일정 대신 **빌드 트랙**(더미데이터로 배포·URL까지, 며칠)과 **현장 트랙**(카메라 결착→학교 설치→실데이터 전환, 달력 종속)으로 분리 — Mealboard 방식.
-- API 를 `/api/public`·`/api/admin` 프리픽스로 재구성, 두 포트 모두 SPA(web/dist) 정적 서빙 + CORS 교차 호출.
-- `scripts/install.sh`(uv 설치·sync·traffic.env 자동생성·user 유닛·헬스체크·이미지 0건 검사) · `scripts/deploy.ps1`(push→pull→web 전송→update→URL) · `deploy/systemd/traffic-app.service`.
-- orin 배포 완료: `~/traffic` clone → install.sh → 공개 http://100.96.30.94:8600/ · 관리 http://100.96.30.94:8601/ (테일넷 전용 바인딩 소켓 확인). PC(jh-home)에서 SPA 200·API 라이브 확인.
-- lingering 문제 해소(원격이라 sudo 불가): `scripts/run.sh` setsid 데몬 + crontab `@reboot`로 전환 — SSH 세션 전무 상태에서 3 URL 생존 확인. linger를 걸면 install.sh가 systemd user 유닛으로 자동 승격.
+### 2026-09-15 (7) — 벤치 수동분석 지원
+- `bench_samples`(벤치 실행 귀속 초단위 자원 시계열) 추가 — 멱등 마이그레이션. CSV export: 관리 API `/api/admin/export/{table}.csv`(9종) · CLI `trafficsvc export` · 벤치 화면 버튼. orin 재배포(deploy.ps1 첫 실사용) 후 라이브 검증 — 조인 뷰 946행 축적 중.
 
-### 2026-09-15 (5) — 라이브 프리뷰 설계 결정: 테일넷 전용 + 캘리브레이션 모드
-- 결정(Mealboard 방식): 카메라 스트림·ROI/호모그래피는 관리 URL 전용, 관리 포트를 Tailscale 테일넷에만 바인딩(`TRAFFIC_ADMIN_BIND`). 이중 잠금 — 스트림은 캘리브레이션 모드를 켠 동안에만(기본 꺼짐·30분 자동 타임아웃·로그 기록).
-- 구현: settings ADMIN_BIND · admin API `/calib`·`/calib/mode`·`/stream`(모드 잠금, MJPEG는 R1) · 시스템 탭 캘리브레이션 카드(켜기/끄기·남은 시간) · pytest 12개(모드 게이트 포함) 통과.
+### 2026-09-15 (6) ??orin 泥?諛고룷 (?붾? 紐⑤뱶 쨌 ?뚯씪??URL)
+- 怨꾪쉷 ?ы렪(?ъ슜??寃곗젙): 二쇱감 ?쇱젙 ???**鍮뚮뱶 ?몃옓**(?붾??곗씠?곕줈 諛고룷쨌URL源뚯?, 硫곗튌)怨?**?꾩옣 ?몃옓**(移대찓??寃곗갑?믫븰援??ㅼ튂?믪떎?곗씠???꾪솚, ?щ젰 醫낆냽)?쇰줈 遺꾨━ ??Mealboard 諛⑹떇.
+- API 瑜?`/api/public`쨌`/api/admin` ?꾨━?쎌뒪濡??ш뎄?? ???ы듃 紐⑤몢 SPA(web/dist) ?뺤쟻 ?쒕튃 + CORS 援먯감 ?몄텧.
+- `scripts/install.sh`(uv ?ㅼ튂쨌sync쨌traffic.env ?먮룞?앹꽦쨌user ?좊떅쨌?ъ뒪泥댄겕쨌?대?吏 0嫄?寃?? 쨌 `scripts/deploy.ps1`(push?뭦ull?뭮eb ?꾩넚?뭫pdate?뭊RL) 쨌 `deploy/systemd/traffic-app.service`.
+- orin 諛고룷 ?꾨즺: `~/traffic` clone ??install.sh ??怨듦컻 http://100.96.30.94:8600/ 쨌 愿由?http://100.96.30.94:8601/ (?뚯씪???꾩슜 諛붿씤???뚯폆 ?뺤씤). PC(jh-home)?먯꽌 SPA 200쨌API ?쇱씠釉??뺤씤.
+- lingering 臾몄젣 ?댁냼(?먭꺽?대씪 sudo 遺덇?): `scripts/run.sh` setsid ?곕が + crontab `@reboot`濡??꾪솚 ??SSH ?몄뀡 ?꾨Т ?곹깭?먯꽌 3 URL ?앹〈 ?뺤씤. linger瑜?嫄몃㈃ install.sh媛 systemd user ?좊떅?쇰줈 ?먮룞 ?밴꺽.
 
-### 2026-09-15 (4) — web/ React 대시보드 구현 (8페이지)
-- React 18 + Vite + TS + Tailwind v4 + Recharts + react-router. MP020 팔레트를 `@theme` 토큰으로, Archivo+Noto Sans KR.
-- 공개 4(오늘·프로파일·속도·정차) + 관리 4(벤치·라벨·검토큐·시스템) — 목업(design/mockup) 문법 그대로: 바늘 게이지, 30 km/h ReferenceLine BarChart, AreaChart, 라벨 60초 카운트다운, 도트 진행률, C1 잠금 카드.
-- vite 프록시 `/api/public`→:8600, `/api/admin`→:8601 · 백엔드 부재 시 mock + DUMMY 배지 · 미집계 지표는 "—"로 정직 표시 · 표시 시각은 KST 변환(저장 UTC 규약).
-- 검증: eslint 0건 · tsc+vite build 통과 · 더미 백엔드+브라우저로 8페이지 렌더 확인 · 라벨 POST 왕복(E2E) 확인.
+### 2026-09-15 (5) ???쇱씠釉??꾨━酉??ㅺ퀎 寃곗젙: ?뚯씪???꾩슜 + 罹섎━釉뚮젅?댁뀡 紐⑤뱶
+- 寃곗젙(Mealboard 諛⑹떇): 移대찓???ㅽ듃由셋톀OI/?몃え洹몃옒?쇰뒗 愿由?URL ?꾩슜, 愿由??ы듃瑜?Tailscale ?뚯씪?룹뿉留?諛붿씤??`TRAFFIC_ADMIN_BIND`). ?댁쨷 ?좉툑 ???ㅽ듃由쇱? 罹섎━釉뚮젅?댁뀡 紐⑤뱶瑜?耳??숈븞?먮쭔(湲곕낯 爰쇱쭚쨌30遺??먮룞 ??꾩븘?꺜룸줈洹?湲곕줉).
+- 援ы쁽: settings ADMIN_BIND 쨌 admin API `/calib`쨌`/calib/mode`쨌`/stream`(紐⑤뱶 ?좉툑, MJPEG??R1) 쨌 ?쒖뒪????罹섎━釉뚮젅?댁뀡 移대뱶(耳쒓린/?꾧린쨌?⑥? ?쒓컙) 쨌 pytest 12媛?紐⑤뱶 寃뚯씠???ы븿) ?듦낵.
 
-### 2026-09-15 (3) — UI 목업 (design/mockup, 캔버스 v6)
-- /design 캔버스 8아트보드 목업 → 사용자 컨셉(MP020 팔레트·스위스 스타일) 반영, 현장 사진(3층·30 m) 지형·바늘 게이지·폰트 통일까지 v6 확정.
+### 2026-09-15 (4) ??web/ React ??쒕낫??援ы쁽 (8?섏씠吏)
+- React 18 + Vite + TS + Tailwind v4 + Recharts + react-router. MP020 ?붾젅?몃? `@theme` ?좏겙?쇰줈, Archivo+Noto Sans KR.
+- 怨듦컻 4(?ㅻ뒛쨌?꾨줈?뚯씪쨌?띾룄쨌?뺤감) + 愿由?4(踰ㅼ튂쨌?쇰꺼쨌寃?좏걧쨌?쒖뒪?? ??紐⑹뾽(design/mockup) 臾몃쾿 洹몃?濡? 諛붾뒛 寃뚯씠吏, 30 km/h ReferenceLine BarChart, AreaChart, ?쇰꺼 60珥?移댁슫?몃떎?? ?꾪듃 吏꾪뻾瑜? C1 ?좉툑 移대뱶.
+- vite ?꾨줉??`/api/public`??8600, `/api/admin`??8601 쨌 諛깆뿏??遺????mock + DUMMY 諛곗? 쨌 誘몄쭛怨?吏?쒕뒗 "??濡??뺤쭅 ?쒖떆 쨌 ?쒖떆 ?쒓컖? KST 蹂?????UTC 洹쒖빟).
+- 寃利? eslint 0嫄?쨌 tsc+vite build ?듦낵 쨌 ?붾? 諛깆뿏??釉뚮씪?곗?濡?8?섏씠吏 ?뚮뜑 ?뺤씤 쨌 ?쇰꺼 POST ?뺣났(E2E) ?뺤씤.
 
-### 2026-09-15 (2) — R0 코드 뼈대 첫 커밋
-- `pyproject.toml`(uv·hatchling) + `edge/trafficsvc` 패키지: settings · schema.sql(카운터 10표 + 연구 3표 + 뷰) · db · doctor · cli(serve/doctor/seed).
-- Protocol + fake 백엔드: `capture.FrameSource`/`FakeFrameSource` · `detect.Detector`/`FakeDetector`(6종→3그룹) · `vlm.VlmTagger`/`FakeVlmTagger`(enum만) · `vlm/hybrid_rules.py`(h1).
-- `TRAFFIC_FAKE_HW=1` 합성 궤적: `synth.py` → `fastloop.py`(버킷·이벤트→YOLO_ONLY 기록→submit) → `slowloop.py`(Queue(8)·drop-old→VLM_ONLY·HYBRID 기록·events.risk_level 캐시).
-- FastAPI 공개(8600: /·/profile·/speed·/dwell)/관리(8601: /bench·/label·/outbox·/system) 포트 · `notify/dispatch.py`(approved만 발송).
-- 검증: pytest 11개 통과 · doctor OK(이미지 0건) · 더미 서버로 8페이지 200 · 이벤트당 inferences 3행 확인.
-- **다음**: web/ UI 설계 — 디자인·컬러 레퍼런스 결정 후 착수 (여기서 의도적으로 멈춤).
+### 2026-09-15 (3) ??UI 紐⑹뾽 (design/mockup, 罹붾쾭??v6)
+- /design 罹붾쾭??8?꾪듃蹂대뱶 紐⑹뾽 ???ъ슜??而⑥뀎(MP020 ?붾젅?맞룹뒪?꾩뒪 ?ㅽ??? 諛섏쁺, ?꾩옣 ?ъ쭊(3痢돠?0 m) 吏?빧룸컮??寃뚯씠吏쨌?고듃 ?듭씪源뚯? v6 ?뺤젙.
 
-### 2026-09-15 — 저장소 생성 · 기기 접속 · 문서 기반 (R0 시작)
-- 로컬 저장소 `Traffic_Hazard_Monitoring_System` 생성 (`git init -b main`) → GitHub Public 레포 `xparapx/Traffic_Hazard_Monitoring_System` 생성·push·GitHub Pages(main /docs) 활성화 완료. gh 로그인은 기기 인증(device flow)으로 원격에서 처리.
-- Jetson Orin Nano(`kjhs@orin`) SSH 공개키 등록 — `ssh orin` 무비밀번호 접속 확인 (기존 공용 키 `id_ed25519` 재사용, aqhub·raspi와 동일 패턴).
-- 프로젝트 개요 문서(v0.2, 2026-09-14)를 `docs/index.html`로 편입 — GitHub Pages 게시 대상.
-- 개요 절 7-03 지침에 따라 `CLAUDE.md` 작성 (프라이버시 조항 · 운영 구조 · R0~R8 완료 기준 · 확인된 함정 · 검증 명령).
-- `README.md`(소개 전용) · `.gitignore` 작성, 첫 커밋.
-- **다음 작업**: R0 코드 뼈대 첫 커밋 (개요 절 8 R0 위임 프롬프트) — 학교에서 원격 세션으로 진행 예정.
+### 2026-09-15 (2) ??R0 肄붾뱶 堉덈? 泥?而ㅻ컠
+- `pyproject.toml`(uv쨌hatchling) + `edge/trafficsvc` ?⑦궎吏: settings 쨌 schema.sql(移댁슫??10??+ ?곌뎄 3??+ 酉? 쨌 db 쨌 doctor 쨌 cli(serve/doctor/seed).
+- Protocol + fake 諛깆뿏?? `capture.FrameSource`/`FakeFrameSource` 쨌 `detect.Detector`/`FakeDetector`(6醫끸넂3洹몃９) 쨌 `vlm.VlmTagger`/`FakeVlmTagger`(enum留? 쨌 `vlm/hybrid_rules.py`(h1).
+- `TRAFFIC_FAKE_HW=1` ?⑹꽦 沅ㅼ쟻: `synth.py` ??`fastloop.py`(踰꾪궥쨌?대깽?멤넂YOLO_ONLY 湲곕줉?뭩ubmit) ??`slowloop.py`(Queue(8)쨌drop-old?뭋LM_ONLY쨌HYBRID 湲곕줉쨌events.risk_level 罹먯떆).
+- FastAPI 怨듦컻(8600: /쨌/profile쨌/speed쨌/dwell)/愿由?8601: /bench쨌/label쨌/outbox쨌/system) ?ы듃 쨌 `notify/dispatch.py`(approved留?諛쒖넚).
+- 寃利? pytest 11媛??듦낵 쨌 doctor OK(?대?吏 0嫄? 쨌 ?붾? ?쒕쾭濡?8?섏씠吏 200 쨌 ?대깽?몃떦 inferences 3???뺤씤.
+- **?ㅼ쓬**: web/ UI ?ㅺ퀎 ???붿옄?맞룹뺄???덊띁?곗뒪 寃곗젙 ??李⑹닔 (?ш린???섎룄?곸쑝濡?硫덉땄).
+
+### 2026-09-15 ????μ냼 ?앹꽦 쨌 湲곌린 ?묒냽 쨌 臾몄꽌 湲곕컲 (R0 ?쒖옉)
+- 濡쒖뺄 ??μ냼 `Traffic_Hazard_Monitoring_System` ?앹꽦 (`git init -b main`) ??GitHub Public ?덊룷 `xparapx/Traffic_Hazard_Monitoring_System` ?앹꽦쨌push쨌GitHub Pages(main /docs) ?쒖꽦???꾨즺. gh 濡쒓렇?몄? 湲곌린 ?몄쬆(device flow)?쇰줈 ?먭꺽?먯꽌 泥섎━.
+- Jetson Orin Nano(`kjhs@orin`) SSH 怨듦컻???깅줉 ??`ssh orin` 臾대퉬諛踰덊샇 ?묒냽 ?뺤씤 (湲곗〈 怨듭슜 ??`id_ed25519` ?ъ궗?? aqhub쨌raspi? ?숈씪 ?⑦꽩).
+- ?꾨줈?앺듃 媛쒖슂 臾몄꽌(v0.2, 2026-09-14)瑜?`docs/index.html`濡??몄엯 ??GitHub Pages 寃뚯떆 ???
+- 媛쒖슂 ??7-03 吏移⑥뿉 ?곕씪 `CLAUDE.md` ?묒꽦 (?꾨씪?대쾭??議고빆 쨌 ?댁쁺 援ъ“ 쨌 R0~R8 ?꾨즺 湲곗? 쨌 ?뺤씤???⑥젙 쨌 寃利?紐낅졊).
+- `README.md`(?뚭컻 ?꾩슜) 쨌 `.gitignore` ?묒꽦, 泥?而ㅻ컠.
+- **?ㅼ쓬 ?묒뾽**: R0 肄붾뱶 堉덈? 泥?而ㅻ컠 (媛쒖슂 ??8 R0 ?꾩엫 ?꾨＼?꾪듃) ???숆탳?먯꽌 ?먭꺽 ?몄뀡?쇰줈 吏꾪뻾 ?덉젙.
