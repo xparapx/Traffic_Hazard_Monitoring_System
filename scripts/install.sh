@@ -32,6 +32,11 @@ fi
 #    (crontab @reboot + setsid 데몬. SSH 세션 종료에도 살아남음 — KillUserProcesses=no 전제)
 chmod +x scripts/run.sh
 if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "yes" ]; then
+  # crontab 경로에서 승격: @reboot 항목·run.sh 데몬 정리 (run.sh 가 살아 있으면 포트 선점)
+  ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh' || true ) | crontab -
+  pkill -f 'traffic/scripts/run.sh' 2>/dev/null || true
+  pkill -f 'trafficsvc serve' 2>/dev/null || true
+  sleep 1
   mkdir -p "$HOME/.config/systemd/user"
   cp deploy/systemd/traffic-app.service "$HOME/.config/systemd/user/"
   systemctl --user daemon-reload
