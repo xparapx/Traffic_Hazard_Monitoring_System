@@ -39,16 +39,22 @@ if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "ye
   sleep 1
   mkdir -p "$HOME/.config/systemd/user"
   cp deploy/systemd/traffic-app.service "$HOME/.config/systemd/user/"
+  cp deploy/systemd/traffic-autoupdate.service "$HOME/.config/systemd/user/"
+  cp deploy/systemd/traffic-autoupdate.timer "$HOME/.config/systemd/user/"
+  chmod +x scripts/autoupdate.sh
   systemctl --user daemon-reload
   systemctl --user enable traffic-app.service >/dev/null 2>&1 || true
+  systemctl --user enable --now traffic-autoupdate.timer >/dev/null 2>&1 || true
   systemctl --user restart traffic-app.service
-  echo "[install] systemd user 유닛으로 상주 (linger on)"
+  echo "[install] systemd user 유닛으로 상주 (linger on) + autoupdate 타이머(5분, pull형 CD)"
 else
   # 혹시 남아 있을 user 유닛은 내려서 포트 충돌 방지
   systemctl --user disable --now traffic-app.service >/dev/null 2>&1 || true
   # crontab @reboot 등록 (중복 없이)
-  ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh' || true
-    echo "@reboot /bin/bash $HOME/traffic/scripts/run.sh" ) | crontab -
+  chmod +x scripts/autoupdate.sh
+  ( crontab -l 2>/dev/null | grep -vE 'traffic/scripts/(run|autoupdate)[.]sh' || true
+    echo "@reboot /bin/bash $HOME/traffic/scripts/run.sh"
+    echo "*/5 * * * * /bin/bash $HOME/traffic/scripts/autoupdate.sh >> $HOME/traffic/data/autoupdate.log 2>&1" ) | crontab -
   # 재시작: 기존 프로세스 종료 후 세션 분리 기동
   pkill -f 'trafficsvc serve' 2>/dev/null || true
   pkill -f 'scripts/run[.]sh' 2>/dev/null || true   # [.] = 자기 자신(패턴 문자열) 매칭 방지

@@ -1,0 +1,10 @@
+# pull 형 CD — CI 통과 릴리스 자동 수거 (traffic-autoupdate.timer 가 5분 주기 호출)
+[Unit]
+Description=traffic auto-update (pull-based CD)
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/traffic
+ExecStart=/bin/bash %h/traffic/scripts/autoupdate.sh
+StandardOutput=append:%h/traffic/data/autoupdate.log
+StandardError=append:%h/traffic/data/autoupdate.log

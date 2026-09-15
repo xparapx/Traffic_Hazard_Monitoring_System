@@ -35,3 +35,31 @@ jobs:
         run: npm run lint --prefix web
       - name: build
         run: npm run build --prefix web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+  # CD 발행 — 두 검증 잡을 모두 통과한 커밋만 'latest' 릴리스로 (orin 이 pull 형으로 수거)
+  release:
+    if: github.ref == 'refs/heads/main'
+    needs: [python, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: dist 압축
+        run: tar -czf web-dist.tar.gz -C web dist
+      - name: latest 릴리스 갱신
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest web-dist.tar.gz \
+            --title "latest (CI 통과 자동 발행)" \
+            --notes "sha=${{ github.sha }}"
