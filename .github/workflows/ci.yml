@@ -1,0 +1,37 @@
+# CI — 검증 루프의 독립 확인 경로 (전역 CLAUDE.md 검증 루프 규칙과 연계)
+# 로컬 검증(pytest·lint·build·doctor)과 같은 검사를 제3의 머신이 push마다 재실행한다.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: 의존성 설치
+        run: uv sync
+      - name: pytest
+        run: uv run pytest -q
+      - name: doctor (스키마·이미지 0건 자가 점검)
+        run: uv run trafficsvc doctor
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: 의존성 설치
+        run: npm ci --prefix web
+      - name: eslint
+        run: npm run lint --prefix web
+      - name: build
+        run: npm run build --prefix web
