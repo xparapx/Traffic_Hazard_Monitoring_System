@@ -22,6 +22,12 @@
 - 브랜치는 `main` 하나. sudo · 알림 발송은 사람(교사)이 한다.
 - 저장소: GitHub `Traffic_Hazard_Monitoring_System` (Public). 모델 가중치·DB·`.env`·세션 데이터는 `.gitignore`.
 
+## sudo 정책 (2026-09-15, 원격 위임 운용)
+- 상주·배포·빌드·모델·배치는 전부 sudo 없이 운용한다 (uv·cron @reboot·setsid — 현행).
+- **sudo가 불가피한 작업 목록** (집에서 보드 앞에 있을 때 몰아서, 또는 아래 sudoers 등록 후 원격):
+  apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger
+- 원격 위임용 표준 해법: `/etc/sudoers.d/traffic`에 위 명령만 NOPASSWD 등록(1회, 사람 몫). 전체 루트 개방 금지.
+
 ## 기기 접속
 - `ssh orin` = kjhs@orin — Jetson Orin Nano Super 8GB (주 보드, JetPack 7.2.1 예정). 2026-09-15 공개키 등록, 무비밀번호 접속.
 - 원격(SSH) 세션에서는 확인·로그·doctor·실측 스크립트 실행만. 편집하지 않음.
