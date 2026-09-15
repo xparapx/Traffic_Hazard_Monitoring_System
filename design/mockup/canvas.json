@@ -1,20 +1,108 @@
 {
   "artboards": [
-    { "file": "Main.dc.html",    "title": "오늘 · 공개 (모바일)",  "x": 0,    "y": 0,    "w": 390,  "h": 844 },
-    { "file": "Profile.dc.html", "title": "프로파일 · 공개",       "x": 510,  "y": 0,    "w": 1280, "h": 800 },
-    { "file": "Speed.dc.html",   "title": "속도 · 공개",           "x": 1870, "y": 0,    "w": 1280, "h": 800 },
-    { "file": "Dwell.dc.html",   "title": "정차 · 공개",           "x": 3230, "y": 0,    "w": 1280, "h": 800 },
-    { "file": "Bench.dc.html",   "title": "벤치 · 관리",           "x": 510,  "y": 1000, "w": 1280, "h": 800 },
-    { "file": "Label.dc.html",   "title": "라벨 · 관리 (모바일)",  "x": 0,    "y": 1000, "w": 390,  "h": 844 },
-    { "file": "Outbox.dc.html",  "title": "검토 큐 · 관리",        "x": 1870, "y": 1000, "w": 1280, "h": 800 },
-    { "file": "System.dc.html",  "title": "시스템 · 관리",         "x": 3230, "y": 1000, "w": 1280, "h": 800 }
+    {
+      "file": "Main.dc.html",
+      "title": "오늘 · 공개 (모바일)",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Profile.dc.html",
+      "title": "프로파일 · 공개",
+      "x": 510,
+      "y": 0,
+      "w": 1280,
+      "h": 800
+    },
+    {
+      "file": "Speed.dc.html",
+      "title": "속도 · 공개",
+      "x": 1870,
+      "y": 0,
+      "w": 1280,
+      "h": 800
+    },
+    {
+      "file": "Dwell.dc.html",
+      "title": "정차 · 공개",
+      "x": 3230,
+      "y": 0,
+      "w": 1280,
+      "h": 800
+    },
+    {
+      "file": "Bench.dc.html",
+      "title": "벤치 · 관리",
+      "x": 510,
+      "y": 1000,
+      "w": 1280,
+      "h": 800
+    },
+    {
+      "file": "Label.dc.html",
+      "title": "라벨 · 관리 (모바일)",
+      "x": 0,
+      "y": 1000,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Outbox.dc.html",
+      "title": "검토 큐 · 관리",
+      "x": 1870,
+      "y": 1000,
+      "w": 1280,
+      "h": 800
+    },
+    {
+      "file": "System.dc.html",
+      "title": "시스템 · 관리",
+      "x": 3230,
+      "y": 1000,
+      "w": 1280,
+      "h": 800
+    }
   ],
   "annotations": [
-    { "id": "palette", "x": 0, "y": -280, "w": 360, "text": "디자인 토큰 (MP020)\n바탕 Dusty Cotton #E4E3DC · Bright Sandstone #DAD8CF\n다크 Web Cobblestone #1F282E · Midnight Smoke #414E58\n액센트 Ōtan Red #FF4E20 (주) · Red Gravy #B83312 (위험·부정)\n타입: Archivo(숫자·디스플레이) + Noto Sans KR(본문·메타 라벨 통일)" },
-    { "id": "row-public", "x": 420, "y": -140, "w": 260, "text": "공개 포트 :8600 — 집계·analysis만, 이미지 없음" },
-    { "id": "row-admin", "x": 420, "y": 870, "w": 260, "text": "관리 포트 :8601 — 승인·라벨·벤치, 교사 전용" },
-    { "id": "site-facts", "x": 3230, "y": -280, "w": 360, "text": "현장 반영 (2026-09 사진, 본관 3층 · 수평 30 m)\n· 도로가 카메라 축 정면으로 뻗음 → 가상선 A·B 유리\n· 교문 앞 교차로 + 횡단보도 2 → K3 지점\n· 좌 공영주차장 = 정상 구역(오탐 아님)\n· 우 GS25 모퉁이 = 배송 정차 군집 예상 (C1 delivery)\n· 어린이보호구역 30 표지 확인 → K1 기준 일치\n· 화면 하단 수목·시계탑 가림 → ROI 제외" },
-    { "id": "charts-note", "x": 900, "y": -140, "w": 300, "text": "차트는 Recharts 구현 전제 — 프로파일=AreaChart, 속도=BarChart(+ReferenceLine), 안전지수=RadialGauge(바늘), 벤치=시계열 LineChart. 마운트 애니메이션 대응." }
+    {
+      "id": "palette",
+      "x": 0,
+      "y": -280,
+      "w": 360,
+      "text": "디자인 토큰 (MP020)\n바탕 Dusty Cotton #E4E3DC · Bright Sandstone #DAD8CF\n다크 Web Cobblestone #1F282E · Midnight Smoke #414E58\n액센트 Ōtan Red #FF4E20 (주) · Red Gravy #B83312 (위험·부정)\n타입: Archivo(숫자·디스플레이) + Noto Sans KR(본문·메타 라벨 통일)"
+    },
+    {
+      "id": "row-public",
+      "x": 420,
+      "y": -140,
+      "w": 260,
+      "text": "공개 포트 :8600 — 집계·analysis만, 이미지 없음"
+    },
+    {
+      "id": "row-admin",
+      "x": 420,
+      "y": 870,
+      "w": 260,
+      "text": "관리 포트 :8601 — 승인·라벨·벤치, 교사 전용"
+    },
+    {
+      "id": "site-facts",
+      "x": 3230,
+      "y": -280,
+      "w": 360,
+      "text": "현장 반영 (2026-09 사진, 본관 3층 · 수평 30 m)\n· 도로가 카메라 축 정면으로 뻗음 → 가상선 A·B 유리\n· 교문 앞 교차로 + 횡단보도 2 → K3 지점\n· 좌 공영주차장 = 정상 구역(오탐 아님)\n· 우 GS25 모퉁이 = 배송 정차 군집 예상 (C1 delivery)\n· 어린이보호구역 30 표지 확인 → K1 기준 일치\n· 화면 하단 수목·시계탑 가림 → ROI 제외"
+    },
+    {
+      "id": "charts-note",
+      "x": 900,
+      "y": -140,
+      "w": 300,
+      "text": "차트는 Recharts 구현 전제 — 프로파일=AreaChart, 속도=BarChart(+ReferenceLine), 안전지수=RadialGauge(바늘), 벤치=시계열 LineChart. 마운트 애니메이션 대응."
+    }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }
