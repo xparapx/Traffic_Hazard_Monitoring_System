@@ -28,12 +28,29 @@ EOF
   echo "[install] data/traffic.env 생성 (ADMIN_BIND=${TS_IP:-127.0.0.1})"
 fi
 
-# 4) systemd user 유닛
-mkdir -p "$HOME/.config/systemd/user"
-cp deploy/systemd/traffic-app.service "$HOME/.config/systemd/user/"
-systemctl --user daemon-reload
-systemctl --user enable traffic-app.service >/dev/null 2>&1 || true
-systemctl --user restart traffic-app.service
+# 4) 상주 방식 — linger 켜져 있으면 systemd user 유닛, 아니면 sudo 없는 경로
+#    (crontab @reboot + setsid 데몬. SSH 세션 종료에도 살아남음 — KillUserProcesses=no 전제)
+chmod +x scripts/run.sh
+if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "yes" ]; then
+  mkdir -p "$HOME/.config/systemd/user"
+  cp deploy/systemd/traffic-app.service "$HOME/.config/systemd/user/"
+  systemctl --user daemon-reload
+  systemctl --user enable traffic-app.service >/dev/null 2>&1 || true
+  systemctl --user restart traffic-app.service
+  echo "[install] systemd user 유닛으로 상주 (linger on)"
+else
+  # 혹시 남아 있을 user 유닛은 내려서 포트 충돌 방지
+  systemctl --user disable --now traffic-app.service >/dev/null 2>&1 || true
+  # crontab @reboot 등록 (중복 없이)
+  ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh'
+    echo "@reboot /bin/bash $HOME/traffic/scripts/run.sh" ) | crontab -
+  # 재시작: 기존 프로세스 종료 후 세션 분리 기동
+  pkill -f 'trafficsvc serve' 2>/dev/null || true
+  pkill -f 'traffic/scripts/run.sh' 2>/dev/null || true
+  sleep 1
+  setsid nohup bash scripts/run.sh >/dev/null 2>&1 < /dev/null &
+  echo "[install] crontab @reboot + setsid 데몬으로 상주 (sudo 불필요)"
+fi
 
 # 5) 헬스체크
 sleep 3
