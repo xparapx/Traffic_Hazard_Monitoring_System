@@ -27,6 +27,9 @@ def db_path() -> Path:
 PUBLIC_PORT = int(_env("TRAFFIC_PUBLIC_PORT", "8600"))
 ADMIN_PORT = int(_env("TRAFFIC_ADMIN_PORT", "8601"))
 BIND_HOST = _env("TRAFFIC_BIND", "127.0.0.1")
+# 관리 포트는 테일넷 전용 (CLAUDE.md 라이브 프리뷰 결정) — Jetson 에서는
+# TRAFFIC_ADMIN_BIND 에 tailscale IP(100.x.x.x)를 넣는다. 미지정 시 BIND_HOST.
+ADMIN_BIND = _env("TRAFFIC_ADMIN_BIND", BIND_HOST)
 
 # 재현성 태그 (모든 추론 행에 기록 — 개요 절 5 규약 ③)
 MODEL_VER_FAKE = "fake-synth-0.1"

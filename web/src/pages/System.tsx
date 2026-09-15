@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
-import { api, Fetched, SystemData } from "../api";
+import { api, CalibData, Fetched, SystemData } from "../api";
 import { Card, DarkCard, DummyBadge, PageHeader } from "../components/ui";
 
 export default function SystemPage() {
   const [d, setD] = useState<Fetched<SystemData> | null>(null);
-  useEffect(() => {
+  const [calib, setCalib] = useState<Fetched<CalibData> | null>(null);
+  const refresh = () => {
     api.system().then(setD);
-    const t = setInterval(() => api.system().then(setD), 5000);
+    api.calib().then(setCalib);
+  };
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
   }, []);
+  async function toggleCalib() {
+    if (!calib) return;
+    await api.calibMode(!calib.mode_on);
+    refresh();
+  }
   if (!d) return null;
 
   return (
@@ -45,6 +55,34 @@ export default function SystemPage() {
             </span>
           </div>
         </DarkCard>
+
+        <Card className="md:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[14px] font-bold">
+              카메라 프리뷰 · 캘리브레이션 <span className="meta">테일넷 전용 · 켠 동안에만 · 저장 없음</span>
+            </span>
+            <button onClick={toggleCalib}
+              className={`rounded-full px-5 py-2 text-[13px] font-bold ${
+                calib?.mode_on ? "bg-gravy text-white" : "border-2 border-cobble"}`}>
+              {calib?.mode_on ? `모드 끄기 (${Math.ceil((calib.remaining_s ?? 0) / 60)}분 남음)` : "캘리브레이션 모드 켜기"}
+            </button>
+          </div>
+          {calib?.mode_on ? (
+            <div className="grid place-items-center rounded-[10px] bg-cobble py-10 text-center">
+              <div className="text-[13px] font-bold text-otan">CALIBRATION MODE</div>
+              <div className="mt-1 text-[12px] text-dim-dark">
+                MJPEG 스트림·ROI 편집기는 카메라가 붙는 R1에서 이 자리에 표시됩니다
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[10px] bg-sandstone py-6 text-center text-[12.5px] text-dim">
+              스트림은 꺼져 있습니다 — ROI·호모그래피 설정 시에만 켜세요 (30분 후 자동 꺼짐)
+            </div>
+          )}
+          <div className="mt-2 text-[10.5px] text-dim">
+            현재 캘리브레이션: {calib?.current ? `${calib.current.ver} (${calib.current.ts})` : "없음 — R2에서 4점 실측"}
+          </div>
+        </Card>
 
         <Card className="md:col-span-2">
           <div className="mb-2 text-[14px] font-bold">DB · traffic.db 행 수</div>

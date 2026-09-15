@@ -1,10 +1,14 @@
 # api — FastAPI 공개/관리 앱. 읽는 표: analysis · counts_5min · ped_5min · qc_5min · events · inferences · bench_runs · outbox
 #        쓰는 표: labels (관리 /label POST) · outbox.status (관리 승인/반려)
-# 원칙: 공개 포트는 집계·analysis 만 노출. 이미지·라이브 프리뷰 엔드포인트는 어느 포트에도 없다.
-# R0: 응답은 JSON 뼈대 — 화면(React)은 UI 설계 단계에서 이 JSON 을 그대로 그린다.
+# 원칙: 공개 포트는 집계·analysis 만 노출 — 이미지 엔드포인트 없음.
+#       관리 포트는 테일넷 전용(ADMIN_BIND)이며, 카메라 스트림은 캘리브레이션 모드를
+#       켠 동안에만 열린다 (기본 꺼짐 · 30분 자동 타임아웃 · 켜고 끈 기록 로그).
+# R0: 응답은 JSON 뼈대 — 스트림 실제 구현(MJPEG)은 카메라가 붙는 R1 에서.
 from __future__ import annotations
 
+import logging
 import sqlite3
+import time
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
@@ -12,6 +16,28 @@ from pydantic import BaseModel, Field
 
 from . import db, settings
 from .vlm import TAGS
+
+log = logging.getLogger("trafficsvc.api")
+
+CALIB_TIMEOUT_S = 30 * 60
+
+
+class CalibMode:
+    """캘리브레이션 모드 상태 — 켠 동안에만 /stream 이 열린다 (CLAUDE.md 프라이버시 조항)."""
+
+    def __init__(self):
+        self.expires: float = 0.0
+
+    @property
+    def on(self) -> bool:
+        return time.monotonic() < self.expires
+
+    def set(self, on: bool) -> None:
+        self.expires = time.monotonic() + CALIB_TIMEOUT_S if on else 0.0
+        log.warning("calibration mode %s", "ON (30min)" if on else "OFF")
+
+    def remaining_s(self) -> int:
+        return max(0, int(self.expires - time.monotonic())) if self.on else 0
 
 
 def _rows(con, sql, args=()):
@@ -80,12 +106,39 @@ class OutboxAction(BaseModel):
     by: str
 
 
+class CalibModeIn(BaseModel):
+    on: bool
+
+
 def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
+    calib_mode = CalibMode()
 
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
+
+    @app.get("/calib")
+    def calib_status():
+        row = con.execute("SELECT ver, ts, reproj_err_m FROM calib ORDER BY ts DESC LIMIT 1").fetchone()
+        return _meta("calib") | {
+            "mode_on": calib_mode.on,
+            "remaining_s": calib_mode.remaining_s(),
+            "current": dict(row) if row else None,
+        }
+
+    @app.post("/calib/mode")
+    def calib_mode_set(body: CalibModeIn):
+        calib_mode.set(body.on)
+        return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
+
+    @app.get("/stream")
+    def stream():
+        # 이중 잠금: ① 관리 포트 = 테일넷 전용 바인딩 ② 캘리브레이션 모드 동안에만
+        if not calib_mode.on:
+            raise HTTPException(409, "calibration mode off — POST /calib/mode {on:true} 후 30분간 유효")
+        # MJPEG 구현은 카메라가 붙는 R1 에서 — 프레임 저장 없이 전송만
+        raise HTTPException(501, "stream backend는 R1(카메라)에서 구현")
 
     @app.get("/bench")
     def bench():

@@ -20,6 +20,7 @@ export interface BenchData { dummy: boolean; bench_runs: unknown[]; inference_su
 export interface LabelData { dummy: boolean; pending: PendingEvent[]; tags: string[] }
 export interface OutboxData { dummy: boolean; items: OutboxItem[] }
 export interface SystemData { dummy: boolean; db_rows: Record<string, number>; fake_hw: boolean }
+export interface CalibData { dummy: boolean; mode_on: boolean; remaining_s: number; current: { ver: string; ts: string } | null }
 
 export type Fetched<T> = T & { offline: boolean };
 
@@ -92,6 +93,9 @@ export const api = {
       dummy: true, fake_hw: true,
       db_rows: { counts_5min: 0, events: 0, inferences: 0, labels: 0, qc_5min: 0, outbox: 0 },
     }),
+  calib: () =>
+    get<CalibData>("/api/admin/calib", { dummy: true, mode_on: false, remaining_s: 0, current: null }),
+  calibMode: (on: boolean) => post("/api/admin/calib/mode", { on }),
   postLabel: (b: { event_id: string; hazard: number; tag: string | null; labeler: string }) =>
     post("/api/admin/label", b),
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>

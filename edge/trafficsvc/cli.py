@@ -85,12 +85,13 @@ def _serve() -> int:
         cfgs = [
             uvicorn.Config(public, host=settings.BIND_HOST, port=settings.PUBLIC_PORT,
                            log_level="warning"),
-            uvicorn.Config(admin, host=settings.BIND_HOST, port=settings.ADMIN_PORT,
+            # 관리 포트는 테일넷 인터페이스에만 (TRAFFIC_ADMIN_BIND) — CLAUDE.md 프라이버시 조항
+            uvicorn.Config(admin, host=settings.ADMIN_BIND, port=settings.ADMIN_PORT,
                            log_level="warning"),
         ]
         servers = [uvicorn.Server(c) for c in cfgs]
         print(f"[trafficsvc] public http://{settings.BIND_HOST}:{settings.PUBLIC_PORT}"
-              f" · admin http://{settings.BIND_HOST}:{settings.ADMIN_PORT}")
+              f" · admin http://{settings.ADMIN_BIND}:{settings.ADMIN_PORT} (테일넷 전용)")
         tasks += [asyncio.create_task(s.serve()) for s in servers]
         await asyncio.gather(*tasks)
 
