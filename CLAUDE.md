@@ -57,5 +57,6 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - `git add -A` 전에 `git status` — `.env*`·`*.bak*`·`*.log`·비밀값 파일이 보이면 `.gitignore`부터.
 
 ## 현재 상태 (2026-09-15)
-- **R0 진행 중** (1~2주차). 저장소 생성·orin SSH 설정·문서 기반 완료.
-- **다음 작업**: R0 코드 뼈대 첫 커밋 — 개요 절 8 R0 위임 프롬프트 사용 (pyproject(uv) · trafficsvc 패키지 뼈대(settings·schema.sql·db·cli) · detect/vlm/capture Protocol과 fake 백엔드 · `TRAFFIC_FAKE_HW=1` 합성 궤적 생성기 · FastAPI 공개/관리 포트 · web은 Plant 셸 복사 후 페이지 8개 자리). 학교에서 원격으로 진행 예정.
+- **R0 진행 중** (1~2주차). 저장소·orin SSH·문서 기반·**백엔드 코드 뼈대 완료** — pytest 11개 통과, `TRAFFIC_FAKE_HW=1 uv run trafficsvc serve`로 공개(8600)/관리(8601) 8페이지 200 응답, 이벤트당 inferences 3행(YOLO_ONLY·VLM_ONLY·HYBRID) 확인.
+- API 포트: 공개 `:8600`(/ · /profile · /speed · /dwell), 관리 `:8601`(/bench · /label · /outbox · /system). 환경변수 `TRAFFIC_PUBLIC_PORT`/`TRAFFIC_ADMIN_PORT`.
+- **다음 작업: web/ UI 설계** — 디자인·컬러 레퍼런스 파일 확정 후 착수(사용자 제공 예정, /design 스킬 연동 검토). React+Vite+TS+Tailwind, 현재 API JSON을 그대로 그리면 됨. UI 이후에는 R0 잔여(GATE 0 문서·교사 서명)와 R1(Jetson 런타임)로.
