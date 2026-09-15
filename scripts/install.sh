@@ -42,7 +42,7 @@ else
   # 혹시 남아 있을 user 유닛은 내려서 포트 충돌 방지
   systemctl --user disable --now traffic-app.service >/dev/null 2>&1 || true
   # crontab @reboot 등록 (중복 없이)
-  ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh'
+  ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh' || true
     echo "@reboot /bin/bash $HOME/traffic/scripts/run.sh" ) | crontab -
   # 재시작: 기존 프로세스 종료 후 세션 분리 기동
   pkill -f 'trafficsvc serve' 2>/dev/null || true
