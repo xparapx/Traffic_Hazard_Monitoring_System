@@ -36,3 +36,4 @@ Thumbs.db
 
 # design 캔버스 조립 산출물 (원본 .dc.html 만 커밋)
 design/mockup/traffic-hazard-dashboard.html
+*.tsbuildinfo
