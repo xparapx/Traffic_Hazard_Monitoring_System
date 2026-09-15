@@ -59,4 +59,5 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 ## 현재 상태 (2026-09-15)
 - **R0 진행 중** (1~2주차). 저장소·orin SSH·문서 기반·**백엔드 코드 뼈대 완료** — pytest 11개 통과, `TRAFFIC_FAKE_HW=1 uv run trafficsvc serve`로 공개(8600)/관리(8601) 8페이지 200 응답, 이벤트당 inferences 3행(YOLO_ONLY·VLM_ONLY·HYBRID) 확인.
 - API 포트: 공개 `:8600`(/ · /profile · /speed · /dwell), 관리 `:8601`(/bench · /label · /outbox · /system). 환경변수 `TRAFFIC_PUBLIC_PORT`/`TRAFFIC_ADMIN_PORT`.
-- **다음 작업: web/ UI 설계** — 디자인·컬러 레퍼런스 파일 확정 후 착수(사용자 제공 예정, /design 스킬 연동 검토). React+Vite+TS+Tailwind, 현재 API JSON을 그대로 그리면 됨. UI 이후에는 R0 잔여(GATE 0 문서·교사 서명)와 R1(Jetson 런타임)로.
+- **web/ 구현 완료** — React 18+Vite+TS+Tailwind v4+Recharts, 8페이지, MP020 팔레트(디자인 원본 design/mockup, 캔버스 https://claude.ai/artifact/Ri4dfeXUj2uyRz4UqGVbBE ). `npm --prefix web run dev`(:5173, /api 프록시), 검증: `npm run lint && npm run build` + 더미 백엔드 8페이지 렌더·라벨 POST 왕복 확인.
+- **다음 작업**: R0 잔여 — GATE 0 문서·문제 진술 1장·담당 교사 서명, 카메라·렌즈 주문. 이후 R1(Jetson 런타임: JetPack 7.2.1 검증·yolo11n.engine 빌드·UVC 캡처·시험 캡처로 K1/K3 판정) — orin 접속은 `ssh orin`.
