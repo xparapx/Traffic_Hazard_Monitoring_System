@@ -34,7 +34,7 @@ chmod +x scripts/run.sh
 if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" = "yes" ]; then
   # crontab 경로에서 승격: @reboot 항목·run.sh 데몬 정리 (run.sh 가 살아 있으면 포트 선점)
   ( crontab -l 2>/dev/null | grep -v 'traffic/scripts/run.sh' || true ) | crontab -
-  pkill -f 'traffic/scripts/run.sh' 2>/dev/null || true
+  pkill -f 'scripts/run[.]sh' 2>/dev/null || true   # [.] = 자기 자신(패턴 문자열) 매칭 방지
   pkill -f 'trafficsvc serve' 2>/dev/null || true
   sleep 1
   mkdir -p "$HOME/.config/systemd/user"
@@ -51,7 +51,7 @@ else
     echo "@reboot /bin/bash $HOME/traffic/scripts/run.sh" ) | crontab -
   # 재시작: 기존 프로세스 종료 후 세션 분리 기동
   pkill -f 'trafficsvc serve' 2>/dev/null || true
-  pkill -f 'traffic/scripts/run.sh' 2>/dev/null || true
+  pkill -f 'scripts/run[.]sh' 2>/dev/null || true   # [.] = 자기 자신(패턴 문자열) 매칭 방지
   sleep 1
   setsid nohup bash scripts/run.sh >/dev/null 2>&1 < /dev/null &
   echo "[install] crontab @reboot + setsid 데몬으로 상주 (sudo 불필요)"

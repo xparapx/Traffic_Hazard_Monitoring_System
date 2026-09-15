@@ -4,6 +4,10 @@
 
 ## 2026-09
 
+### 2026-09-15 (8) — systemd 승격 · sudoers 등록
+- 사용자가 집에서 `/etc/sudoers.d/traffic` NOPASSWD 등록(apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) — 검증 완료, R1 시스템 작업 원격 위임 가능해짐.
+- linger 활성화 → install.sh가 crontab 경로에서 systemd user 유닛으로 승격(enabled·active·부팅 자동시작). 잔존 run.sh 데몬 정리, pkill 패턴 자기매칭 버그 수정.
+
 ### 2026-09-15 (7) — 벤치 수동분석 지원
 - `bench_samples`(벤치 실행 귀속 초단위 자원 시계열: fps·lat·mem·swap·power·gpu·temp) 추가 — 멱등 마이그레이션으로 기존 DB 적용.
 - CSV export: 관리 API `/api/admin/export/{table}.csv`(9종) · CLI `uv run trafficsvc export` · 벤치 화면 내려받기 버튼. 모델 비교 시작점은 `traffic_monitoring_events` 조인 뷰.
