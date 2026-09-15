@@ -4,6 +4,10 @@
 
 ## 2026-09
 
+### 2026-09-15 (9) — CI/CD 완성 (pull형 GitOps)
+- CI(GitHub Actions): push마다 pytest·doctor·eslint·build를 독립 머신이 재검증 — 전역 "검증 루프" 규칙의 기계 확인 경로.
+- CD: 두 검증 잡 통과 시 web dist를 `latest` 릴리스로 자동 발행(sha 명시) → orin `traffic-autoupdate.timer`(5분)가 수거·설치·헬스체크·실패 시 자동 롤백. **배포 시점이 에이전트 재량에서 파이프라인으로 이관됨.** 이 커밋 자체가 CD 경로로 배포되는 첫 커밋(E2E 증명).
+
 ### 2026-09-15 (8) — systemd 승격 · sudoers 등록
 - 사용자가 집에서 `/etc/sudoers.d/traffic` NOPASSWD 등록(apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) — 검증 완료, R1 시스템 작업 원격 위임 가능해짐.
 - linger 활성화 → install.sh가 crontab 경로에서 systemd user 유닛으로 승격(enabled·active·부팅 자동시작). 잔존 run.sh 데몬 정리, pkill 패턴 자기매칭 버그 수정.
