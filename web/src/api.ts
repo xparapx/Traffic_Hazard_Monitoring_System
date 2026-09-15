@@ -28,7 +28,13 @@ export type Fetched<T> = T & { offline: boolean };
 // 반대편 API 는 절대 주소로 호출한다. dev(:5173)에서는 vite 프록시 사용.
 const loc = window.location;
 const PUB_BASE = loc.port === "8601" ? `${loc.protocol}//${loc.hostname}:8600` : "";
-const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
+export const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
+
+/** 수동 분석용 CSV 내려받기 대상 (관리 API /export/{name}.csv) */
+export const EXPORT_TABLES = [
+  "traffic_monitoring_events", "inferences", "labels", "bench_runs",
+  "bench_samples", "qc_5min", "events", "counts_5min",
+] as const;
 
 async function get<T>(url: string, mock: T): Promise<Fetched<T>> {
   try {

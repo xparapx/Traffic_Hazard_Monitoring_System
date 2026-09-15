@@ -4,7 +4,7 @@ def test_all_tables_created(con):
         "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     need = {"counts_5min", "ped_5min", "events", "qc_5min", "calib", "ext_wx",
             "school_cal", "validation", "analysis", "outbox",
-            "inferences", "labels", "bench_runs"}
+            "inferences", "labels", "bench_runs", "bench_samples"}
     assert need <= tables
 
 

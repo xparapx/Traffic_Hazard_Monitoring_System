@@ -94,6 +94,14 @@ CREATE TABLE bench_runs(
   fps_med REAL, fps_p05 REAL, lat_p50_ms INTEGER, lat_p95_ms INTEGER, mem_max_mb INTEGER,
   swap_max_mb INTEGER, power_avg_w REAL, temp_max_c REAL, n_events INTEGER, n_dropped INTEGER, note TEXT);
 
+-- 벤치 초단위 자원 시계열: bench_runs 1행에 N 샘플 (B2 자원 곡선 · 이벤트 ±10s fps 창)
+-- 벤치 실행 중에만 기록 — 상시 수집이 아니므로 크기 유한
+CREATE TABLE IF NOT EXISTS bench_samples(
+  id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL, ts TEXT NOT NULL,
+  fps REAL, lat_ms INTEGER, mem_mb INTEGER, swap_mb INTEGER,
+  power_w REAL, gpu_pct INTEGER, temp_c REAL);
+CREATE INDEX IF NOT EXISTS ix_bs_run ON bench_samples(run_id);
+
 -- 계획서 호환 뷰: 단일 표처럼 읽기
 CREATE VIEW traffic_monitoring_events AS
   SELECT i.event_id, i.ts AS timestamp, i.model_type, i.risk_level, i.tag AS context_tag,

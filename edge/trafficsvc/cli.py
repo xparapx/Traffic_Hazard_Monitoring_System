@@ -17,12 +17,16 @@ def main(argv: list[str] | None = None) -> int:
     p_seed = sub.add_parser("seed", help="더미 데이터 주입 (버킷 n개 + 이벤트 m개)")
     p_seed.add_argument("--buckets", type=int, default=6)
     p_seed.add_argument("--events", type=int, default=4)
+    p_exp = sub.add_parser("export", help="수동 분석용 CSV 일괄 추출 (기본 data/export/<UTC시각>/)")
+    p_exp.add_argument("--out", default=None)
     args = ap.parse_args(argv)
 
     if args.cmd == "doctor":
         return _doctor()
     if args.cmd == "seed":
         return _seed(args.buckets, args.events)
+    if args.cmd == "export":
+        return _export(args.out)
     if args.cmd == "serve":
         return _serve()
     return 2
@@ -59,6 +63,23 @@ def _seed(n_buckets: int, n_events: int) -> int:
         slow.process_one(event_id, crop, meta)
     print(f"seeded: buckets={n_buckets} events={n_events} "
           f"(inferences {3 * n_events}행 예상)")
+    return 0
+
+
+def _export(out: str | None) -> int:
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from . import settings
+    from .api import EXPORT_TABLES, table_csv
+
+    con = _open_db()
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dst = Path(out) if out else settings.data_dir() / "export" / stamp
+    dst.mkdir(parents=True, exist_ok=True)
+    for name in EXPORT_TABLES:
+        (dst / f"{name}.csv").write_text(table_csv(con, name), encoding="utf-8")
+    print(f"exported {len(EXPORT_TABLES)} tables -> {dst}")
     return 0
 
 

@@ -23,14 +23,26 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     return con
 
 
+# 기존 DB 에 안전하게 적용되는 증분 마이그레이션 (전부 멱등)
+MIGRATIONS = [
+    "CREATE TABLE IF NOT EXISTS bench_samples("
+    " id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL, ts TEXT NOT NULL,"
+    " fps REAL, lat_ms INTEGER, mem_mb INTEGER, swap_mb INTEGER,"
+    " power_w REAL, gpu_pct INTEGER, temp_c REAL)",
+    "CREATE INDEX IF NOT EXISTS ix_bs_run ON bench_samples(run_id)",
+]
+
+
 def init_db(con: sqlite3.Connection) -> None:
-    """스키마가 없으면 생성. 이미 있으면 그대로 둠 (마이그레이션은 별도)."""
+    """스키마가 없으면 생성, 있으면 멱등 마이그레이션만 적용."""
     has = con.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='inferences'"
     ).fetchone()
     if not has:
         con.executescript(SCHEMA.read_text(encoding="utf-8"))
-        con.commit()
+    for sql in MIGRATIONS:
+        con.execute(sql)
+    con.commit()
 
 
 def insert_event(con, *, ts, kind, zone, duration_s=None, speed_kmh=None,

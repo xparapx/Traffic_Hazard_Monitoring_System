@@ -15,6 +15,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -57,6 +58,23 @@ class CalibMode:
 
 def _rows(con, sql, args=()):
     return [dict(r) for r in con.execute(sql, args).fetchall()]
+
+
+# 수동 분석용 내려받기 대상 — 전부 숫자·enum 텍스트, 이미지 없음
+EXPORT_TABLES = ("inferences", "labels", "bench_runs", "bench_samples",
+                 "qc_5min", "events", "counts_5min", "ped_5min",
+                 "traffic_monitoring_events")
+
+
+def table_csv(con: sqlite3.Connection, name: str) -> str:
+    import csv
+    import io
+    cur = con.execute(f"SELECT * FROM {name}")  # name 은 EXPORT_TABLES 검증 후
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow([c[0] for c in cur.description])
+    w.writerows(cur.fetchall())
+    return buf.getvalue()
 
 
 def _meta(page: str) -> dict:
@@ -158,6 +176,14 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             raise HTTPException(409, "calibration mode off — POST /calib/mode {on:true} 후 30분간 유효")
         # MJPEG 구현은 카메라가 붙는 R1 에서 — 프레임 저장 없이 전송만
         raise HTTPException(501, "stream backend는 R1(카메라)에서 구현")
+
+    @api.get("/export/{name}.csv")
+    def export_csv(name: str):
+        if name not in EXPORT_TABLES:
+            raise HTTPException(404, f"export 대상 아님 — {', '.join(EXPORT_TABLES)}")
+        return Response(
+            table_csv(con, name), media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{name}.csv"'})
 
     @api.get("/bench")
     def bench():

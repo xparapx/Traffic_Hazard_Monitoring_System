@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, BenchData, Fetched } from "../api";
+import { ADM_BASE, api, BenchData, EXPORT_TABLES, Fetched } from "../api";
 import { Card, DummyBadge, Empty, PageHeader } from "../components/ui";
 
 const LABEL_GOAL = 60;
@@ -60,6 +60,25 @@ export default function Bench() {
               {labels} <span className="text-[18px] text-dim">/ {LABEL_GOAL}</span>
             </span>
             <span className="text-[11px] text-dim">unknown ≤ 15% 조건</span>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <div className="mb-2 text-[14px] font-bold">
+            데이터 내려받기 <span className="meta">CSV · 수동 분석용 — 숫자·enum만, 이미지 없음</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {EXPORT_TABLES.map((t) => (
+              <a key={t} href={`${ADM_BASE}/api/admin/export/${t}.csv`} download
+                className="rounded-full border-2 border-cobble px-4 py-2 text-[12px] font-bold hover:bg-cotton">
+                {t}.csv
+              </a>
+            ))}
+          </div>
+          <div className="mt-2 text-[11px] text-dim">
+            모델 비교의 시작점은 <b>traffic_monitoring_events</b>(이벤트×모델×정답 조인 뷰) ·
+            자원 곡선은 <b>bench_samples</b>(벤치 실행 중 초단위) · 전체 일괄 추출은 기기에서{" "}
+            <code>uv run trafficsvc export</code>
           </div>
         </Card>
       </div>
