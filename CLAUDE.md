@@ -61,4 +61,7 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - **R0 진행 중** (1~2주차). 저장소·orin SSH·문서 기반·**백엔드 코드 뼈대 완료** — pytest 11개 통과, `TRAFFIC_FAKE_HW=1 uv run trafficsvc serve`로 공개(8600)/관리(8601) 8페이지 200 응답, 이벤트당 inferences 3행(YOLO_ONLY·VLM_ONLY·HYBRID) 확인.
 - API 포트: 공개 `:8600`(/ · /profile · /speed · /dwell), 관리 `:8601`(/bench · /label · /outbox · /system). 환경변수 `TRAFFIC_PUBLIC_PORT`/`TRAFFIC_ADMIN_PORT`.
 - **web/ 구현 완료** — React 18+Vite+TS+Tailwind v4+Recharts, 8페이지, MP020 팔레트(디자인 원본 design/mockup, 캔버스 https://claude.ai/artifact/Ri4dfeXUj2uyRz4UqGVbBE ). `npm --prefix web run dev`(:5173, /api 프록시), 검증: `npm run lint && npm run build` + 더미 백엔드 8페이지 렌더·라벨 POST 왕복 확인.
-- **다음 작업**: R0 잔여 — GATE 0 문서·문제 진술 1장·담당 교사 서명, 카메라·렌즈 주문. 이후 R1(Jetson 런타임: JetPack 7.2.1 검증·yolo11n.engine 빌드·UVC 캡처·시험 캡처로 K1/K3 판정) — orin 접속은 `ssh orin`.
+- **트랙 재편(2026-09-15 사용자 결정)**: R1~R7의 주차 일정 대신 ①빌드 트랙(더미데이터로 배포·URL·전 기능, Claude Code 위임으로 단기 완성) ②현장 트랙(카메라 결착→학교 설치→`TRAFFIC_FAKE_HW=0` 전환→GATE·baseline·개입, 달력 종속)으로 운용 — Mealboard 방식.
+- **orin 배포 완료(더미 모드)**: 공개 http://100.96.30.94:8600/ · 관리 http://100.96.30.94:8601/ (테일넷 전용). 기기 `~/traffic`, user 유닛 `traffic-app`, 설정은 기기 `data/traffic.env`. 이후 배포는 `scripts\deploy.ps1` 한 번.
+- **미결**: orin lingering — `ssh orin` 후 `sudo loginctl enable-linger kjhs` 1회(사람 몫). 이거 전까지는 SSH 세션 없으면 서비스 내려감.
+- **다음 작업**: 빌드 트랙 잔여(analysis 배치 M0~M4·안전지수 → K1~K3 실표시, llm 주간 초안+검증기, dispatch 채널) · 현장 트랙(GATE 0 문서·교사 서명·카메라 주문 → R1 런타임).
