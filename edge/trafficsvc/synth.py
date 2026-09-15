@@ -55,11 +55,19 @@ class SynthGenerator:
             return None
         return self.make_dwell(now)
 
+    # 현장 상수 (2026-09 사진, 본관 3층 창 · 교문까지 수평 30 m):
+    #  - 교문 정면으로 도로가 뻗고 바로 앞 교차로 + 횡단보도 2 → K3 지점
+    #  - 좌측 공영주차장은 정상 구역(이벤트 아님) · 우측 GS25 모퉁이는 배송 정차 군집 예상
+    #  - 어린이보호구역 30 표지 확인(K1 기준) · 화면 하단 수목·시계탑 가림 → ROI 제외
     def make_dwell(self, now: datetime | None = None) -> SynthEvent:
         now = now or datetime.now(timezone.utc)
         r = self.rng
         zone = r.choice(("no_stop", "no_stop", "drop"))
-        dur = round(r.uniform(20, 120), 1)
+        if zone == "no_stop" and r.random() < 0.3:
+            # GS25 앞 배송성 장기 정차 — FakeVlmTagger 가 delivery/other 로 태깅하는 구간
+            dur = round(r.uniform(60, 180), 1)
+        else:
+            dur = round(r.uniform(20, 120), 1)
         return SynthEvent(
             event_id=str(uuid.uuid4()),
             ts=(now - timedelta(seconds=dur)).isoformat(timespec="seconds"),
