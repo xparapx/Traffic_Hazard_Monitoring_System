@@ -5,8 +5,8 @@ from trafficsvc.api import create_admin_app, create_public_app
 from trafficsvc.fastloop import FastLoop
 from trafficsvc.slowloop import SlowLoop
 
-PUBLIC_PAGES = ["/", "/profile", "/speed", "/dwell"]
-ADMIN_PAGES = ["/bench", "/label", "/outbox", "/system"]
+PUBLIC_PAGES = ["/api/public/", "/api/public/profile", "/api/public/speed", "/api/public/dwell"]
+ADMIN_PAGES = ["/api/admin/bench", "/api/admin/label", "/api/admin/outbox", "/api/admin/system"]
 
 
 def _seed(con):
@@ -33,9 +33,9 @@ def test_eight_pages_return_200(con):
         r = adm.get(p)
         assert r.status_code == 200, p
     # 공개 dwell 화면에 C1 은 GATE 2 전이므로 숨김
-    assert pub.get("/dwell").json()["c1_visible"] is False
+    assert pub.get("/api/public/dwell").json()["c1_visible"] is False
     # 라벨 대기열에 방금 이벤트가 있고, 이미지 관련 필드는 없다
-    pend = adm.get("/label").json()["pending"]
+    pend = adm.get("/api/admin/label").json()["pending"]
     assert any(x["event_id"] == ev.event_id for x in pend)
     assert all("image" not in k.lower() and "crop" not in k.lower()
                for x in pend for k in x)
@@ -44,11 +44,11 @@ def test_eight_pages_return_200(con):
 def test_label_post_roundtrip(con):
     ev = _seed(con)
     adm = TestClient(create_admin_app(con))
-    r = adm.post("/label", json={"event_id": ev.event_id, "hazard": 1,
+    r = adm.post("/api/admin/label", json={"event_id": ev.event_id, "hazard": 1,
                                  "tag": "boarding", "labeler": "tester"})
     assert r.status_code == 200
     # 라벨 후 대기열에서 빠짐
-    pend = adm.get("/label").json()["pending"]
+    pend = adm.get("/api/admin/label").json()["pending"]
     assert all(x["event_id"] != ev.event_id for x in pend)
     # 뷰에서 정답 라벨이 조인됨
     row = con.execute(
@@ -59,5 +59,5 @@ def test_label_post_roundtrip(con):
 
 def test_label_post_unknown_event_404(con):
     adm = TestClient(create_admin_app(con))
-    r = adm.post("/label", json={"event_id": "nope", "hazard": 0, "labeler": "t"})
+    r = adm.post("/api/admin/label", json={"event_id": "nope", "hazard": 0, "labeler": "t"})
     assert r.status_code == 404

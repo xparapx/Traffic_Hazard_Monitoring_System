@@ -24,6 +24,12 @@ export interface CalibData { dummy: boolean; mode_on: boolean; remaining_s: numb
 
 export type Fetched<T> = T & { offline: boolean };
 
+// 기기 배포에서는 공개 :8600 · 관리 :8601 이 각자 SPA 를 서빙하므로
+// 반대편 API 는 절대 주소로 호출한다. dev(:5173)에서는 vite 프록시 사용.
+const loc = window.location;
+const PUB_BASE = loc.port === "8601" ? `${loc.protocol}//${loc.hostname}:8600` : "";
+const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
+
 async function get<T>(url: string, mock: T): Promise<Fetched<T>> {
   try {
     const r = await fetch(url);
@@ -56,12 +62,12 @@ const mockCounts: CountRow[] = [0, 1, 2].flatMap((i) => [
 
 export const api = {
   today: () =>
-    get<TodayData>("/api/public/", {
+    get<TodayData>(`${PUB_BASE}/api/public/`, {
       dummy: true, counts_5min: mockCounts,
       qc_5min: [{ bucket_utc: "T0", fps_med: 22, qc: 0 }], analysis: [],
     }),
   speed: () =>
-    get<SpeedData>("/api/public/speed", {
+    get<SpeedData>(`${PUB_BASE}/api/public/speed`, {
       dummy: true,
       speed_5min: Array.from({ length: 12 }, (_, i) => ({
         bucket_utc: `08:${String(i * 5).padStart(2, "0")}`,
@@ -69,12 +75,12 @@ export const api = {
       })),
     }),
   dwell: () =>
-    get<DwellData>("/api/public/dwell", {
+    get<DwellData>(`${PUB_BASE}/api/public/dwell`, {
       dummy: true, c1_visible: false,
       events: [{ ts: "2026-09-15T08:21:14", zone: "no_stop", duration_s: 27, risk_level: "DANGER" }],
     }),
   bench: () =>
-    get<BenchData>("/api/admin/bench", {
+    get<BenchData>(`${ADM_BASE}/api/admin/bench`, {
       dummy: true, bench_runs: [],
       inference_summary: [
         { model_type: "YOLO_ONLY", n: 6, lat_avg: null },
@@ -83,23 +89,23 @@ export const api = {
       ],
     }),
   label: () =>
-    get<LabelData>("/api/admin/label", {
+    get<LabelData>(`${ADM_BASE}/api/admin/label`, {
       dummy: true, tags: ["boarding", "waiting", "delivery", "other"],
       pending: [{ event_id: "mock-1", ts: "2026-09-15T08:21:14", zone: "no_stop", duration_s: 27 }],
     }),
-  outbox: () => get<OutboxData>("/api/admin/outbox", { dummy: true, items: [] }),
+  outbox: () => get<OutboxData>(`${ADM_BASE}/api/admin/outbox`, { dummy: true, items: [] }),
   system: () =>
-    get<SystemData>("/api/admin/system", {
+    get<SystemData>(`${ADM_BASE}/api/admin/system`, {
       dummy: true, fake_hw: true,
       db_rows: { counts_5min: 0, events: 0, inferences: 0, labels: 0, qc_5min: 0, outbox: 0 },
     }),
   calib: () =>
-    get<CalibData>("/api/admin/calib", { dummy: true, mode_on: false, remaining_s: 0, current: null }),
-  calibMode: (on: boolean) => post("/api/admin/calib/mode", { on }),
+    get<CalibData>(`${ADM_BASE}/api/admin/calib`, { dummy: true, mode_on: false, remaining_s: 0, current: null }),
+  calibMode: (on: boolean) => post(`${ADM_BASE}/api/admin/calib/mode`, { on }),
   postLabel: (b: { event_id: string; hazard: number; tag: string | null; labeler: string }) =>
-    post("/api/admin/label", b),
+    post(`${ADM_BASE}/api/admin/label`, b),
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>
-    post(`/api/admin/outbox/${id}`, { action, by }),
+    post(`${ADM_BASE}/api/admin/outbox/${id}`, { action, by }),
 };
 
 /** 규약: 저장은 UTC, 표시만 KST */

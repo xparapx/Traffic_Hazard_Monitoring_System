@@ -11,11 +11,26 @@ import sqlite3
 import time
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
+
+from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import db, settings
 from .vlm import TAGS
+
+
+def _mount_web(app: FastAPI) -> None:
+    """web/dist 가 있으면 SPA(HashRouter)를 / 에 정적 서빙 — JSON 은 /api/* 프리픽스.
+    두 포트가 같은 SPA 를 서빙하고 반대편 API 는 절대 주소로 호출하므로 CORS 허용
+    (이미지 없는 JSON 뿐이고, 관리 포트는 테일넷 바인딩이 접근 통제를 담당)."""
+    app.add_middleware(CORSMiddleware, allow_origins=["*"],
+                       allow_methods=["*"], allow_headers=["*"])
+    dist = Path(settings._env("TRAFFIC_WEB_DIST", str(settings.REPO_ROOT / "web" / "dist")))
+    if dist.is_dir():
+        app.mount("/", StaticFiles(directory=dist, html=True), name="web")
 
 log = logging.getLogger("trafficsvc.api")
 
@@ -52,12 +67,13 @@ def _meta(page: str) -> dict:
 
 def create_public_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc public", version="0.1.0")
+    api = APIRouter(prefix="/api/public")
 
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
 
-    @app.get("/")
+    @api.get("/")
     def today():
         counts = _rows(con,
             "SELECT bucket_utc, cls, dir, n FROM counts_5min ORDER BY bucket_utc DESC LIMIT 12")
@@ -67,19 +83,19 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
             " ORDER BY date DESC LIMIT 8")
         return _meta("today") | {"counts_5min": counts, "qc_5min": qc, "analysis": k}
 
-    @app.get("/profile")
+    @api.get("/profile")
     def profile():
         return _meta("profile") | {"analysis": _rows(con,
             "SELECT date, payload FROM analysis WHERE kind='m1' ORDER BY date DESC LIMIT 30")}
 
-    @app.get("/speed")
+    @api.get("/speed")
     def speed():
         rows = _rows(con,
             "SELECT bucket_utc, speed_p85, speed_med FROM counts_5min"
             " WHERE cls='veh4' AND speed_p85 IS NOT NULL ORDER BY bucket_utc DESC LIMIT 60")
         return _meta("speed") | {"speed_5min": rows}
 
-    @app.get("/dwell")
+    @api.get("/dwell")
     def dwell():
         events = _rows(con,
             "SELECT ts, zone, duration_s, risk_level FROM events WHERE kind='dwell'"
@@ -87,6 +103,8 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
         # C1(태그 분포)은 GATE 2 통과 전에는 공개 화면에 내지 않는다 (CLAUDE.md)
         return _meta("dwell") | {"events": events, "c1_visible": False}
 
+    app.include_router(api)
+    _mount_web(app)
     return app
 
 
@@ -112,13 +130,14 @@ class CalibModeIn(BaseModel):
 
 def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
+    api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
 
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
 
-    @app.get("/calib")
+    @api.get("/calib")
     def calib_status():
         row = con.execute("SELECT ver, ts, reproj_err_m FROM calib ORDER BY ts DESC LIMIT 1").fetchone()
         return _meta("calib") | {
@@ -127,12 +146,12 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             "current": dict(row) if row else None,
         }
 
-    @app.post("/calib/mode")
+    @api.post("/calib/mode")
     def calib_mode_set(body: CalibModeIn):
         calib_mode.set(body.on)
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
 
-    @app.get("/stream")
+    @api.get("/stream")
     def stream():
         # 이중 잠금: ① 관리 포트 = 테일넷 전용 바인딩 ② 캘리브레이션 모드 동안에만
         if not calib_mode.on:
@@ -140,14 +159,14 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # MJPEG 구현은 카메라가 붙는 R1 에서 — 프레임 저장 없이 전송만
         raise HTTPException(501, "stream backend는 R1(카메라)에서 구현")
 
-    @app.get("/bench")
+    @api.get("/bench")
     def bench():
         runs = _rows(con, "SELECT * FROM bench_runs ORDER BY id DESC LIMIT 20")
         by_model = _rows(con,
             "SELECT model_type, COUNT(*) n, AVG(latency_ms) lat_avg FROM inferences GROUP BY 1")
         return _meta("bench") | {"bench_runs": runs, "inference_summary": by_model}
 
-    @app.get("/label")
+    @api.get("/label")
     def label_queue():
         rows = _rows(con,
             "SELECT e.event_id, e.ts, e.zone, e.duration_s FROM events e"
@@ -156,7 +175,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # 이미지는 없다 — 시각·구역·지속시간만 (개요 절 6-02 라벨 화면)
         return _meta("label") | {"pending": rows, "tags": list(TAGS)}
 
-    @app.post("/label")
+    @api.post("/label")
     def label_post(body: LabelIn):
         ev = con.execute("SELECT 1 FROM events WHERE event_id=?", (body.event_id,)).fetchone()
         if not ev:
@@ -168,12 +187,12 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         con.commit()
         return {"ok": True}
 
-    @app.get("/outbox")
+    @api.get("/outbox")
     def outbox():
         return _meta("outbox") | {"items": _rows(con,
             "SELECT * FROM outbox ORDER BY id DESC LIMIT 50")}
 
-    @app.post("/outbox/{item_id}")
+    @api.post("/outbox/{item_id}")
     def outbox_act(item_id: int, body: OutboxAction):
         row = con.execute("SELECT status FROM outbox WHERE id=?", (item_id,)).fetchone()
         if not row:
@@ -186,7 +205,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         con.commit()
         return {"ok": True, "status": status}
 
-    @app.get("/system")
+    @api.get("/system")
     def system():
         tables = ("counts_5min", "ped_5min", "events", "inferences", "labels",
                   "qc_5min", "outbox", "bench_runs")
@@ -194,4 +213,6 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
                      for t in tables}
         return _meta("system") | {"db_rows": rowcounts, "fake_hw": settings.fake_hw()}
 
+    app.include_router(api)
+    _mount_web(app)
     return app

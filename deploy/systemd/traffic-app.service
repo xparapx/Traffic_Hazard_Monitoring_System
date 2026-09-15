@@ -1,0 +1,16 @@
+# trafficsvc 공개(:8600)+관리(:8601) — user 유닛 (~/.config/systemd/user/)
+# 더미 단계: data/traffic.env 의 TRAFFIC_FAKE_HW=1. 카메라 설치 후 0 으로 전환.
+# 부팅 자동시작에는 lingering 필요: sudo loginctl enable-linger <user>
+[Unit]
+Description=traffic hazard monitoring service (public+admin)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/traffic
+EnvironmentFile=%h/traffic/data/traffic.env
+ExecStart=%h/.local/bin/uv run trafficsvc serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

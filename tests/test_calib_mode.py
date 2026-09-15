@@ -7,14 +7,14 @@ from trafficsvc.api import create_admin_app
 def test_stream_locked_until_calib_mode_on(con):
     adm = TestClient(create_admin_app(con))
 
-    st = adm.get("/calib").json()
+    st = adm.get("/api/admin/calib").json()
     assert st["mode_on"] is False
-    assert adm.get("/stream").status_code == 409          # 기본: 잠김
+    assert adm.get("/api/admin/stream").status_code == 409          # 기본: 잠김
 
-    r = adm.post("/calib/mode", json={"on": True}).json()
+    r = adm.post("/api/admin/calib/mode", json={"on": True}).json()
     assert r["mode_on"] is True and 0 < r["remaining_s"] <= 30 * 60
-    assert adm.get("/stream").status_code == 501          # 열림 — 백엔드는 R1 몫
+    assert adm.get("/api/admin/stream").status_code == 501          # 열림 — 백엔드는 R1 몫
 
-    adm.post("/calib/mode", json={"on": False})
-    assert adm.get("/stream").status_code == 409          # 다시 잠김
-    assert adm.get("/calib").json()["remaining_s"] == 0
+    adm.post("/api/admin/calib/mode", json={"on": False})
+    assert adm.get("/api/admin/stream").status_code == 409          # 다시 잠김
+    assert adm.get("/api/admin/calib").json()["remaining_s"] == 0

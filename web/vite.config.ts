@@ -8,16 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      "/api/public": {
-        target: "http://127.0.0.1:8600",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/public/, ""),
-      },
-      "/api/admin": {
-        target: "http://127.0.0.1:8601",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/admin/, ""),
-      },
+      "/api/public": { target: "http://127.0.0.1:8600", changeOrigin: true },
+      "/api/admin": { target: "http://127.0.0.1:8601", changeOrigin: true },
     },
   },
 });
