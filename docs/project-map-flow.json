@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Traffic Hazard Monitoring — 데이터 파이프라인",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 760],
+    "views": [
+      { "id": "hot-path", "label": "실시간 경로", "focus": ["cam", "fast", "db", "web"], "note": "프레임은 저장되지 않고 숫자만 남는다 — 5분 버킷과 이벤트." },
+      { "id": "shadow", "label": "3중 판정", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트당 inferences 3행 — 8GB 엣지 보드의 득실을 실측하는 연구 데이터." },
+      { "id": "report", "label": "리포트 경로", "focus": ["db", "anl", "out", "rpt"], "note": "검증기 통과 초안만 outbox 에, 사람 승인 후에만 발송." }
+    ]
+  },
+  "stages": [
+    { "label": "원천" },
+    { "label": "실시간 루프" },
+    { "label": "저장" },
+    { "label": "집계 · 검토" },
+    { "label": "소비" }
+  ],
+  "nodes": [
+    { "id": "cam", "type": "external", "label": "CAM", "sublabel": "synth frames", "stage": 0, "row": 2, "width": 128, "height": 64 },
+    { "id": "fast", "type": "backend", "label": "FAST", "sublabel": "counting loop", "stage": 1, "row": 0, "width": 128, "height": 64 },
+    { "id": "slow", "type": "backend", "label": "SLOW", "sublabel": "event queue", "stage": 1, "row": 2, "width": 128, "height": 64 },
+    { "id": "vlm", "type": "backend", "label": "VLM", "sublabel": "enum tagger", "stage": 1, "row": 4, "width": 128, "height": 64 },
+    { "id": "db", "type": "database", "label": "DB", "sublabel": "traffic.db", "stage": 2, "row": 1, "width": 128, "height": 64 },
+    { "id": "anl", "type": "backend", "label": "ANL", "sublabel": "daily 22:00 KST", "stage": 3, "row": 2, "width": 128, "height": 64 },
+    { "id": "out", "type": "messagebus", "label": "OUT", "sublabel": "outbox queue", "stage": 3, "row": 4, "width": 128, "height": 64 },
+    { "id": "web", "type": "frontend", "label": "WEB", "sublabel": "public :8600", "stage": 4, "row": 0, "width": 128, "height": 64 },
+    { "id": "admw", "type": "security", "label": "ADMW", "sublabel": "admin :8601", "stage": 4, "row": 2, "width": 128, "height": 64 },
+    { "id": "rpt", "type": "external", "label": "RPT", "sublabel": "weekly report", "stage": 4, "row": 4, "width": 128, "height": 64 }
+  ],
+  "flows": [
+    { "id": "frames", "from": "cam", "to": "fast", "label": "프레임 (미저장)", "classification": "RAM only", "variant": "emphasis" },
+    { "id": "buckets", "from": "fast", "to": "db", "label": "counts · events", "classification": "5분 버킷", "variant": "emphasis" },
+    { "id": "queue", "from": "fast", "to": "slow", "label": "event_id 큐", "classification": "drop-old", "labelDy": 24 },
+    { "id": "crop", "from": "slow", "to": "vlm", "label": "crop (메모리만)", "classification": "즉시 폐기", "variant": "dashed", "labelDy": 24 },
+    { "id": "verdicts", "from": "slow", "to": "db", "label": "inferences x3", "classification": "섀도 로깅" },
+    { "id": "qcread", "from": "db", "to": "anl", "label": "qc=0 버킷", "classification": "read" },
+    { "id": "draft", "from": "anl", "to": "out", "label": "주간 초안 (검증기)", "classification": "draft", "labelDy": 24 },
+    { "id": "aggr", "from": "db", "to": "web", "label": "집계 JSON", "classification": "공개" },
+    { "id": "labelq", "from": "db", "to": "admw", "label": "라벨 큐 · 검토", "classification": "테일넷", "variant": "security", "route": "vertical-channel", "channelX": 860 },
+    { "id": "sent", "from": "out", "to": "rpt", "label": "승인분만 발송", "classification": "approved", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "실시간 경로", "items": ["프레임은 파일로 저장되지 않는다 — 숫자·enum 만 DB 에", "표본 부족 버킷은 null 로 정직하게 기록", "FAST 는 SLOW 가 죽어도 멈추지 않는다"] },
+    { "dot": "violet", "title": "연구 데이터", "items": ["같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행", "crop 은 태깅 직후 참조 삭제 — 저장 코드 0", "사람 라벨(labels)은 관리 페이지에서만 들어온다"] },
+    { "dot": "rose", "title": "리포트 게이트", "items": ["검증기(금지 주어·숫자 대조) 통과 초안만 outbox draft", "draft 상태 발송 0건 — 승인은 사람이 관리 화면에서", "발송 채널은 R6 에서 — 지금은 sent 마킹 계약만"] }
+  ]
+}

@@ -1,6 +1,6 @@
 {
  "title": "Traffic Hazard Monitoring System 프로젝트 지도",
- "subtitle": "엣지 AI 통학 시간대 교통 위험 모니터링 — 운영(Fast)·연구(Slow)·배치·배포 흐름 · 지속 갱신(2026-09-22 현행, R0 더미 단계)",
+ "subtitle": "엣지 AI 통학 시간대 교통 위험 모니터링 — 운영(Fast)·연구(Slow)·배치·배포 흐름 · 지속 갱신 (기준 커밋 98d3302 · 2026-09-22 · R0 더미 단계)",
  "overview": {
   "intro": "창 안쪽 Jetson Orin Nano 가 영상을 저장하지 않고 통행을 세어 지표 K1~K3 를 만들고, 위험 이벤트 순간에만 VLM 이 정차 사유를 enum 태그로 붙인다. 설계 제1조건: VLM 이 죽어도 K1~K3 는 나온다 — 그래서 Fast Loop(운영)와 Slow Loop(연구)가 독립이다. 지금은 TRAFFIC_FAKE_HW=1 더미 단계로, synth 가 카메라·검출·추적을 대신한다.",
   "lanes": [
@@ -830,7 +830,6 @@
    "배치가 analysis 숫자로 초안 생성 · 검증기가 대조"
   ]
  ],
- "glossary": true,
  "scenarios": [
   {
    "id": "morning",
@@ -942,6 +941,47 @@
      "text": "approved 상태만 dispatch가 발송. C1 태그는 GATE 2 통과 후에만 리포트에 노출."
     }
    ]
+  },
+  {
+   "id": "cd",
+   "label": "코드 수정에서 기기 반영까지 (pull형 CD)",
+   "intro": "기기 직접 편집 금지 — 모든 변경은 로컬 PC 에서 시작해 CI 를 통과한 것만 기기에 닿는다. 배포 시점은 파이프라인이 결정한다.",
+   "steps": [
+    {
+     "t": "T+0",
+     "node": "ps1.deploy",
+     "text": "로컬 PC 에서 편집·커밋·push (deploy.ps1 은 비상용 — 평시엔 push 만 하면 끝)."
+    },
+    {
+     "t": "T+1분",
+     "node": "ci",
+     "text": "GitHub Actions 가 pytest·doctor(이미지 0건)·eslint·build 를 독립 재검증한다."
+    },
+    {
+     "t": "T+5분",
+     "node": "ci",
+     "also": [
+      "gh:release"
+     ],
+     "text": "두 잡 통과 시에만 latest 릴리스 갱신 — sha 와 web-dist.tar.gz 를 싣는다."
+    },
+    {
+     "t": "T+≤10분",
+     "node": "unit:traffic-autoupdate",
+     "also": [
+      "sh.autoupdate"
+     ],
+     "text": "orin 의 5분 타이머가 릴리스를 발견 — git pull --ff-only, dist 설치, 서비스 재시작."
+    },
+    {
+     "t": "T+10분",
+     "node": "sh.autoupdate",
+     "also": [
+      "api.public"
+     ],
+     "text": "헬스체크(GET /healthz). 실패하면 이전 커밋·dist 로 자동 롤백하고 data/autoupdate.log 에 남긴다."
+    }
+   ]
   }
  ],
  "lineage": [
@@ -993,63 +1033,99 @@
   }
  ],
  "ops": {
-  "intro": "로컬 PC가 개발 메인, 기기는 git pull --ff-only만 받는 pull형 CD. sudo 불가피 목록은 CLAUDE.md에 분리 — 상주·배포·배치는 전부 sudo 없이 돈다.",
+  "intro": "로컬 PC 가 유일한 편집 지점, 기기는 git pull --ff-only 만 받는 pull형 CD — 상주·배포·배치는 전부 sudo 없이 돈다. sudo 가 불가피한 작업은 /etc/sudoers.d/traffic 에 등록된 명령만 원격 위임 가능(목록은 CLAUDE.md). R8 에서 pi 보드 추가 예정.",
   "devices": [
    {
     "label": "Jetson Orin Nano Super 8GB (주 보드)",
-    "host": "ssh orin · ~/traffic",
+    "host": "ssh orin (kjhs@orin) · ~/traffic · 테일넷 100.96.30.94",
     "services": [
      {
       "name": "traffic-app.service",
-      "port": "8600 공개 · 8601 관리(테일넷 바인딩)",
-      "restart": "always",
-      "health": "trafficsvc doctor",
-      "d": "trafficsvc serve — Fast/Slow Loop + API + 정적 웹. FAKE_HW=1 더미로도 전 화면 구동."
+      "port": "8600 · 8601",
+      "restart": "on-failure 5s",
+      "health": "GET /healthz",
+      "d": "공개+관리 API 상주 (user 유닛 · linger on · 부팅 자동시작)"
      },
      {
       "name": "traffic-analysis.timer",
       "port": "—",
-      "restart": "timer",
-      "health": "run_daily 로그",
-      "d": "일간 배치 — analysis·outbox 적재."
+      "restart": "oneshot",
+      "health": "data/analysis.log",
+      "d": "매일 13:00 UTC(22:00 KST) 일간 배치 · 월요일 --weekly"
      },
      {
       "name": "traffic-autoupdate.timer",
       "port": "—",
-      "restart": "timer",
-      "health": "gh:release 태그 비교",
-      "d": "pull형 CD — CI 통과 릴리스만 수거·설치·헬스체크, 실패 시 이전 버전 롤백."
+      "restart": "oneshot 5분",
+      "health": "data/autoupdate.log",
+      "d": "latest 릴리스 수거·설치·헬스체크·롤백 (pull형 CD)"
      }
     ],
     "notes": [
-     "기기 직접 편집 금지 — 작업트리 항상 clean",
-     "관리 포트는 Tailscale 인터페이스에만 바인딩",
-     "시간대 AKDT → Asia/Seoul 교정은 sudoers 등록 대기"
+     "기기 직접 편집 금지 — 고칠 것이 보이면 로컬에서 고쳐 push",
+     "관리 포트는 TRAFFIC_ADMIN_BIND(테일스케일 IP)에만 바인딩",
+     "시간대가 AKDT 로 잘못 설정돼 있음 — timedatectl set-timezone Asia/Seoul 을 sudoers 목록에 추가 필요",
+     "sudoers NOPASSWD: apt-get · nvpmodel · jetson_clocks · reboot · enable-linger"
     ]
    },
    {
-    "label": "로컬 PC (개발 메인)",
-    "host": "Windows · ~/PRJ/Traffic_Hazard_Monitoring_System",
+    "label": "로컬 PC (Windows — 유일한 편집 지점)",
+    "host": "C:\\Users\\JH_School\\Projects\\Traffuc_Hazard_Monitor",
     "services": [
      {
-      "name": "deploy.ps1",
-      "port": "—",
+      "name": "trafficsvc serve (TRAFFIC_FAKE_HW=1)",
+      "port": "8600 · 8601",
       "restart": "수동",
-      "health": "push→pull→update→헬스체크 일괄",
-      "d": "비상용 수동 배포 — 평시는 autoupdate CD가 담당."
+      "health": "pytest · doctor",
+      "d": "개발·검증용 더미 실행"
+     },
+     {
+      "name": "npm --prefix web run dev",
+      "port": "5173",
+      "restart": "수동",
+      "health": "eslint · build",
+      "d": "web 개발 서버 (/api 프록시)"
      }
     ],
     "notes": [
-     "모든 편집·pytest(TRAFFIC_FAKE_HW=1)·웹 빌드는 여기서",
-     "브랜치는 main 하나"
+     "모든 편집·pytest(TRAFFIC_FAKE_HW=1)·웹 빌드는 여기서 — 브랜치는 main 하나",
+     "PowerShell 5.1 에는 && 없음 — 스크립트는 ; if ($?) {} 사용",
+     "커밋 전 git status — .env·.bak·.log 가 보이면 .gitignore 부터"
     ]
    }
   ],
   "checks": [
-   "uv run pytest -q — 하드웨어 없이 전체",
-   "trafficsvc doctor — 스키마 13표 + 이미지 파일 0건(프라이버시 기계 검사)",
-   "TRAFFIC_FAKE_HW=1 uv run trafficsvc serve — 더미 전 화면"
+   "uv run pytest -q — 하드웨어 없이 전체 검증",
+   "TRAFFIC_FAKE_HW=1 uv run trafficsvc serve — 더미 전 화면 기동",
+   "curl http://100.96.30.94:8600/healthz — 공개 포트 생존",
+   "curl http://100.96.30.94:8601/healthz — 관리 포트 생존 (테일넷 필요)",
+   "ssh orin 'systemctl --user status traffic-app' — 상주 유닛 상태",
+   "ssh orin 'tail -20 ~/traffic/data/autoupdate.log' — 최근 배포·롤백 기록",
+   "uv run trafficsvc doctor — 스키마·이미지 0건 자가 점검 (로컬·기기 동일)"
   ]
  },
- "glossary_html": "<div class=\"flow\"><div class=\"card hl\">프레임 무저장</div><div class=\"card\">Fast/Slow 분리</div><div class=\"card\">3중 기록</div><div class=\"card\">사람 승인 발송</div><div class=\"card\">pull형 CD</div></div>\n<table class=\"cols\"><tr><th>YOLO + ByteTrack</th><td>프레임에서 차량·보행자를 검출하고 track_id로 이어 붙인다 — 지표는 프레임이 아니라 <b>궤적</b>에서 나오므로, 검출기가 흔들려도 추적이 판정을 안정화한다.</td></tr>\n<tr><th>가상선 · 호모그래피</th><td>화면 픽셀을 도로 평면 좌표로 사상해 속도(km/h)와 거리(m)를 만든다 — 4점 재투영 오차 &lt; 0.3 m가 R2 기준. 카메라를 옮기면 캘리브레이션만 다시 한다.</td></tr>\n<tr><th>VLM (llama.cpp, 로컬)</th><td>위험 이벤트 순간에만 정차 사유를 <b>고정 선택지 enum</b>으로 태그. 클라우드 없음·자유 문장 없음 — 프라이버시와 검증 가능성을 동시에 지키는 선택.</td></tr>\n<tr><th>SQLite 단일 파일</th><td>traffic.db 하나에 13표 — 엣지 보드에서 서버 DB 없이 재부팅·정전을 견디고, 분석은 파일 복사로 끝난다.</td></tr>\n<tr><th>systemd + pull형 CD</th><td>기기는 GitHub 릴리스를 타이머로 수거해 설치·헬스체크하고 실패 시 롤백 — 배포 시점을 사람 재량이 아니라 파이프라인이 정한다.</td></tr></table>\n<table class=\"cols\"><tr><th>K1</th><td>등교 시간대 4륜 차량의 30 km/h 초과 비율(%)</td></tr>\n<tr><th>K2</th><td>정차 구역 밖 20초 이상 정차 건수(건/등교일)</td></tr>\n<tr><th>K3</th><td>횡단보도 보행자 존재 중 4륜 2 m 이내 접근 건수(프록시)</td></tr>\n<tr><th>C1</th><td>K2 이벤트의 정차 사유 태그 분포 — GATE 2 통과 후에만 리포트 노출</td></tr>\n<tr><th>C2</th><td>등교 시간 교문 통과 차량 수</td></tr>\n<tr><th>GATE 0~3</th><td>단계 관문 — 동의·수동 대조·연구 판정·리포트 발송의 사람 승인 지점</td></tr>\n<tr><th>FAKE_HW 더미</th><td>TRAFFIC_FAKE_HW=1이면 synth가 카메라·검출을 대신 — 하드웨어 없이 전 구간이 돈다(현재 R0 단계)</td></tr></table>\n<p class=\"note\">가장 오해하기 쉬운 것: VLM은 이 시스템의 본체가 아니다. 본체는 Fast Loop의 K1~K3이고, VLM은 K2의 오탐을 줄이는 <b>연구 트랙</b>이다 — 죽어도 지표는 나온다.</p>"
+ "diff_ignore": [
+  "edge/trafficsvc/__init__.py",
+  "edge/trafficsvc/capture/__init__.py",
+  "edge/trafficsvc/detect/__init__.py",
+  "edge/trafficsvc/vlm/__init__.py",
+  "notify/__init__.py"
+ ],
+ "embeds": [
+  {
+   "id": "arch",
+   "label": "아키텍처 뷰 (archify)",
+   "file": "project-map-arch.html",
+   "into": "ov"
+  },
+  {
+   "id": "flow",
+   "label": "파이프라인 뷰 (archify)",
+   "file": "project-map-flow.html",
+   "into": "map"
+  }
+ ],
+ "glossary": true,
+ "glossary_label": "핵심 기술 · 용어",
+ "glossary_html": "<h2>이 프로젝트를 관통하는 설계 문법</h2><div class=\"flow\"><div class=\"hl\"><b>미저장 원칙</b>프레임은 파일이 되지 않는다<small>imwrite·VideoWriter·save 금지 — doctor 가 이미지 0건을 상시 검사하고, 위반 코드는 머지 금지</small></div><div class=\"hl\"><b>운영 ⊥ 연구</b>VLM 이 죽어도 K1~K3 는 나온다<small>Fast Loop(계수)와 Slow Loop(VLM)가 독립 — submit 은 절대 블록하지 않고, 큐가 넘치면 드롭하고 드롭 수를 기록</small></div><div><b>enum-only</b>자유 문장은 DB 에 못 들어간다<small>VLM 출력은 태그 4종+unknown · 색·차종·성별·번호판 필드 자체가 없음</small></div><div><b>pull형 CD</b>기기는 pull 만 한다<small>CI 통과 커밋만 latest 릴리스 → 5분 타이머 수거 → 헬스 실패 시 자동 롤백. 기기 직접 편집 금지</small></div><div><b>게이트 체인</b>숫자와 사람이 이중 검문<small>리포트는 검증기(숫자 대조·금지 주어) → 교사 승인 → dispatch 순서로만 나간다</small></div></div><h2>채택 기술 — 왜 이 선택인가</h2><table class=\"cols\"><tr><td>YOLO + ByteTrack</td><td>프레임에서 차량·보행자를 검출하고 track_id 로 이어 붙인다 — 지표는 프레임이 아니라 <b>궤적</b>에서 나오므로, 검출기가 흔들려도 추적이 판정을 안정화한다.</td></tr><tr><td>가상선 · 호모그래피</td><td>화면 픽셀을 도로 평면 좌표로 사상해 속도(km/h)와 거리(m)를 만든다 — 4점 재투영 오차 &lt; 0.3 m 가 R2 기준. 카메라를 옮기면 캘리브레이션만 다시 한다.</td></tr><tr><td>VLM (llama.cpp, 로컬)</td><td>위험 이벤트 순간에만 정차 사유를 <b>고정 선택지 enum</b>으로 태그. 클라우드 없음·자유 문장 없음 — 프라이버시와 검증 가능성을 동시에 지키는 선택.</td></tr><tr><td>FastAPI × 2포트</td><td>공개(:8600)와 관리(:8601)를 앱 수준에서 분리 — 관리 포트는 테일스케일 인터페이스에만 바인딩해, 방화벽 설정이 아니라 <b>바인딩 자체</b>가 접근 통제가 되게 했다.</td></tr><tr><td>SQLite (WAL)</td><td>traffic.db 하나에 카운터 10표+연구 3표 — 엣지 보드에서 서버 DB 없이 재부팅·정전을 견디고, WAL 이면 계수 루프의 쓰기와 API 의 읽기가 서로 막지 않는다. 분석은 파일 복사로 끝난다.</td></tr><tr><td>asyncio.Queue(8) drop-old</td><td>이벤트 폭주 시 VLM 이 밀리면 <b>오래된 것부터 버린다</b> — 운영 루프의 fps 를 지키는 게 연구 데이터 완결성보다 우선이라는 설계 결정. 드롭 수는 qc 에 남겨 정직하게 보고.</td></tr><tr><td>systemd user 유닛 + linger</td><td>sudo 없이 상주·부팅 자동시작·재시작 정책까지 해결. 루트 개방 없이 원격 위임 운용이 가능해진다.</td></tr><tr><td>GitHub Actions + latest 릴리스</td><td>제3의 머신이 push 마다 pytest·doctor·eslint·build 를 재검증 — 릴리스가 곧 배포 단위이고, 배포 시점을 사람 재량이 아니라 파이프라인이 정한다.</td></tr><tr><td>uv</td><td>기기에서도 가상환경·의존성을 한 명령으로 재현(uv sync --no-dev). JetPack 파이썬과 분리.</td></tr><tr><td>React 18 + Vite + Recharts</td><td>8페이지 SPA 를 정적 dist 로 빌드해 FastAPI 가 그대로 서빙 — 기기에 Node 런타임이 필요 없다.</td></tr><tr><td>Tailscale</td><td>학교망 방화벽을 건드리지 않고 관리 접근을 만드는 오버레이. 막히면 Cloudflare 경로가 예비.</td></tr></table><h2>도메인 용어</h2><table class=\"cols\"><tr><td>K1 · K2 · K3</td><td>운영 지표 3개 — K1 등교 시간대 4륜 차량의 30 km/h 초과 비율(%), K2 정차 구역 밖 20초 이상 정차(건/등교일), K3 횡단보도 보행자 존재 중 4륜 2 m 이내 접근(프록시). 이 셋은 VLM 없이도 나온다.</td></tr><tr><td>C1 · C2</td><td>연구 지표 — C1 은 K2 이벤트의 정차 사유 태그 분포(GATE 2 통과 후에만 리포트 노출, 2회 미달 시 \"연구 결과: 미달\"로 보고), C2 는 등교 시간 교문 통과 차량 수.</td></tr><tr><td>YOLO_ONLY · VLM_ONLY · HYBRID</td><td>같은 이벤트를 세 방식으로 판정해 나란히 기록(섀도 로깅). 운영에 쓰는 것은 HYBRID 하나, 나머지 둘은 비교 실험용.</td></tr><tr><td>dwell · conflict · speeding</td><td>이벤트 3종 — 정차 지속·보행자 근접·과속. events.kind 값.</td></tr><tr><td>qc = 0</td><td>5분 버킷의 품질 플래그(비트). 0 이 아닌 버킷은 집계에서 제외 — 지표가 나쁜 데이터 위에 서지 않게.</td></tr><tr><td>GATE 0~3</td><td>사람이 서명하는 관문 — 운영 동의(0), 수동 대조(1), 연구 판정(2), 리포트 신뢰(3). 통과 전에는 다음 단계 기능이 밖에 나가지 않는다.</td></tr><tr><td>R0~R8</td><td>구축 단계. 지금은 R0(더미 전 기능) — 빌드 트랙은 Claude 위임으로 단기 완성, 현장 트랙(카메라·설치·전환)은 달력 종속.</td></tr><tr><td>TRAFFIC_FAKE_HW</td><td>1 이면 synth 합성 궤적 + 가짜 VLM 으로 전 스택이 돈다. 카메라 설치 후 0 으로 전환하는 것이 현장 트랙의 스위치.</td></tr><tr><td>baseline</td><td>GATE 1 통과 시점부터 2주간의 개입 전 측정 — 전후 비교(R7)의 기준선.</td></tr></table><div class=\"note\"><b>가장 오해하기 쉬운 것</b> — VLM 은 이 시스템의 본체가 아니다. 본체는 Fast Loop 의 K1~K3 이고, inferences 의 3행은 \"세 모델 중 좋은 걸 골라 쓴다\"가 아니라 <b>8GB 엣지 보드에 VLM 을 얹는 것이 무엇을 얼마나 개선하는가</b>를 실측하는 대조군이다. 그래서 VLM 이 죽어도(행이 unknown 이어도) 운영 지표는 흔들리지 않는다.</div>"
 }

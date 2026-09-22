@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Traffic Hazard Monitoring — 설계 맵",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "ops-track", "label": "운영 트랙 (Fast Loop)", "focus": ["cam", "fast", "db", "pub", "web"], "note": "VLM 이 죽어도 살아 있어야 하는 경로 — 계수에서 공개 페이지까지." },
+      { "id": "research-track", "label": "연구 트랙 (Slow Loop)", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트 순간에만 도는 3중 판정 섀도 로깅." },
+      { "id": "cd-track", "label": "배포 (pull형 CD)", "focus": ["ci", "upd", "pub"], "note": "CI 를 통과한 커밋만 기기가 5분 주기로 수거한다." }
+    ]
+  },
+  "components": [
+    { "id": "cam", "type": "external", "label": "CAM", "sublabel": "synth (FAKE_HW)", "pos": [40, 320], "size": [170, 72] },
+    { "id": "fast", "type": "backend", "label": "FAST", "sublabel": "counting loop", "pos": [290, 320], "size": [170, 72] },
+    { "id": "slow", "type": "backend", "label": "SLOW", "sublabel": "event queue(8)", "pos": [290, 480], "size": [170, 72] },
+    { "id": "vlm", "type": "backend", "label": "VLM", "sublabel": "enum tagger", "pos": [540, 480], "size": [170, 72] },
+    { "id": "db", "type": "database", "label": "DB", "sublabel": "traffic.db SQLite", "pos": [540, 320], "size": [170, 72] },
+    { "id": "anl", "type": "backend", "label": "ANL", "sublabel": "daily batch 22:00", "pos": [540, 160], "size": [170, 72] },
+    { "id": "adm", "type": "security", "label": "ADM", "sublabel": "admin API :8601", "pos": [790, 160], "size": [170, 72] },
+    { "id": "pub", "type": "backend", "label": "PUB", "sublabel": "public API :8600", "pos": [790, 320], "size": [170, 72] },
+    { "id": "upd", "type": "backend", "label": "UPD", "sublabel": "pull CD 5min", "pos": [790, 480], "size": [170, 72] },
+    { "id": "web", "type": "frontend", "label": "WEB", "sublabel": "React SPA x8", "pos": [1050, 320], "size": [170, 72] },
+    { "id": "ci", "type": "cloud", "label": "CI", "sublabel": "GitHub Actions", "pos": [1050, 480], "size": [170, 72] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Jetson Orin Nano 8GB (edge)", "wraps": ["fast", "slow", "vlm", "db", "anl", "pub", "adm", "upd"] },
+    { "kind": "security-group", "label": "Tailnet only", "wraps": ["adm"] }
+  ],
+  "connections": [
+    { "id": "frames", "from": "cam", "to": "fast", "label": "frames (no save)", "variant": "emphasis", "labelDy": 60 },
+    { "id": "counts", "from": "fast", "to": "db", "label": "counts + events", "variant": "emphasis" },
+    { "id": "submit", "from": "fast", "to": "slow", "label": "submit (non-block)", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "tagging", "from": "slow", "to": "vlm", "label": "crop (RAM only)", "variant": "dashed", "labelDy": 20 },
+    { "id": "verdicts", "from": "slow", "to": "db", "label": "verdicts x3", "fromSide": "right", "toSide": "bottom" },
+    { "id": "batch", "from": "anl", "to": "db", "label": "K1-K3 · draft", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "pubread", "from": "pub", "to": "db", "label": "read aggregates" },
+    { "id": "admwrite", "from": "adm", "to": "db", "label": "labels · approve", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+    { "id": "https", "from": "web", "to": "pub", "label": "HTTPS :8600", "variant": "emphasis" },
+    { "id": "tailnet", "from": "web", "to": "adm", "label": "tailnet :8601", "variant": "security", "fromSide": "top", "toSide": "right" },
+    { "id": "release", "from": "ci", "to": "upd", "label": "latest release", "variant": "dashed" },
+    { "id": "install", "from": "upd", "to": "pub", "label": "install · rollback", "variant": "dashed", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "코드명 — 운영 트랙", "items": ["CAM 카메라/합성 궤적 · FAST 상시 계수 루프(fastloop)", "DB 유일한 저장소 traffic.db · PUB 공개 API :8600", "WEB React 8페이지 — VLM 이 죽어도 이 줄은 산다"] },
+    { "dot": "violet", "title": "코드명 — 연구·배치", "items": ["SLOW 이벤트 큐 소비(slowloop) · VLM enum 태거", "ANL 일간 배치(analysis) — K1~K3·안전지수·주간 초안", "같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행"] },
+    { "dot": "rose", "title": "코드명 — 관리·배포", "items": ["ADM 관리 API :8601 — 테일넷 인터페이스에만 바인딩", "CI GitHub Actions — 통과 커밋만 latest 릴리스", "UPD autoupdate 5분 수거 · 헬스 실패 시 롤백"] }
+  ]
+}
