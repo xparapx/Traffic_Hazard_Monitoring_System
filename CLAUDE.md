@@ -1,6 +1,6 @@
 # Traffic_Hazard_Monitoring_System — 작업 규칙 · 설계 결정 · 현재 상태
 
-엣지 AI 기반 통학 시간대 교통 위험 모니터링 시스템. 상세 설계·근거·일정은 [docs/index.html](docs/index.html)(프로젝트 개요 v0.2, GitHub Pages 게시 대상)이 단일 원본이며, 이 문서는 **작업 규칙과 현재 상태 요약만** 담는다.
+엣지 AI 기반 통학 시간대 교통 위험 모니터링 시스템. 상세 설계·연결·데이터는 [docs/project-map.html](docs/project-map.html)(프로젝트 지도, 지속 갱신 정본)이 단일 원본이며(구 개요 v0.2는 git 이력의 docs/index.html), 이 문서는 **작업 규칙과 현재 상태 요약만** 담는다.
 
 ## 프로젝트 한 줄 요약
 - **문제**: 등교 시간 교문 앞 도로의 과속·정차구역 밖 정차·횡단 학생 근접은 체감·민원만 있고 숫자가 없음.

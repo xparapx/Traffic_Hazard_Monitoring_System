@@ -4,6 +4,10 @@
 
 ## 2026-09
 
+### 프로젝트 개요 폐지 — 프로젝트 지도로 정본 승계 (2026-09-22, 전 저장소 공통 결정)
+
+README·CLAUDE.md의 정본 개요를 docs/project-map.html(지속 갱신)로 교체하고 docs/index.html(개요 v0.2) 삭제. **가정·주의**: 구 개요에만 있던 설계 근거·14주 일정·게이트 표(#stages)는 git 이력(삭제 직전 커밋)의 index.html에서 열람 — 필요 시 지도 ops/시나리오 뷰로 흡수 예정.
+
 ### 2026-09-15 (10) — analysis 배치 · CD 무개입 2연속 검증 · v0.1-dummy
 - `trafficsvc analyze`: K1(버킷 p85 가중 근사)·K2·K3·안전지수(baseline 5일+, 부족 시 null)·M1(요일 프로파일) → analysis 표. 주간 초안은 검증기(숫자 변조·금칙 주어 거부) 통과 시에만 outbox(draft). `traffic-analysis.timer` 매일 22:00 KST(월 --weekly).
 - CD 무개입 배포 2연속 성공(93648fd, 24fa29f): CI→릴리스→orin 자동 수거·타이머 자동 등록까지 사람 손 0회. **`v0.1-dummy` 태그** = CD 첫 배포 커밋.

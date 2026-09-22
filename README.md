@@ -4,7 +4,7 @@
 
 등교 시간 교문 앞 도로의 과속·정차구역 밖 정차·횡단 학생 근접은 체감과 민원만 있고 **숫자가 없다**. 이 프로젝트는 본관 3층 창 안쪽의 Jetson Orin Nano가 프레임을 저장하지 않은 채 통행을 계수해 지표를 만들고, 위험 이벤트 순간에만 시각-언어 모델(VLM)이 정차 사유를 한 줄 태그로 붙여 오탐을 줄인다. 숫자는 안내판·규범 메시지·건의서로 돌아가 행동과 결정을 바꾼다.
 
-전체 설계·근거·일정: **[프로젝트 개요 (docs/index.html)](docs/index.html)** — GitHub Pages로 게시된다.
+🗺️ 전체 설계·연결·데이터: **[프로젝트 지도](https://xparapx.github.io/Traffic_Hazard_Monitoring_System/project-map.html)** ([docs/project-map.html](docs/project-map.html)) — **지속 갱신되는 정본 개요.** (구 프로젝트 개요 v0.2는 git 이력 `docs/index.html` 참조)
 
 ## 핵심 지표
 
@@ -47,7 +47,7 @@ deploy/systemd/      # 서비스 유닛 템플릿 4개
 scripts/             # setup · install · deploy.ps1 · bench · session
 models/              # 가중치·엔진 취득 스크립트 (바이너리는 git 제외)
 tests/               # pytest — 하드웨어 없이 도는 합성 궤적·검증기 테스트
-docs/                # index.html(프로젝트 개요) · manual.html · WORKLOG.md · GATES.md
+docs/                # project-map.html(프로젝트 지도, 지속 갱신) · WORKLOG.md · BENCH/RISK_VARIABLES.md
 data/                # traffic.db · config.json · calib/ · sessions/ (전부 git 제외)
 ```
 
@@ -63,4 +63,4 @@ cd web && npm run lint && npm run build   # 웹 빌드
 
 ## 일정
 
-2026-09-14 ~ 12-18, 14주. 구축 단계 R0~R8과 게이트(GATE 0~3)는 [프로젝트 개요 절 8](docs/index.html#stages) 참조. 작업 이력은 [docs/WORKLOG.md](docs/WORKLOG.md).
+2026-09-14 ~ 12-18, 14주. 구축 단계 R0~R8과 게이트(GATE 0~3)는 [프로젝트 지도](docs/project-map.html)와 git 이력의 구 개요(docs/index.html#stages) 참조. 작업 이력은 [docs/WORKLOG.md](docs/WORKLOG.md).
