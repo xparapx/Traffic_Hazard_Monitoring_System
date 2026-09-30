@@ -30,17 +30,30 @@ class UvcFrameSource:
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(settings._env("TRAFFIC_CAM_H", "1080")))
         cap.set(cv2.CAP_PROP_FPS, int(settings._env("TRAFFIC_CAM_FPS", "30")))
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
-        ok, _ = cap.read()   # isOpened 만으로는 부족 — 첫 프레임까지 확인
+        # isOpened 만으로는 부족 — 첫 프레임까지 확인. UVC 는 open 직후 첫 read 가
+        # 간헐적으로 실패한다 (orin 실측 2026-09-30: 3회 중 1회) → 짧게 재시도.
+        ok = False
+        for _ in range(10):
+            ok, _ = cap.read()
+            if ok:
+                break
+            time.sleep(0.2)
         if not ok:
             cap.release()
             raise RuntimeError(f"카메라 열기 실패: TRAFFIC_CAM_DEV={dev}")
         self._cap = cap
 
     def frames(self):
+        misses = 0
         while True:
             ok, frame = self._cap.read()
-            if not ok:
-                raise RuntimeError("카메라 read 실패 — 연결 확인")
+            if not ok:                     # 순간 실패는 참는다 — 연속 30회(≈1.5s)면 포기
+                misses += 1
+                if misses > 30:
+                    raise RuntimeError("카메라 read 연속 실패 — 연결 확인")
+                time.sleep(0.05)
+                continue
+            misses = 0
             yield (time.monotonic(), frame)
 
     def jpeg(self, frame, quality: int = 80) -> bytes:
