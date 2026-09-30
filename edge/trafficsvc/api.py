@@ -122,23 +122,28 @@ def _fake_stream(mode: CalibMode, frames: int | None):
 
 
 class SharedCamera:
-    """프리뷰 공유 카메라 — 시청 중에는 카메라를 한 번만 열어 리더 스레드가 계속 읽고,
+    """프리뷰 공유 카메라 — 켠 동안 카메라를 한 번만 열어 리더 스레드가 계속 읽고,
     클라이언트들은 최신 프레임(메모리 JPEG)을 나눠 받는다. 요청마다 open/close 를
-    반복하면 UVC 가 수십 초 open 실패 상태에 빠진다 (orin 실측 2026-09-30).
-    마지막 클라이언트가 떠나면 카메라를 놓는다. 프레임 저장 코드 없음."""
+    반복하면 UVC 가 수십 초 open 실패 상태에 빠진다 (orin 실측 2026-09-30) —
+    마지막 클라이언트가 떠나도 IDLE_S 동안 열어 두고, 캘리브레이션 모드가 꺼지면
+    즉시 놓는다. 프레임 저장 코드 없음."""
 
-    def __init__(self):
+    IDLE_S = 60.0
+
+    def __init__(self, mode: CalibMode):
+        self._mode = mode
         self._cond = threading.Condition()
         self._running = False
         self._thread: threading.Thread | None = None
         self._clients = 0
+        self._idle_since = 0.0
         self._latest: bytes | None = None
         self._seq = 0
 
     def acquire(self) -> None:
-        """클라이언트 등록 — 첫 클라이언트가 카메라를 연다 (실패 시 raise)."""
+        """클라이언트 등록 — 리더가 없으면 카메라를 연다 (실패 시 raise)."""
         with self._cond:
-            # 직전 세션이 닫히는 중이면 리더 종료를 잠깐 기다린다
+            # 직전 리더가 닫히는 중이면 종료를 잠깐 기다린다
             self._cond.wait_for(
                 lambda: self._running or self._thread is None
                 or not self._thread.is_alive(), timeout=8)
@@ -156,8 +161,7 @@ class SharedCamera:
         with self._cond:
             self._clients -= 1
             if self._clients <= 0:
-                self._running = False
-                self._cond.notify_all()
+                self._idle_since = time.monotonic()   # 리더는 IDLE_S 후 스스로 닫는다
 
     def _pump(self, src) -> None:
         min_dt = 1.0 / STREAM_PREVIEW_FPS
@@ -165,7 +169,10 @@ class SharedCamera:
         try:
             for ts, frame in src.frames():
                 with self._cond:
-                    if not self._running:
+                    if not self._running or not self._mode.on:
+                        break
+                    if (self._clients <= 0
+                            and time.monotonic() - self._idle_since > self.IDLE_S):
                         break
                 if ts - last < min_dt:
                     continue
@@ -186,12 +193,14 @@ class SharedCamera:
     def frames_iter(self, mode: CalibMode, frames: int | None):
         """acquire() 성공 후에만 부른다 — 종료 시(모드 off·이탈 포함) 클라이언트 해제."""
         n = 0
-        seq = 0
+        with self._cond:
+            seq = self._seq   # 리더 재시작 후 stale _latest 를 집지 않도록 현재 기준
         try:
             while mode.on and (frames is None or n < frames):
                 with self._cond:
                     got = self._cond.wait_for(
-                        lambda: self._seq != seq or not self._running, timeout=5)
+                        lambda: (self._seq != seq and self._latest is not None)
+                        or not self._running, timeout=5)
                     if not got or not self._running:
                         break
                     seq = self._seq
@@ -292,7 +301,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
     api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
-    camera = SharedCamera()
+    camera = SharedCamera(calib_mode)
 
     @app.get("/healthz")
     def healthz():
