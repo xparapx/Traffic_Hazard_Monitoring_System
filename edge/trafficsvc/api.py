@@ -253,15 +253,16 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # frames=N 이면 N 프레임 후 종료 — 테스트·curl 점검용 (기본 무제한: 브라우저 <img>)
         if not calib_mode.on:
             raise HTTPException(409, "calibration mode off — POST /calib/mode {on:true} 후 30분간 유효")
-        if settings.fake_hw():
-            gen = _fake_stream(calib_mode, frames)
-        else:
-            try:
-                from .capture.uvc import UvcFrameSource
-                src = UvcFrameSource()
-            except Exception as e:   # cv2 미설치·카메라 미연결·다른 프로세스 점유
+        # 프리뷰는 더미 모드에서도 실 카메라를 우선한다 — 설치·초점 조절은 배포(더미) 단계에서
+        # 하기 때문. 카메라를 못 열면: 더미 모드 → 내장 더미 프레임, 실기기 모드 → 503.
+        try:
+            from .capture.uvc import UvcFrameSource
+            gen = _camera_stream(UvcFrameSource(), calib_mode, frames)
+        except Exception as e:   # cv2 미설치·카메라 미연결·다른 프로세스 점유
+            if not settings.fake_hw():
                 raise HTTPException(503, f"카메라 사용 불가: {e}")
-            gen = _camera_stream(src, calib_mode, frames)
+            log.warning("stream: 카메라 없음(%s) — 더미 프레임 폴백", e)
+            gen = _fake_stream(calib_mode, frames)
         return StreamingResponse(gen, media_type=STREAM_MEDIA_TYPE)
 
     @api.get("/export/{name}.csv")
