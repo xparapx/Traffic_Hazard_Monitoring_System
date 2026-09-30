@@ -108,6 +108,8 @@ export const api = {
   calib: () =>
     get<CalibData>(`${ADM_BASE}/api/admin/calib`, { dummy: true, mode_on: false, remaining_s: 0, current: null }),
   calibMode: (on: boolean) => post(`${ADM_BASE}/api/admin/calib/mode`, { on }),
+  /** MJPEG 스트림 URL — 캘리브레이션 모드가 켜진 동안에만 열린다 (그 외 409/503) */
+  streamUrl: () => `${ADM_BASE}/api/admin/stream`,
   postLabel: (b: { event_id: string; hazard: number; tag: string | null; labeler: string }) =>
     post(`${ADM_BASE}/api/admin/label`, b),
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>

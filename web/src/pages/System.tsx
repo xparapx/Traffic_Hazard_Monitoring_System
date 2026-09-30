@@ -5,6 +5,7 @@ import { Card, DarkCard, DummyBadge, PageHeader } from "../components/ui";
 export default function SystemPage() {
   const [d, setD] = useState<Fetched<SystemData> | null>(null);
   const [calib, setCalib] = useState<Fetched<CalibData> | null>(null);
+  const [streamErr, setStreamErr] = useState(false);
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
@@ -16,6 +17,7 @@ export default function SystemPage() {
   }, []);
   async function toggleCalib() {
     if (!calib) return;
+    setStreamErr(false);
     await api.calibMode(!calib.mode_on);
     refresh();
   }
@@ -68,12 +70,20 @@ export default function SystemPage() {
             </button>
           </div>
           {calib?.mode_on ? (
-            <div className="grid place-items-center rounded-[10px] bg-cobble py-10 text-center">
-              <div className="text-[13px] font-bold text-otan">CALIBRATION MODE</div>
-              <div className="mt-1 text-[12px] text-dim-dark">
-                MJPEG 스트림·ROI 편집기는 카메라가 붙는 R1에서 이 자리에 표시됩니다
+            streamErr ? (
+              <div className="grid place-items-center rounded-[10px] bg-cobble py-10 text-center">
+                <div className="text-[13px] font-bold text-gravy">스트림 열기 실패</div>
+                <div className="mt-1 text-[12px] text-dim-dark">
+                  카메라 미연결·점유 중이거나 opencv 미설치 — 기기 로그 확인 후 모드를 껐다 켜세요
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="overflow-hidden rounded-[10px] bg-cobble">
+                <img src={api.streamUrl()} alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
+                  className="mx-auto max-h-[420px] w-auto"
+                  onError={() => setStreamErr(true)} />
+              </div>
+            )
           ) : (
             <div className="rounded-[10px] bg-sandstone py-6 text-center text-[12.5px] text-dim">
               스트림은 꺼져 있습니다 — ROI·호모그래피 설정 시에만 켜세요 (30분 후 자동 꺼짐)

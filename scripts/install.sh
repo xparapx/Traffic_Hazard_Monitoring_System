@@ -12,8 +12,9 @@ if ! command -v "$HOME/.local/bin/uv" >/dev/null 2>&1 && ! command -v uv >/dev/n
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-# 2) 파이썬 의존성
-uv sync --no-dev
+# 2) 파이썬 의존성 — 기기에는 카메라 extra(opencv) 포함. aarch64 휠 문제 등으로
+#    실패하면 기본 셋으로 폴백해 서비스(K1~K3·더미)는 계속 돌게 한다 (설계 제1조건).
+uv sync --no-dev --extra camera || uv sync --no-dev
 
 # 3) 환경 파일 (없을 때만 생성 — 기기별 값은 여기서 관리, git 제외)
 mkdir -p data

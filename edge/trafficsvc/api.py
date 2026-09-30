@@ -3,9 +3,10 @@
 # 원칙: 공개 포트는 집계·analysis 만 노출 — 이미지 엔드포인트 없음.
 #       관리 포트는 테일넷 전용(ADMIN_BIND)이며, 카메라 스트림은 캘리브레이션 모드를
 #       켠 동안에만 열린다 (기본 꺼짐 · 30분 자동 타임아웃 · 켜고 끈 기록 로그).
-# R0: 응답은 JSON 뼈대 — 스트림 실제 구현(MJPEG)은 카메라가 붙는 R1 에서.
+# 스트림(R1): /stream 은 MJPEG 를 메모리에서 인코딩해 전송만 한다 — 프레임 파일 쓰기 0.
 from __future__ import annotations
 
+import base64
 import logging
 import sqlite3
 import time
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -58,6 +59,83 @@ class CalibMode:
 
 def _rows(con, sql, args=()):
     return [dict(r) for r in con.execute(sql, args).fetchall()]
+
+
+# ---------- MJPEG 스트림 (관리 포트 · 캘리브레이션 모드 동안에만) ----------
+
+STREAM_MEDIA_TYPE = "multipart/x-mixed-replace; boundary=frame"
+STREAM_PREVIEW_FPS = 10.0   # 프리뷰 전송 상한 — 캡처 fps 와 무관하게 대역폭 억제
+
+# 더미 모드 프리뷰 프레임(320x180 "FAKE HW") — cv2 없이도 스트림 배선을 검증한다.
+# 프로젝트 빌드 시 메모리에서 생성해 소스에 박아 둔 것으로, 파일로 쓰인 적 없음.
+_FAKE_JPEG = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1R"
+    "V19iZ2hnPk1xeXBkeFxlZ2P/wAALCAC0AUABAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgED"
+    "AwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RF"
+    "RkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJ"
+    "ytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/AMGaaUTSASOAGP8AEfWo/Ol/56v/AN9Gjzpf+er/APfR"
+    "o86X/nq//fRo86X/AJ6v/wB9Gjzpf+er/wDfRo86X/nq/wD30aPOl/56v/30aPOl/wCer/8AfRo86X/nq/8A30aPOl/56v8A"
+    "99Gjzpf+er/99Gjzpf8Anq//AH0aPOl/56v/AN9Gjzpf+er/APfRo86X/nq//fRo86X/AJ6v/wB9Gjzpf+er/wDfRo86X/nq"
+    "/wD30aPOl/56v/30aPOl/wCer/8AfRo86X/nq/8A30aPOl/56v8A99Gjzpf+er/99Gjzpf8Anq//AH0aPOl/56v/AN9Gjzpf"
+    "+er/APfRo86X/nq//fRo86X/AJ6v/wB9Gjzpf+er/wDfRo86X/nq/wD30aPOl/56v/30aPOl/wCer/8AfRo86X/nq/8A30aP"
+    "Ol/56v8A99Gjzpf+er/99Gjzpf8Anq//AH0aPOl/56v/AN9Gjzpf+er/APfRqSGaUzRgyOQWH8R9ajn/ANfJ/vH+dMoooooo"
+    "ooooooooooooooooooooooooooooooop8H+vj/3h/Oif/Xyf7x/nTKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKfB/r4"
+    "/wDeH86J/wDXyf7x/nTKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKfB/r4/94fzon/18n+8f50yiiiiiiiiiiiiiiiii"
+    "iiiiiiiiiiiiiiiiiiiinwf6+P8A3h/Oif8A18n+8f50yiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinwf6+P/eH86J/9"
+    "fJ/vH+dMooooooooooooooooooooooooooooooooooooop8H+vj/AN4fzon/ANfJ/vH+dMoooooooooooooooooooooooooo"
+    "ooooooooooop8H+vj/3h/Oif/Xyf7x/nTKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKfB/r4/wDeH86J/wDXyf7x/nTK"
+    "KKKKKKKKKKKtaV/yFrP/AK7p/wChCrVvOPtDXTXVxIsCfK8i5KseBgbvfPXtVsxIlv8A6PkTNLJJbAjsVjP/AH1g8e/viq2q"
+    "Cf7PEd90YvJh+UofK+4vQ5/pT9sP2zPmSeb9h+7sG3/j39c/0qVEFwixZAOoIGJPYoBk/mHrGupfPupZQMB3JA9BmoqKKKKK"
+    "KKKKKKKKKKKKKfB/r4/94fzon/18n+8f50yiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinwf6+P8A3h/Oif8A18n+8f50"
+    "yiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinwf6+P/eH86J/9fJ/vH+dMooooooooqW3jWSXa5IUKzHHXgE/0qbyIhGsu"
+    "JCrAYUEZGSw64/2f1ppt0TcG3ufMZBs9u/v1qRrSNWXJfH7wMMjOVXPp/jS/ZIWPys642k7jngoW9PbFRmCEb2BZlEW8YPfc"
+    "B1I/pSXMCQqhG7JYqwJ7jH+PvU9xDE9w5w4JldcAgAKoHtTVtITKUJfBeNVIPTcCfTmmi2hKCUswQqOCecksOoB/u+neqsqh"
+    "JXQHIViMkYptFFFFFFFFFFFFFFFFFPg/18f+8P50T/6+T/eP86ZRRRRRRRRSglTkEg4xxTllkTG2RlwMDBxxSLI6ghXYBuoB"
+    "60rTStjdI5wCBljxng0nmP8A327d/Tp+VDSOxYs7EsMEk9aHlkkADuzAdMnOKXzZN27zGzktnPc9TQZZC24yPnIOdx6jpQss"
+    "iY2yMuBgYOOKZRRRRRRRRRRRRRRRRRRT4P8AXx/7w/nRP/r5P94/zplFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFPg/1"
+    "8f8AvD+dE/8Ar5P94/zplFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFPg/wBfH/vD+dE/+vk/3j/OmUUUUUUUUUUUUUUU"
+    "UUUUUUUUUUUUUUUUUUUUUUU+D/Xx/wC8P50T/wCvk/3j/OmUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU+D/AF8f+8P5"
+    "0T/6+T/eP86ZRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRT4P9fH/ALw/nRP/AK+T/eP86ZRRRRRRRRRRRRRRRRRRRRRR"
+    "RRRRRRRRRRRRRRRT4P8AXx/7w/nRP/r5P94/zplFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFPg/18f8AvD+dE/8Ar5P9"
+    "4/zplFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFPg/wBfH/vD+daD2MTuzFnyTnqKb/Z8X95/zH+FH9nxf3n/ADH+FH9n"
+    "xf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9nxf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9n"
+    "xf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9nxf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9n"
+    "xf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9nxf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9n"
+    "xf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9nxf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FH9n"
+    "xf3n/Mf4Uf2fF/ef8x/hR/Z8X95/zH+FH9nxf3n/ADH+FOSxiR1YM+Qc9RX/2Q=="
+)
+
+
+def _mjpeg_part(jpg: bytes) -> bytes:
+    return (b"--frame\r\nContent-Type: image/jpeg\r\n"
+            + f"Content-Length: {len(jpg)}\r\n\r\n".encode() + jpg + b"\r\n")
+
+
+def _fake_stream(mode: CalibMode, frames: int | None):
+    """더미 모드: 고정 프레임 반복 — 모드가 꺼지면(타임아웃 포함) 즉시 끝난다."""
+    n = 0
+    while mode.on and (frames is None or n < frames):
+        yield _mjpeg_part(_FAKE_JPEG)
+        n += 1
+        time.sleep(1.0 / 5)
+
+
+def _camera_stream(src, mode: CalibMode, frames: int | None):
+    """실 카메라: 캡처 프레임을 메모리 인코딩해 전송만. 모드 종료·클라이언트 이탈 시 해제."""
+    min_dt = 1.0 / STREAM_PREVIEW_FPS
+    last = 0.0
+    n = 0
+    try:
+        for ts, frame in src.frames():
+            if not mode.on or (frames is not None and n >= frames):
+                break
+            if ts - last < min_dt:
+                continue
+            last = ts
+            yield _mjpeg_part(src.jpeg(frame))
+            n += 1
+    finally:
+        src.close()
 
 
 # 수동 분석용 내려받기 대상 — 전부 숫자·enum 텍스트, 이미지 없음
@@ -170,12 +248,21 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
 
     @api.get("/stream")
-    def stream():
+    def stream(frames: int | None = None):
         # 이중 잠금: ① 관리 포트 = 테일넷 전용 바인딩 ② 캘리브레이션 모드 동안에만
+        # frames=N 이면 N 프레임 후 종료 — 테스트·curl 점검용 (기본 무제한: 브라우저 <img>)
         if not calib_mode.on:
             raise HTTPException(409, "calibration mode off — POST /calib/mode {on:true} 후 30분간 유효")
-        # MJPEG 구현은 카메라가 붙는 R1 에서 — 프레임 저장 없이 전송만
-        raise HTTPException(501, "stream backend는 R1(카메라)에서 구현")
+        if settings.fake_hw():
+            gen = _fake_stream(calib_mode, frames)
+        else:
+            try:
+                from .capture.uvc import UvcFrameSource
+                src = UvcFrameSource()
+            except Exception as e:   # cv2 미설치·카메라 미연결·다른 프로세스 점유
+                raise HTTPException(503, f"카메라 사용 불가: {e}")
+            gen = _camera_stream(src, calib_mode, frames)
+        return StreamingResponse(gen, media_type=STREAM_MEDIA_TYPE)
 
     @api.get("/export/{name}.csv")
     def export_csv(name: str):

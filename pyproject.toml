@@ -8,6 +8,10 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.optional-dependencies]
+# 기기(orin/pi) 전용 — install.sh 가 --extra camera 로 설치. 개발 PC·CI 는 불필요(fake 경로).
+camera = ["opencv-python-headless>=4.8"]
+
 [project.scripts]
 trafficsvc = "trafficsvc.cli:main"
 
