@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import logging
 import sqlite3
+import threading
 import time
 from typing import Literal
 
@@ -120,22 +121,85 @@ def _fake_stream(mode: CalibMode, frames: int | None):
         time.sleep(1.0 / 5)
 
 
-def _camera_stream(src, mode: CalibMode, frames: int | None):
-    """실 카메라: 캡처 프레임을 메모리 인코딩해 전송만. 모드 종료·클라이언트 이탈 시 해제."""
-    min_dt = 1.0 / STREAM_PREVIEW_FPS
-    last = 0.0
-    n = 0
-    try:
-        for ts, frame in src.frames():
-            if not mode.on or (frames is not None and n >= frames):
-                break
-            if ts - last < min_dt:
-                continue
-            last = ts
-            yield _mjpeg_part(src.jpeg(frame))
-            n += 1
-    finally:
-        src.close()
+class SharedCamera:
+    """프리뷰 공유 카메라 — 시청 중에는 카메라를 한 번만 열어 리더 스레드가 계속 읽고,
+    클라이언트들은 최신 프레임(메모리 JPEG)을 나눠 받는다. 요청마다 open/close 를
+    반복하면 UVC 가 수십 초 open 실패 상태에 빠진다 (orin 실측 2026-09-30).
+    마지막 클라이언트가 떠나면 카메라를 놓는다. 프레임 저장 코드 없음."""
+
+    def __init__(self):
+        self._cond = threading.Condition()
+        self._running = False
+        self._thread: threading.Thread | None = None
+        self._clients = 0
+        self._latest: bytes | None = None
+        self._seq = 0
+
+    def acquire(self) -> None:
+        """클라이언트 등록 — 첫 클라이언트가 카메라를 연다 (실패 시 raise)."""
+        with self._cond:
+            # 직전 세션이 닫히는 중이면 리더 종료를 잠깐 기다린다
+            self._cond.wait_for(
+                lambda: self._running or self._thread is None
+                or not self._thread.is_alive(), timeout=8)
+            if not self._running:
+                from .capture.uvc import UvcFrameSource
+                src = UvcFrameSource()
+                self._running = True
+                self._latest = None
+                self._thread = threading.Thread(
+                    target=self._pump, args=(src,), name="preview-pump", daemon=True)
+                self._thread.start()
+            self._clients += 1
+
+    def _release_client(self) -> None:
+        with self._cond:
+            self._clients -= 1
+            if self._clients <= 0:
+                self._running = False
+                self._cond.notify_all()
+
+    def _pump(self, src) -> None:
+        min_dt = 1.0 / STREAM_PREVIEW_FPS
+        last = 0.0
+        try:
+            for ts, frame in src.frames():
+                with self._cond:
+                    if not self._running:
+                        break
+                if ts - last < min_dt:
+                    continue
+                last = ts
+                jpg = src.jpeg(frame)
+                with self._cond:
+                    self._latest = jpg
+                    self._seq += 1
+                    self._cond.notify_all()
+        except Exception as e:
+            log.warning("preview pump 종료: %s", e)
+        finally:
+            src.close()
+            with self._cond:
+                self._running = False
+                self._cond.notify_all()
+
+    def frames_iter(self, mode: CalibMode, frames: int | None):
+        """acquire() 성공 후에만 부른다 — 종료 시(모드 off·이탈 포함) 클라이언트 해제."""
+        n = 0
+        seq = 0
+        try:
+            while mode.on and (frames is None or n < frames):
+                with self._cond:
+                    got = self._cond.wait_for(
+                        lambda: self._seq != seq or not self._running, timeout=5)
+                    if not got or not self._running:
+                        break
+                    seq = self._seq
+                    jpg = self._latest
+                yield _mjpeg_part(jpg)
+                n += 1
+        finally:
+            self._release_client()
 
 
 # 수동 분석용 내려받기 대상 — 전부 숫자·enum 텍스트, 이미지 없음
@@ -228,6 +292,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
     api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
+    camera = SharedCamera()
 
     @app.get("/healthz")
     def healthz():
@@ -256,8 +321,8 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # 프리뷰는 더미 모드에서도 실 카메라를 우선한다 — 설치·초점 조절은 배포(더미) 단계에서
         # 하기 때문. 카메라를 못 열면: 더미 모드 → 내장 더미 프레임, 실기기 모드 → 503.
         try:
-            from .capture.uvc import UvcFrameSource
-            gen = _camera_stream(UvcFrameSource(), calib_mode, frames)
+            camera.acquire()
+            gen = camera.frames_iter(calib_mode, frames)
         except Exception as e:   # cv2 미설치·카메라 미연결·다른 프로세스 점유
             if not settings.fake_hw():
                 raise HTTPException(503, f"카메라 사용 불가: {e}")
