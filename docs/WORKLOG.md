@@ -4,7 +4,12 @@
 
 ## 2026-09
 
-### 2026-09-22 (11) — 프로젝트 지도 v2 (6뷰 확장 + archify 임베드, 두 세션 병합)
+### 2026-09-30 (12) — 카메라 라이브 프리뷰(MJPEG) 완성 — Arducam 결착·초점 조절 경로 개통
+- **Arducam 12MP(0c45:0280) USB 연결 확인·실측**: 1080p MJPG 33fps(v4l2), 관리 `/api/admin/stream` MJPEG 구현(메모리 인코딩 전송만, 파일 쓰기 0) + System 페이지 `<img>` 라이브 표시. 이중 잠금(테일넷 바인딩 + 캘리브레이션 모드 30분) 유지, `?frames=N` 점검 파라미터.
+- **프리뷰는 더미 모드에서도 실 카메라 우선** (가정·결정): 설치·초점 조절이 배포(더미) 단계 작업이므로. 카메라 못 열면 더미 프레임 폴백(실기기 모드는 503). K1~K3 더미 파이프라인 불변.
+- **안정화 4단계 실측 교훈**: ① open 직후 첫 read 간헐 실패 → read 재시도 무효, **re-open 단위 재시도** ② 요청마다 open/close 반복 시 UVC가 수십 초 실패 상태 → **SharedCamera**(리더 스레드 1개가 계속 읽고 클라이언트들이 최신 프레임 공유, 동시 시청 지원, 유휴 60s 유지) ③ 리더 재시작 seq 경계로 None 프레임 TypeError → seq 초기화+가드 ④ **스트리밍 부하 중 USB 허브 순간 분리·재열거로 /dev/video0→video1 이동**(커널 로그) → `TRAFFIC_CAM_DEV=auto`(by-id 자동 탐색, open마다 재해석).
+- 검증: pytest 18 · CI 5회 통과 · orin 배포(c493b72) 후 연속 6회(워밍업 2회 제외 전부 실프레임)·동시 2클라이언트(각 10프레임)·120s 연속 64.9MB 무중단·USB 분리 재발 0 · doctor ok(이미지 0건) · healthz 200/200 · UI 라이브 렌더 스크린샷.
+- **하드웨어 주의(미해결)**: USB 허브 분리 이벤트 1회 발생 — 전원 여유/케이블 접촉 의심. 재발 시 다른 포트(USB 3.0 직결)·케이블 재결착·정격 어댑터 확인. orin 시계 AKDT+시각 점프로 로그 시각 신뢰 불가 — timedatectl(sudo) 대기 중. 기기 의존성은 `camera` extra(opencv-python-headless)로 분리, install.sh 실패 시 기본 셋 폴백.
 - 두 세션이 같은 날 각자 만든 v2 를 병합: **시나리오 4편**(등교 Fast Loop · 위험 이벤트 Slow Loop · 주간 리포트 승인 · CD 파이프라인) + **데이터 여정 5줄**(무저장 프레임 → 지표 → 이벤트/C1 → 분석 → 라벨) + **운영·배포 탭**(orin 서비스 3종·헬스체크 명령 7종) + **맞춤 용어**(K1~K3 수치 정의·C1/C2·CV 스택과 인프라 채택 기술의 "왜"·"VLM은 본체가 아니다" 노트).
 - archify showcase 검증(오류·경고 0) 통과한 설계 맵(architecture)·파이프라인(dataflow) 도식을 iframe 내장 — 스펙 `project-map-arch.json`·`project-map-flow.json` 동봉, 갱신 시 validate→deliver→render 재실행.
 - subtitle 에 '지속 갱신' + 기준 커밋 명시. `scan.py --diff` 신선도 검사용 `diff_ignore` 등록. 발견 사항 유지: dispatch 호출 주체 부재(R6 계획)·ext_wx 채움 코드 부재·web/dist 이중 writer(비상 경로 문서화됨).

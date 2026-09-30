@@ -74,4 +74,5 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - **orin 배포 완료(더미 모드)**: 공개 http://100.96.30.94:8600/ · 관리 http://100.96.30.94:8601/ (테일넷 전용). 기기 `~/traffic`, user 유닛 `traffic-app`, 설정은 기기 `data/traffic.env`.
 - **CD 파이프라인(pull형 GitOps)**: push → CI(pytest·doctor·eslint·build) 통과 → `latest` 릴리스 자동 발행(web dist 포함) → orin `traffic-autoupdate.timer`(5분)가 수거·설치·헬스체크, 실패 시 자동 롤백(`scripts/autoupdate.sh`, 로그 `data/autoupdate.log`). **배포 시점은 파이프라인이 결정** — `deploy.ps1`은 비상·즉시 배포용.
 - 상주 방식: **systemd user 유닛으로 승격 완료**(2026-09-15, linger on·부팅 자동시작). sudoers NOPASSWD 등록됨(`/etc/sudoers.d/traffic`: apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) — R1의 시스템 작업도 원격 위임 가능. crontab 경로는 linger 없는 기기용 폴백으로 install.sh에 유지.
-- **다음 작업**: 빌드 트랙 잔여(analysis 배치 M0~M4·안전지수 → K1~K3 실표시, llm 주간 초안+검증기, dispatch 채널) · 현장 트랙(GATE 0 문서·교사 서명·카메라 주문 → R1 런타임).
+- **카메라 프리뷰 가동(2026-09-30)**: Arducam 12MP 결착, 관리 `/stream` MJPEG + System 페이지 라이브 표시. `TRAFFIC_CAM_DEV=auto`(by-id 자동 — USB 재열거로 번호가 바뀌므로 고정 금지), SharedCamera 공유 리더(유휴 60s 유지 — 닫자마자 재-open 하면 UVC 실패). **프리뷰는 더미 모드에서도 실 카메라 우선**(초점·설치 조절용). 주의: USB 허브 순간 분리 1회 실측 — 재발 시 포트/케이블/전원 점검. 기기 의존성은 `camera` extra.
+- **다음 작업**: 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널) · 현장 트랙(카메라 초점·조리개 조절 → GATE 0 문서·교사 서명 → 학교 설치 → R1 런타임 fps/추론 실측).
