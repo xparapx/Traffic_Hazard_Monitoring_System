@@ -19,29 +19,33 @@ class UvcFrameSource:
     Arducam 12MP(0c45:0280) 실측 2026-09-29: 1080p MJPG 33fps (v4l2 레벨).
     """
 
+    OPEN_ATTEMPTS = 4        # 실패한 open 핸들은 read 재시도로 회복 안 됨(orin 실측
+    READS_PER_OPEN = 5       # 2026-09-30) — 닫고 다시 여는 단위로 재시도한다.
+
     def __init__(self):
         import cv2  # 하드웨어 의존 import 는 백엔드 안에서만
 
         self._cv2 = cv2
         dev = settings._env("TRAFFIC_CAM_DEV", "0")
-        cap = cv2.VideoCapture(int(dev) if dev.isdigit() else dev, cv2.CAP_V4L2)
-        cap.set(cv2.CAP_PROP_FOURCC, _fourcc("MJPG"))
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(settings._env("TRAFFIC_CAM_W", "1920")))
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(settings._env("TRAFFIC_CAM_H", "1080")))
-        cap.set(cv2.CAP_PROP_FPS, int(settings._env("TRAFFIC_CAM_FPS", "30")))
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
-        # isOpened 만으로는 부족 — 첫 프레임까지 확인. UVC 는 open 직후 첫 read 가
-        # 간헐적으로 실패한다 (orin 실측 2026-09-30: 3회 중 1회) → 짧게 재시도.
-        ok = False
-        for _ in range(10):
-            ok, _ = cap.read()
-            if ok:
-                break
-            time.sleep(0.2)
-        if not ok:
+        self._cap = None
+        for attempt in range(self.OPEN_ATTEMPTS):
+            cap = cv2.VideoCapture(int(dev) if dev.isdigit() else dev, cv2.CAP_V4L2)
+            cap.set(cv2.CAP_PROP_FOURCC, _fourcc("MJPG"))
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(settings._env("TRAFFIC_CAM_W", "1920")))
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(settings._env("TRAFFIC_CAM_H", "1080")))
+            cap.set(cv2.CAP_PROP_FPS, int(settings._env("TRAFFIC_CAM_FPS", "30")))
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+            # isOpened 만으로는 부족 — 첫 프레임까지 확인
+            for _ in range(self.READS_PER_OPEN):
+                ok, _ = cap.read()
+                if ok:
+                    self._cap = cap
+                    return
+                time.sleep(0.2)
             cap.release()
-            raise RuntimeError(f"카메라 열기 실패: TRAFFIC_CAM_DEV={dev}")
-        self._cap = cap
+            time.sleep(0.3)
+        raise RuntimeError(
+            f"카메라 열기 실패({self.OPEN_ATTEMPTS}회): TRAFFIC_CAM_DEV={dev}")
 
     def frames(self):
         misses = 0
