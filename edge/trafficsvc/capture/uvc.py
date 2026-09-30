@@ -2,9 +2,26 @@
 # cv2 import 는 이 모듈 안에서만 한다 — fake 경로·테스트는 cv2 없이 돈다.
 from __future__ import annotations
 
+import glob
 import time
 
 from .. import settings
+
+
+def resolve_dev() -> str | int:
+    """TRAFFIC_CAM_DEV 해석. 기본 'auto': /dev/v4l/by-id 의 첫 video-index0 —
+    USB 가 순간 분리·재열거되면 /dev/videoN 번호가 바뀌므로(orin 실측 2026-09-30
+    video0→video1) 고정 번호 대신 안정 경로를 쓴다. 숫자·경로 지정도 허용."""
+    dev = settings._env("TRAFFIC_CAM_DEV", "auto")
+    if dev != "auto":
+        return int(dev) if dev.isdigit() else dev
+    by_id = sorted(glob.glob("/dev/v4l/by-id/*-video-index0"))
+    if by_id:
+        return by_id[0]
+    nodes = sorted(glob.glob("/dev/video*"))
+    if nodes:
+        return nodes[0]
+    raise RuntimeError("V4L2 장치 없음 — 카메라 연결 확인")
 
 
 def _fourcc(code: str) -> int:
@@ -15,7 +32,7 @@ def _fourcc(code: str) -> int:
 class UvcFrameSource:
     """/dev/video* MJPG 캡처 — frames() 는 (ts_monotonic_s, BGR ndarray) 를 낸다.
 
-    환경변수: TRAFFIC_CAM_DEV(기본 0) · TRAFFIC_CAM_W/H(기본 1920/1080) · TRAFFIC_CAM_FPS(기본 30).
+    환경변수: TRAFFIC_CAM_DEV(기본 auto=by-id 자동) · TRAFFIC_CAM_W/H(기본 1920/1080) · TRAFFIC_CAM_FPS(기본 30).
     Arducam 12MP(0c45:0280) 실측 2026-09-29: 1080p MJPG 33fps (v4l2 레벨).
     """
 
@@ -26,10 +43,10 @@ class UvcFrameSource:
         import cv2  # 하드웨어 의존 import 는 백엔드 안에서만
 
         self._cv2 = cv2
-        dev = settings._env("TRAFFIC_CAM_DEV", "0")
         self._cap = None
         for attempt in range(self.OPEN_ATTEMPTS):
-            cap = cv2.VideoCapture(int(dev) if dev.isdigit() else dev, cv2.CAP_V4L2)
+            dev = resolve_dev()   # 시도마다 재해석 — 재열거로 경로가 바뀌어도 따라간다
+            cap = cv2.VideoCapture(dev, cv2.CAP_V4L2)
             cap.set(cv2.CAP_PROP_FOURCC, _fourcc("MJPG"))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(settings._env("TRAFFIC_CAM_W", "1920")))
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(settings._env("TRAFFIC_CAM_H", "1080")))
