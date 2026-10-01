@@ -25,8 +25,9 @@
 ## sudo 정책 (2026-09-15, 원격 위임 운용)
 - 상주·배포·빌드·모델·배치는 전부 sudo 없이 운용한다 (uv·cron @reboot·setsid — 현행).
 - **sudo가 불가피한 작업 목록** (집에서 보드 앞에 있을 때 몰아서, 또는 아래 sudoers 등록 후 원격):
-  apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger · **timedatectl set-timezone Asia/Seoul** (orin 이 현재 AKDT 로 설정돼 있음 — sudoers 목록에 추가 필요)
+  apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger
 - 원격 위임용 표준 해법: `/etc/sudoers.d/traffic`에 위 명령만 NOPASSWD 등록(1회, 사람 몫). 전체 루트 개방 금지.
+- NOPASSWD 등록 현황: `traffic`(apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) + `traffic-net`(nmcli·timedatectl, 2026-10-02) — 시간대 Asia/Seoul 전환 완료.
 
 ## 기기 접속
 - `ssh orin` = kjhs@orin — Jetson Orin Nano Super 8GB (주 보드, JetPack 7.2.1 예정). 2026-09-15 공개키 등록, 무비밀번호 접속.
@@ -75,4 +76,5 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - **CD 파이프라인(pull형 GitOps)**: push → CI(pytest·doctor·eslint·build) 통과 → `latest` 릴리스 자동 발행(web dist 포함) → orin `traffic-autoupdate.timer`(5분)가 수거·설치·헬스체크, 실패 시 자동 롤백(`scripts/autoupdate.sh`, 로그 `data/autoupdate.log`). **배포 시점은 파이프라인이 결정** — `deploy.ps1`은 비상·즉시 배포용.
 - 상주 방식: **systemd user 유닛으로 승격 완료**(2026-09-15, linger on·부팅 자동시작). sudoers NOPASSWD 등록됨(`/etc/sudoers.d/traffic`: apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) — R1의 시스템 작업도 원격 위임 가능. crontab 경로는 linger 없는 기기용 폴백으로 install.sh에 유지.
 - **카메라 프리뷰 가동(2026-09-30)**: Arducam 12MP 결착, 관리 `/stream` MJPEG + System 페이지 라이브 표시. `TRAFFIC_CAM_DEV=auto`(by-id 자동 — USB 재열거로 번호가 바뀌므로 고정 금지), SharedCamera 공유 리더(유휴 60s 유지 — 닫자마자 재-open 하면 UVC 실패). **프리뷰는 더미 모드에서도 실 카메라 우선**(초점·설치 조절용). 주의: USB 허브 순간 분리 1회 실측 — 재발 시 포트/케이블/전원 점검. 기기 의존성은 `camera` extra.
-- **다음 작업**: 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널) · 현장 트랙(카메라 초점·조리개 조절 → GATE 0 문서·교사 서명 → 학교 설치 → R1 런타임 fps/추론 실측).
+- **학교 이전 준비 완료(2026-10-02, → 이후 작업은 학교 전용 세션)**: `school-wifi`(wi_cne_class_S_2.4G) autoconnect 등록, 시간대 KST, 재부팅 자동 복구 검증 통과(healthz 200·서비스 3종 active·Wi-Fi 복구, 사람 손 0회). 설치 당일 절차·미해결 주의(USB 허브 분리 1회)는 WORKLOG(13) 참조. 접속: http://orin:8600 · http://orin:8601 (테일넷 MagicDNS).
+- **다음 작업**: 현장 트랙(설치 → 초점·조리개 조절 → GATE 0 문서·교사 서명 → R1 런타임 fps/추론 실측) · 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널).

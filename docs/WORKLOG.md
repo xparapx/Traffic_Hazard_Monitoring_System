@@ -2,6 +2,16 @@
 
 최신이 위. 의미 있는 변경마다 갱신(커밋마다는 아님).
 
+## 2026-10
+
+### 2026-10-02 (13) — 학교 이전 준비 완료 · 세션 인계 (→ 이후 작업은 학교 전용 세션)
+- **네트워크**: `school-wifi` 프로파일 등록(SSID `wi_cne_class_S_2.4G`, autoconnect, PSK는 기기에만 저장) — 전원만 켜면 학교망 접속. 집 `Home803` 프로파일도 유지(양쪽 자동).
+- **원격 제어 확장**: `/etc/sudoers.d/traffic-net`에 `nmcli`·`timedatectl` NOPASSWD 추가(사람 등록) — 학교에서 Wi-Fi 문제를 원격 위임으로 처리 가능. 시간대 **Asia/Seoul(KST) 전환 완료**(AKDT 문제 해소, 로그 시각 신뢰 가능).
+- **재부팅 자동 복구 검증 통과**: `sudo reboot` 후 사람 손 0회로 공개/관리 healthz 200 · traffic-app/autoupdate.timer/analysis.timer 3종 active · KST · Wi-Fi 복구.
+- **설치 당일 절차**: ① 전원 연결 → 2~3분 대기 ② 다른 기기(테일넷 연결)에서 http://orin:8600 (공개)·http://orin:8601 (관리) 확인 ③ 안 열리면 학교망의 Tailscale 차단 의심 — Mealboard CLAUDE.md 의 Cloudflare 경로로 전환 ④ 관리 /system 에서 캘리브레이션 모드 켜고 카메라 초점·조리개 조절(현재 초점 많이 나가 있음), 30분 자동 꺼짐.
+- **미해결 주의**: USB 허브 순간 분리 1회 실측(2026-09-30) — 스트림 끊기면 카메라 USB 포트 직결·케이블 재결착·전원 정격 확인. 소프트웨어는 재열거를 자동 추적(`TRAFFIC_CAM_DEV=auto`).
+- **다음 작업(학교 세션)**: 현장 트랙 — GATE 0 문서·교사 서명, 설치 위치 확정, R1 런타임(TensorRT 엔진 빌드·추론 ≤15ms 실측, `TRAFFIC_FAKE_HW=0` 전환은 검출 파이프라인 준비 후). 빌드 트랙 잔여 — llm 주간 초안 고도화·dispatch 채널.
+
 ## 2026-09
 
 ### 2026-09-30 (12) — 카메라 라이브 프리뷰(MJPEG) 완성 — Arducam 결착·초점 조절 경로 개통
