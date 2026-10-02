@@ -46,6 +46,19 @@ async function get<T>(url: string, mock: T): Promise<Fetched<T>> {
   }
 }
 
+export interface SessionItem {
+  name: string; status: "recording" | "converting" | "ready" | "failed";
+  start_utc: string; duration_s: number; fps: number; size_mb: number;
+}
+
+export async function del(url: string): Promise<boolean> {
+  try {
+    return (await fetch(url, { method: "DELETE" })).ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function post(url: string, body: unknown): Promise<boolean> {
   try {
     const r = await fetch(url, {
@@ -114,8 +127,17 @@ export const api = {
    *  detect=true 면 탐지 오버레이(박스·클래스·지연 표시) 포함 */
   streamUrl: (detect = false) =>
     `${ADM_BASE}/api/admin/stream${detect ? "?detect=1" : ""}`,
-  postLabel: (b: { event_id: string; hazard: number; tag: string | null; labeler: string }) =>
+  postLabel: (b: { event_id: string; hazard: number; tag: string | null; labeler: string;
+    source?: "live" | "session"; note?: string | null }) =>
     post(`${ADM_BASE}/api/admin/label`, b),
+  /** 통제 세션 (라벨링용 영상 — 관리 포트 전용) */
+  sessionList: () =>
+    get<{ recording: string | null; sessions: SessionItem[] }>(
+      `${ADM_BASE}/api/admin/session`, { recording: null, sessions: [] }),
+  sessionRecord: (minutes: number) => post(`${ADM_BASE}/api/admin/session/record`, { minutes }),
+  sessionStop: () => post(`${ADM_BASE}/api/admin/session/stop`, {}),
+  sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
+  sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>
     post(`${ADM_BASE}/api/admin/outbox/${id}`, { action, by }),
 };

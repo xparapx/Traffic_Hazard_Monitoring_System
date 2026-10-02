@@ -147,9 +147,13 @@ class SharedCamera:
         self._detector = None            # AsyncDetector (오버레이 첫 요청 시 생성)
         self._det_status = ""
         self.roi: list[list[float]] = []   # 정규화 폴리곤 — set_roi 로 갱신
+        self._tap = None                   # 세션 녹화기 — 프리뷰 JPEG 를 받아 기록
 
     def set_roi(self, points: list[list[float]]) -> None:
         self.roi = points
+
+    def set_tap(self, cb) -> None:
+        self._tap = cb
 
     def acquire(self, overlay: bool = False) -> None:
         """클라이언트 등록 — 리더가 없으면 카메라를 연다 (실패 시 raise)."""
@@ -170,7 +174,7 @@ class SharedCamera:
             if overlay:
                 self._overlay_n += 1
 
-    def _release_client(self, overlay: bool = False) -> None:
+    def release_client(self, overlay: bool = False) -> None:
         with self._cond:
             self._clients -= 1
             if overlay:
@@ -224,6 +228,9 @@ class SharedCamera:
                     elif self._det_status:
                         small = overlay.draw(small, (), self._det_status, self.roi)
                 jpg = src.jpeg(small, PREVIEW_JPEG_Q)
+                tap = self._tap
+                if tap is not None:
+                    tap(jpg)               # 세션 녹화 — append 만 하므로 지연 미미
                 with self._cond:
                     self._latest = jpg
                     self._seq += 1
@@ -257,7 +264,7 @@ class SharedCamera:
                 yield _mjpeg_part(jpg)
                 n += 1
         finally:
-            self._release_client(overlay)
+            self.release_client(overlay)
 
 
 # 수동 분석용 내려받기 대상 — 전부 숫자·enum 텍스트, 이미지 없음
@@ -351,13 +358,19 @@ class RoiIn(BaseModel):
     points: list[tuple[float, float]] = Field(default_factory=list)
 
 
+class SessionRecordIn(BaseModel):
+    minutes: int = Field(default=5, ge=1, le=15)
+
+
 def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
     api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
     camera = SharedCamera(calib_mode)
+    from .capture.session_rec import SessionRecorder, sessions_dir
     from .detect import roi as roi_mod
     camera.set_roi(roi_mod.load(con))   # 재시작 후에도 ROI 유지 (calib.zones_json)
+    recorder = SessionRecorder(camera, fps=int(STREAM_PREVIEW_FPS))
 
     @app.get("/healthz")
     def healthz():
@@ -412,6 +425,38 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             log.warning("stream: 카메라 없음(%s) — 더미 프레임 폴백", e)
             gen = _fake_stream(calib_mode, frames)
         return StreamingResponse(gen, media_type=STREAM_MEDIA_TYPE)
+
+    # ---- 통제 세션 (라벨링용 영상 — data/sessions 전용, 모든 동작 로그) ----
+
+    @api.get("/session")
+    def session_list():
+        return {"recording": recorder.recording, "sessions": recorder.list()}
+
+    @api.post("/session/record")
+    def session_record(body: SessionRecordIn):
+        # 이중 잠금 유지: 캘리브레이션 모드가 켜진 동안에만 녹화 시작 가능
+        if not calib_mode.on:
+            raise HTTPException(409, "calibration mode off — 먼저 모드를 켜세요")
+        if recorder.recording:
+            raise HTTPException(409, f"이미 녹화 중: {recorder.recording}")
+        try:
+            name = recorder.start(body.minutes)
+        except Exception as e:
+            raise HTTPException(503, f"녹화 시작 불가: {e}")
+        return {"ok": True, "name": name, "max_minutes": body.minutes}
+
+    @api.post("/session/stop")
+    def session_stop():
+        meta = recorder.stop()
+        if meta is None:
+            raise HTTPException(409, "녹화 중이 아님")
+        return {"ok": True} | meta
+
+    @api.delete("/session/{name}")
+    def session_delete(name: str):
+        if not recorder.delete(name):
+            raise HTTPException(404, "삭제 대상 없음(녹화 중이거나 이름 불일치)")
+        return {"ok": True}
 
     @api.get("/export/{name}.csv")
     def export_csv(name: str):
@@ -476,5 +521,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return _meta("system") | {"db_rows": rowcounts, "fake_hw": settings.fake_hw()}
 
     app.include_router(api)
+    # 세션 영상 서빙 (Range 지원 → <video> 탐색 가능) — 관리 포트(테일넷)에만 존재
+    app.mount("/session-video", StaticFiles(directory=sessions_dir()), name="sessions")
     _mount_web(app)
     return app
