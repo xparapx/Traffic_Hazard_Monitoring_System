@@ -33,7 +33,8 @@ def _gst_convert(mjpeg: Path, mp4: Path, fps: int) -> bool:
     cmd = ["gst-launch-1.0", "-q",
            "filesrc", f"location={mjpeg}", "!", "jpegparse", "!", "jpegdec", "!",
            "videoconvert", "!", "videorate", "!", f"video/x-raw,framerate={fps}/1", "!",
-           "x264enc", "speed-preset=veryfast", "tune=zerolatency", "!",
+           # bitrate(kbps) 제한 — 미지정 시 1분 117MB 실측(orin). 2500k ≈ 19MB/분
+           "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30", "!",
            "h264parse", "!", "mp4mux", "faststart=true", "!",
            "filesink", f"location={mp4}"]
     try:
