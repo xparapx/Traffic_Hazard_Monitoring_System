@@ -79,4 +79,5 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - **카메라 프리뷰 가동(2026-09-30)**: Arducam 12MP 결착, 관리 `/stream` MJPEG + System 페이지 라이브 표시. `TRAFFIC_CAM_DEV=auto`(by-id 자동 — USB 재열거로 번호가 바뀌므로 고정 금지), SharedCamera 공유 리더(유휴 60s 유지 — 닫자마자 재-open 하면 UVC 실패). **프리뷰는 더미 모드에서도 실 카메라 우선**(초점·설치 조절용). 주의: USB 허브 순간 분리 1회 실측 — 재발 시 포트/케이블/전원 점검. 기기 의존성은 `camera` extra.
 - **운용 전환 완료(2026-10-02): TRAFFIC_FAKE_HW=0 — 실데이터 수집 중.** realloop(카메라 소유)→TRT 검출→IoU 추적→카운트·정차(K2). 더미 데이터 전량 삭제(백업 유지), 프리뷰는 realloop 프레임 공유. 속도(K1)·근접(K3)·방향은 4점 캘리브레이션(R2 본선) 후 — 그때까지 null. no_stop 구역을 UI 로 그려야 K2 가 위반만 센다.
 - **학교 이전 준비 완료(2026-10-02, → 이후 작업은 학교 전용 세션)**: `school-wifi`(wi_cne_class_S_2.4G) autoconnect 등록, 시간대 KST, 재부팅 자동 복구 검증 통과(healthz 200·서비스 3종 active·Wi-Fi 복구, 사람 손 0회). 설치 당일 절차·미해결 주의(USB 허브 분리 1회)는 WORKLOG(13) 참조. 접속: http://orin:8600 · http://orin:8601 (테일넷 MagicDNS).
-- **다음 작업**: 현장 트랙(설치 → 초점·조리개 조절 → GATE 0 문서·교사 서명 → R1 런타임 fps/추론 실측) · 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널).
+- **캡처 720p 운용(2026-10-02)**: USB 신호 한계로 1080p MJPG 손상 → 기기 env `TRAFFIC_CAM_W/H=1280/720`. 케이블·포트 개선 후 1080p 복귀 가능. 세션 녹화는 창 90분·5분 클립 자동 분할.
+- **다음 작업(연휴 후)**: ① 등교 창 녹화·라벨링 첫 실전(GATE 0 서명 선행) ② 실측 수일 축적 후 데이터 분석(카운트 정확도·패턴) ③ R2 캘리브레이션(4점 실측 → K1 속도·K3 근접·방향) ④ R5 때 VLM 후보 벤치(+Jev·META_ONLY 축 검토 — WORKLOG 16) · 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널).
