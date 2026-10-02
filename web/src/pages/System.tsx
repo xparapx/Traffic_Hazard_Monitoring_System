@@ -105,6 +105,20 @@ export default function SystemPage() {
                       const y = (e.clientY - r.top) / r.height;
                       setRoiPts([...roiPts, [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))]]);
                     }} />
+                  <svg className="pointer-events-none absolute inset-0 size-full"
+                    viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {/* 저장된 구역은 항상 표시 — 편집 중에도 기준이 보이게 */}
+                    {(zones.roi?.length ?? 0) >= 3 && (
+                      <polygon points={zones.roi.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
+                        fill="none" stroke="#ffcd3c" strokeWidth="0.5"
+                        strokeDasharray="1.5 1" vectorEffect="non-scaling-stroke" opacity="0.9" />
+                    )}
+                    {(zones.no_stop?.length ?? 0) >= 3 && (
+                      <polygon points={zones.no_stop.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
+                        fill="rgba(230,80,80,0.10)" stroke="#e65050" strokeWidth="0.5"
+                        strokeDasharray="1.5 1" vectorEffect="non-scaling-stroke" opacity="0.9" />
+                    )}
+                  </svg>
                   {roiEdit && roiPts.length > 0 && (
                     <svg className="pointer-events-none absolute inset-0 size-full"
                       viewBox="0 0 100 100" preserveAspectRatio="none">
