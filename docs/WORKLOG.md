@@ -4,6 +4,14 @@
 
 ## 2026-10
 
+### 2026-10-02 (14) — 학교 가동 첫날: 탐지 오버레이·ROI·TensorRT·통제 세션 라벨링
+- **학교 설치 성공**: school-wifi 자동 접속(신호 75), 테일넷 차단 없음(Cloudflare 불필요), 이동 중 USB 요동으로 UVC 초기화 실패(-71) 1회 → 재부팅으로 해소. 초점·조리개는 프리뷰 보며 조절.
+- **탐지 오버레이**: ONNX YOLO(yolo11n) → **TensorRT FP16 전환** — trtexec 실측 mean 5.6ms·p99 6.1ms·179fps(**R1 기준 ② 통과**), end-to-end 18.5ms. 백엔드 auto(TRT 우선·ONNX 폴백), 바인딩은 JetPack deb + cuda-python(camera extra, aarch64 마커).
+- **ROI 필터**: calib.zones_json(roi-preview 행)에 정규화 폴리곤, 판정은 발점(박스 하단 중앙). UI 클릭 편집기(SVG — polygon %좌표 미지원 버그를 viewBox로 수정), ROI 밖 탐지는 회색 표시.
+- **프레임 드랍 진단**: 서버 8.6fps 정상인데 원격 2.3fps — 병목은 2.4GHz Wi-Fi(RTT 196ms)의 1080p q80(230KB/프레임=18Mbps) 포화. **전송만 720p·q70 축소**(탐지는 원본), 109KB/4.8fps(동시 시청 중)로 회복. 5GHz SSID 확보가 근본 개선.
+- **통제 세션 라벨링**(사용자 결정 — 현장 실측 대신 영상 재생 라벨): 녹화기(캘리브레이션 모드 중·상한 15분·전 과정 로그·data/sessions 전용, 프리뷰 JPEG→GStreamer x264 mp4 faststart·bitrate 2500k≈19MB/분) + 라벨 UI 개편(세션 목록·플레이어·이벤트 "이 시각 영상 보기" 자동 시킹·source=session/live·라벨러 기억). E2E: 1분 녹화→변환→재생 200→삭제 로그 확인. **실수집은 GATE 0 서명 후** — CLAUDE.md 프라이버시 절에 조항 명문화.
+- 함정 추가 확인: orin ffmpeg(nvidia 빌드)는 pipe/lavfi/scale 미탑재 — 영상 변환은 GStreamer 를 쓸 것.
+
 ### 2026-10-02 (13) — 학교 이전 준비 완료 · 세션 인계 (→ 이후 작업은 학교 전용 세션)
 - **네트워크**: `school-wifi` 프로파일 등록(SSID `wi_cne_class_S_2.4G`, autoconnect, PSK는 기기에만 저장) — 전원만 켜면 학교망 접속. 집 `Home803` 프로파일도 유지(양쪽 자동).
 - **원격 제어 확장**: `/etc/sudoers.d/traffic-net`에 `nmcli`·`timedatectl` NOPASSWD 추가(사람 등록) — 학교에서 Wi-Fi 문제를 원격 위임으로 처리 가능. 시간대 **Asia/Seoul(KST) 전환 완료**(AKDT 문제 해소, 로그 시각 신뢰 가능).
