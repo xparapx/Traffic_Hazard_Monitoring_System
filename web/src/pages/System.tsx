@@ -104,12 +104,15 @@ export default function SystemPage() {
                       setRoiPts([...roiPts, [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))]]);
                     }} />
                   {roiEdit && roiPts.length > 0 && (
-                    <svg className="pointer-events-none absolute inset-0 size-full">
+                    <svg className="pointer-events-none absolute inset-0 size-full"
+                      viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {/* %는 polygon points에 못 쓰므로 viewBox 0~100 좌표로 그린다 */}
                       <polygon
-                        points={roiPts.map(([x, y]) => `${x * 100}%,${y * 100}%`).join(" ")}
-                        fill="rgba(255,205,60,0.15)" stroke="#ffcd3c" strokeWidth="2" />
+                        points={roiPts.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
+                        fill="rgba(255,205,60,0.22)" stroke="#ffcd3c"
+                        strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
                       {roiPts.map(([x, y], i) => (
-                        <circle key={i} cx={`${x * 100}%`} cy={`${y * 100}%`} r="4" fill="#ffcd3c" />
+                        <circle key={i} cx={x * 100} cy={y * 100} r="0.8" fill="#ffcd3c" />
                       ))}
                     </svg>
                   )}
