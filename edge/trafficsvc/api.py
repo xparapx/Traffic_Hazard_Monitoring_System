@@ -146,29 +146,44 @@ class SharedCamera:
         self._overlay_n = 0              # 탐지 오버레이를 요청한 클라이언트 수
         self._detector = None            # AsyncDetector (오버레이 첫 요청 시 생성)
         self._det_status = ""
-        self.roi: list[list[float]] = []   # 정규화 폴리곤 — set_roi 로 갱신
+        self.zones: dict[str, list[list[float]]] = {}   # roi·no_stop 폴리곤
         self._tap = None                   # 세션 녹화기 — 프리뷰 JPEG 를 받아 기록
 
-    def set_roi(self, points: list[list[float]]) -> None:
-        self.roi = points
+    @property
+    def roi(self) -> list[list[float]]:
+        return self.zones.get("roi", [])
+
+    def set_zones(self, zones: dict[str, list[list[float]]]) -> None:
+        self.zones = zones or {}
 
     def set_tap(self, cb) -> None:
         self._tap = cb
 
     def acquire(self, overlay: bool = False) -> None:
-        """클라이언트 등록 — 리더가 없으면 카메라를 연다 (실패 시 raise)."""
+        """클라이언트 등록 — 리더가 없으면 프레임 소스를 연다 (실패 시 raise).
+        realloop(실데이터 운영 루프)가 돌고 있으면 그 프레임을 나눠 보고,
+        아니면 카메라를 직접 연다 (UVC 는 동시 open 불가)."""
+        from . import realloop as rl_mod
         with self._cond:
             # 직전 리더가 닫히는 중이면 종료를 잠깐 기다린다
             self._cond.wait_for(
                 lambda: self._running or self._thread is None
                 or not self._thread.is_alive(), timeout=8)
             if not self._running:
-                from .capture.uvc import UvcFrameSource
-                src = UvcFrameSource()
-                self._running = True
-                self._latest = None
-                self._thread = threading.Thread(
-                    target=self._pump, args=(src,), name="preview-pump", daemon=True)
+                rl = rl_mod.CURRENT
+                if rl is not None and rl.alive:
+                    self._running = True
+                    self._latest = None
+                    self._thread = threading.Thread(
+                        target=self._pump_realloop, args=(rl,),
+                        name="preview-pump-rl", daemon=True)
+                else:
+                    from .capture.uvc import UvcFrameSource
+                    src = UvcFrameSource()
+                    self._running = True
+                    self._latest = None
+                    self._thread = threading.Thread(
+                        target=self._pump, args=(src,), name="preview-pump", daemon=True)
                 self._thread.start()
             self._clients += 1
             if overlay:
@@ -181,6 +196,53 @@ class SharedCamera:
                 self._overlay_n -= 1
             if self._clients <= 0:
                 self._idle_since = time.monotonic()   # 리더는 IDLE_S 후 스스로 닫는다
+
+    def _emit(self, jpg: bytes) -> None:
+        tap = self._tap
+        if tap is not None:
+            tap(jpg)                   # 세션 녹화 — append 만 하므로 지연 미미
+        with self._cond:
+            self._latest = jpg
+            self._seq += 1
+            self._cond.notify_all()
+
+    def _pump_realloop(self, rl) -> None:
+        """realloop 의 프레임·탐지를 소비하는 프리뷰 리더 — 카메라를 직접 열지 않는다."""
+        import cv2
+        from .detect import overlay
+        last_seq = 0
+        try:
+            while True:
+                with self._cond:
+                    if not self._running or not self._mode.on:
+                        break
+                    if (self._clients <= 0
+                            and time.monotonic() - self._idle_since > self.IDLE_S):
+                        break
+                if not rl.alive:
+                    break
+                item = rl.wait_frame(last_seq, timeout=2.0)
+                if item is None:
+                    continue
+                last_seq, ts, frame, kept, excl = item
+                h, w = frame.shape[:2]
+                if w > PREVIEW_W:
+                    small = cv2.resize(frame, (PREVIEW_W, round(h * PREVIEW_W / w)))
+                else:
+                    small = frame.copy()
+                if self._overlay_n > 0:
+                    small = overlay.draw(small, kept, rl.status, self.roi, excl,
+                                         self.zones.get("no_stop", []))
+                ok, buf = cv2.imencode(".jpg", small,
+                                       [cv2.IMWRITE_JPEG_QUALITY, PREVIEW_JPEG_Q])
+                if ok:
+                    self._emit(buf.tobytes())
+        except Exception as e:
+            log.warning("preview pump(realloop) 종료: %s", e)
+        finally:
+            with self._cond:
+                self._running = False
+                self._cond.notify_all()
 
     def _ensure_detector(self):
         """오버레이용 검출기 — 생성 실패(모델·onnxruntime 없음)는 상태줄로만 알린다."""
@@ -224,17 +286,11 @@ class SharedCamera:
                             kept, out = list(dets), []
                             self._det_status = (
                                 f"{det.name} · {lat:.0f}ms · {len(dets)} obj")
-                        small = overlay.draw(small, kept, self._det_status, poly, out)
+                        small = overlay.draw(small, kept, self._det_status, poly, out,
+                                             self.zones.get("no_stop", []))
                     elif self._det_status:
                         small = overlay.draw(small, (), self._det_status, self.roi)
-                jpg = src.jpeg(small, PREVIEW_JPEG_Q)
-                tap = self._tap
-                if tap is not None:
-                    tap(jpg)               # 세션 녹화 — append 만 하므로 지연 미미
-                with self._cond:
-                    self._latest = jpg
-                    self._seq += 1
-                    self._cond.notify_all()
+                self._emit(src.jpeg(small, PREVIEW_JPEG_Q))
         except Exception as e:
             log.warning("preview pump 종료: %s", e)
         finally:
@@ -354,8 +410,9 @@ class CalibModeIn(BaseModel):
 
 
 class RoiIn(BaseModel):
-    """정규화 폴리곤 — [] 는 ROI 해제(전체 화면), 아니면 3점 이상."""
+    """정규화 폴리곤 — [] 는 해제, 아니면 3점 이상. zone: roi(탐지 구역)·no_stop(정차 금지)."""
     points: list[tuple[float, float]] = Field(default_factory=list)
+    zone: Literal["roi", "no_stop"] = "roi"
 
 
 class SessionRecordIn(BaseModel):
@@ -369,7 +426,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     camera = SharedCamera(calib_mode)
     from .capture.session_rec import SessionRecorder, sessions_dir
     from .detect import roi as roi_mod
-    camera.set_roi(roi_mod.load(con))   # 재시작 후에도 ROI 유지 (calib.zones_json)
+    camera.set_zones(roi_mod.load_zones(con))   # 재시작 후에도 구역 유지 (calib.zones_json)
     recorder = SessionRecorder(camera, fps=int(STREAM_PREVIEW_FPS))
 
     @app.get("/healthz")
@@ -392,19 +449,22 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
 
     @api.get("/roi")
     def roi_get():
-        return {"points": camera.roi}
+        return {"points": camera.roi, "zones": camera.zones}
 
     @api.post("/roi")
     def roi_set(body: RoiIn):
         if body.points and len(body.points) < 3:
-            raise HTTPException(422, "ROI 는 3점 이상 또는 빈 목록(해제)")
+            raise HTTPException(422, "구역은 3점 이상 또는 빈 목록(해제)")
         if any(not (0 <= x <= 1 and 0 <= y <= 1) for x, y in body.points):
             raise HTTPException(422, "좌표는 0~1 정규화")
         pts = [list(p) for p in body.points]
-        roi_mod.save(con, pts, db.utcnow())
-        camera.set_roi(pts)
-        log.warning("ROI %s — %d점", "해제" if not pts else "저장", len(pts))
-        return {"ok": True, "points": pts}
+        zones = roi_mod.save_zone(con, body.zone, pts, db.utcnow())
+        camera.set_zones(zones)
+        from . import realloop as rl_mod
+        if rl_mod.CURRENT is not None:
+            rl_mod.CURRENT.pipeline.set_zones(zones)   # 운영 판정에도 즉시 반영
+        log.warning("구역 %s %s — %d점", body.zone, "해제" if not pts else "저장", len(pts))
+        return {"ok": True, "points": pts, "zones": zones}
 
     @api.get("/stream")
     def stream(frames: int | None = None, detect: int = 0):

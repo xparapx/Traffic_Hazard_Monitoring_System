@@ -11,15 +11,20 @@ COLORS = {"person": (60, 160, 255), "two_wheel": (120, 220, 80), "veh4": (80, 12
 
 
 def draw(frame, dets: Sequence[Detection], status: str,
-         roi: Sequence[Sequence[float]] = (), excluded: Sequence[Detection] = ()):
-    """frame(BGR ndarray) 위에 박스·라벨·상태줄·ROI 폴리곤을 그려 반환(in-place).
-    excluded 는 ROI 밖 탐지 — 얇은 회색으로 표시해 필터 동작을 보여준다."""
+         roi: Sequence[Sequence[float]] = (), excluded: Sequence[Detection] = (),
+         no_stop: Sequence[Sequence[float]] = ()):
+    """frame(BGR ndarray) 위에 박스·라벨·상태줄·구역 폴리곤을 그려 반환(in-place).
+    excluded 는 ROI 밖 탐지(회색) · no_stop 은 정차 금지 구역(붉은 선).
+    dets 는 Detection 또는 Track — conf 가 없으면 라벨에 생략한다."""
     import cv2
     import numpy as np
     h, w = frame.shape[:2]
     if len(roi) >= 3:
         pts = np.array([[int(x * w), int(y * h)] for x, y in roi], dtype=np.int32)
         cv2.polylines(frame, [pts], True, (60, 220, 255), 2, cv2.LINE_AA)
+    if len(no_stop) >= 3:
+        pts = np.array([[int(x * w), int(y * h)] for x, y in no_stop], dtype=np.int32)
+        cv2.polylines(frame, [pts], True, (80, 80, 230), 2, cv2.LINE_AA)
     for d in excluded:
         x1, y1 = int(d.box[0] * w), int(d.box[1] * h)
         x2, y2 = int(d.box[2] * w), int(d.box[3] * h)
@@ -29,7 +34,8 @@ def draw(frame, dets: Sequence[Detection], status: str,
         x2, y2 = int(d.box[2] * w), int(d.box[3] * h)
         c = COLORS.get(d.cls, (200, 200, 200))
         cv2.rectangle(frame, (x1, y1), (x2, y2), c, 2)
-        label = f"{d.cls} {d.conf:.2f}"
+        conf = getattr(d, "conf", None)
+        label = f"{d.cls} {conf:.2f}" if conf is not None else d.cls
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
         cv2.rectangle(frame, (x1, y1 - th - 8), (x1 + tw + 6, y1), c, -1)
         cv2.putText(frame, label, (x1 + 3, y1 - 5),

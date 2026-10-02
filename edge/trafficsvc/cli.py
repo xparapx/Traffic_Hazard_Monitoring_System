@@ -122,7 +122,15 @@ def _serve() -> int:
             tasks += [asyncio.create_task(fast.run_dummy()),
                       asyncio.create_task(slow.run())]
         else:
-            print("[trafficsvc] 실제 하드웨어 경로는 R1/R2 에서 — 지금은 API 만 기동")
+            # R2 1단계: 카메라→검출(TRT)→추적→카운트·정차(K2) 실측.
+            # 속도(K1)·근접(K3)은 캘리브레이션 후 — 해당 지표는 null 로 비워 둔다.
+            from .detect import roi as roi_mod
+            from .realloop import RealLoop
+            real = RealLoop(con, slow, zones=roi_mod.load_zones(con))
+            real.start()
+            tasks += [asyncio.create_task(slow.run())]
+            print("[trafficsvc] 실데이터 운영 루프 가동 — 카운트·정차(K2) 실측,"
+                  " K1·K3 는 캘리브레이션(R2) 후")
         cfgs = [
             uvicorn.Config(public, host=settings.BIND_HOST, port=settings.PUBLIC_PORT,
                            log_level="warning"),

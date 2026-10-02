@@ -121,8 +121,11 @@ export const api = {
   calib: () =>
     get<CalibData>(`${ADM_BASE}/api/admin/calib`, { dummy: true, mode_on: false, remaining_s: 0, current: null }),
   calibMode: (on: boolean) => post(`${ADM_BASE}/api/admin/calib/mode`, { on }),
-  roi: () => get<{ points: [number, number][] }>(`${ADM_BASE}/api/admin/roi`, { points: [] }),
-  setRoi: (points: [number, number][]) => post(`${ADM_BASE}/api/admin/roi`, { points }),
+  roi: () =>
+    get<{ points: [number, number][]; zones: Record<string, [number, number][]> }>(
+      `${ADM_BASE}/api/admin/roi`, { points: [], zones: {} }),
+  setRoi: (points: [number, number][], zone: "roi" | "no_stop" = "roi") =>
+    post(`${ADM_BASE}/api/admin/roi`, { points, zone }),
   /** MJPEG 스트림 URL — 캘리브레이션 모드가 켜진 동안에만 열린다 (그 외 409/503).
    *  detect=true 면 탐지 오버레이(박스·클래스·지연 표시) 포함 */
   streamUrl: (detect = false) =>

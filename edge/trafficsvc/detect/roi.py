@@ -30,20 +30,39 @@ def foot_in_roi(box: Sequence[float], poly: Sequence[Sequence[float]]) -> bool:
     return point_in_poly((box[0] + box[2]) / 2, box[3], poly)
 
 
-def load(con: sqlite3.Connection) -> list[list[float]]:
+ZONE_NAMES = ("roi", "no_stop")   # roi=탐지 관심 구역(도로) · no_stop=정차 금지 구역(K2)
+
+
+def load_zones(con: sqlite3.Connection) -> dict[str, list[list[float]]]:
     row = con.execute("SELECT zones_json FROM calib WHERE ver=?", (ROI_VER,)).fetchone()
     if not row or not row["zones_json"]:
-        return []
+        return {}
     try:
-        return json.loads(row["zones_json"]).get("roi", [])
+        z = json.loads(row["zones_json"])
+        return {k: v for k, v in z.items() if k in ZONE_NAMES and isinstance(v, list)}
     except (json.JSONDecodeError, AttributeError):
-        return []
+        return {}
 
 
-def save(con: sqlite3.Connection, points: list[list[float]], ts: str) -> None:
-    """points 가 비면 ROI 해제(전체 화면). calib 표의 전용 행만 갱신."""
+def load(con: sqlite3.Connection) -> list[list[float]]:
+    return load_zones(con).get("roi", [])
+
+
+def save_zone(con: sqlite3.Connection, name: str, points: list[list[float]],
+              ts: str) -> dict[str, list[list[float]]]:
+    """구역 하나 갱신(빈 목록 = 해제) — 다른 구역은 보존. 갱신된 전체 dict 반환."""
+    zones = load_zones(con)
+    if points:
+        zones[name] = points
+    else:
+        zones.pop(name, None)
     con.execute(
         "INSERT INTO calib(ver, ts, zones_json, note) VALUES(?,?,?,?)"
         " ON CONFLICT(ver) DO UPDATE SET ts=excluded.ts, zones_json=excluded.zones_json",
-        (ROI_VER, ts, json.dumps({"roi": points}), "프리뷰 탐지 ROI (관리 UI에서 편집)"))
+        (ROI_VER, ts, json.dumps(zones), "프리뷰 ROI·정차 금지 구역 (관리 UI에서 편집)"))
     con.commit()
+    return zones
+
+
+def save(con: sqlite3.Connection, points: list[list[float]], ts: str) -> None:
+    save_zone(con, "roi", points, ts)

@@ -9,20 +9,22 @@ export default function SystemPage() {
   const [detect, setDetect] = useState(false);
   const [roiEdit, setRoiEdit] = useState(false);
   const [roiPts, setRoiPts] = useState<[number, number][]>([]);
-  const [roiSaved, setRoiSaved] = useState(0); // 저장된 점 수 표시용
+  const [zoneSel, setZoneSel] = useState<"roi" | "no_stop">("roi");
+  const [zones, setZones] = useState<Record<string, [number, number][]>>({});
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
   };
   useEffect(() => {
     refresh();
-    api.roi().then((r) => setRoiSaved(r.points.length));
+    api.roi().then((r) => setZones(r.zones ?? {}));
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
   }, []);
   async function saveRoi(points: [number, number][]) {
-    await api.setRoi(points);
-    setRoiSaved(points.length);
+    await api.setRoi(points, zoneSel);
+    const r = await api.roi();
+    setZones(r.zones ?? {});
     setRoiPts([]);
     setRoiEdit(false);
   }
@@ -109,10 +111,12 @@ export default function SystemPage() {
                       {/* %는 polygon points에 못 쓰므로 viewBox 0~100 좌표로 그린다 */}
                       <polygon
                         points={roiPts.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
-                        fill="rgba(255,205,60,0.22)" stroke="#ffcd3c"
+                        fill={zoneSel === "no_stop" ? "rgba(230,80,80,0.22)" : "rgba(255,205,60,0.22)"}
+                        stroke={zoneSel === "no_stop" ? "#e65050" : "#ffcd3c"}
                         strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
                       {roiPts.map(([x, y], i) => (
-                        <circle key={i} cx={x * 100} cy={y * 100} r="0.8" fill="#ffcd3c" />
+                        <circle key={i} cx={x * 100} cy={y * 100} r="0.8"
+                          fill={zoneSel === "no_stop" ? "#e65050" : "#ffcd3c"} />
                       ))}
                     </svg>
                   )}
@@ -125,7 +129,10 @@ export default function SystemPage() {
                   </label>
                   {roiEdit ? (
                     <span className="flex items-center gap-2">
-                      화면을 클릭해 꼭짓점 추가 ({roiPts.length}점)
+                      <b className={zoneSel === "no_stop" ? "text-gravy" : "text-otan"}>
+                        {zoneSel === "no_stop" ? "정차 금지 구역" : "ROI(도로)"}
+                      </b>
+                      클릭해 꼭짓점 추가 ({roiPts.length}점)
                       <button className="rounded border border-otan px-2 py-0.5 text-otan disabled:opacity-40"
                         disabled={roiPts.length < 3} onClick={() => saveRoi(roiPts)}>저장</button>
                       <button className="rounded border border-cobble px-2 py-0.5"
@@ -135,10 +142,15 @@ export default function SystemPage() {
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      ROI: {roiSaved >= 3 ? `${roiSaved}점 적용 중` : "없음(전체 화면)"}
+                      <select value={zoneSel} className="rounded border border-cobble bg-transparent px-1 py-0.5"
+                        onChange={(e) => setZoneSel(e.target.value as "roi" | "no_stop")}>
+                        <option value="roi">ROI(도로)</option>
+                        <option value="no_stop">정차 금지 구역</option>
+                      </select>
+                      {(zones[zoneSel]?.length ?? 0) >= 3 ? `${zones[zoneSel].length}점 적용 중` : "없음"}
                       <button className="rounded border border-cobble px-2 py-0.5"
                         onClick={() => { setRoiPts([]); setRoiEdit(true); }}>편집</button>
-                      {roiSaved >= 3 && (
+                      {(zones[zoneSel]?.length ?? 0) >= 3 && (
                         <button className="rounded border border-cobble px-2 py-0.5"
                           onClick={() => saveRoi([])}>해제</button>
                       )}
