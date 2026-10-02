@@ -54,6 +54,11 @@ class CalibMode:
         self.expires = time.monotonic() + CALIB_TIMEOUT_S if on else 0.0
         log.warning("calibration mode %s", "ON (30min)" if on else "OFF")
 
+    def extend(self, seconds: float) -> None:
+        """긴 세션 녹화가 창 도중 모드 만료로 끊기지 않게 연장 — 로그 필수."""
+        self.expires = max(self.expires, time.monotonic() + seconds)
+        log.warning("calibration mode 연장: +%.0f분 (세션 녹화 창)", seconds / 60)
+
     def remaining_s(self) -> int:
         return max(0, int(self.expires - time.monotonic())) if self.on else 0
 
@@ -416,7 +421,7 @@ class RoiIn(BaseModel):
 
 
 class SessionRecordIn(BaseModel):
-    minutes: int = Field(default=5, ge=1, le=15)
+    minutes: int = Field(default=5, ge=1, le=90)   # 창 상한 90분 — 5분 클립 자동 분할
 
 
 def create_admin_app(con: sqlite3.Connection) -> FastAPI:
@@ -503,6 +508,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             name = recorder.start(body.minutes)
         except Exception as e:
             raise HTTPException(503, f"녹화 시작 불가: {e}")
+        calib_mode.extend(body.minutes * 60 + 60)   # 녹화 창 동안 모드 유지 (로그 남음)
         return {"ok": True, "name": name, "max_minutes": body.minutes}
 
     @api.post("/session/stop")

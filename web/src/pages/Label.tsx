@@ -101,7 +101,9 @@ export default function Label() {
               {!sess.recording && (
                 <select value={recMin} onChange={(e) => setRecMin(Number(e.target.value))}
                   className="rounded bg-smoke px-1.5 py-1 text-white">
-                  {[3, 5, 10, 15].map((m) => <option key={m} value={m}>{m}분</option>)}
+                  {[5, 10, 15, 30, 60, 90].map((m) => (
+                    <option key={m} value={m}>{m >= 60 ? `${m}분 (등교 창)` : `${m}분`}</option>
+                  ))}
                 </select>
               )}
               <button onClick={toggleRecord}
@@ -156,7 +158,7 @@ export default function Label() {
             ))}
           </div>
           <div className="mt-2 text-[9.5px] text-dim-dark">
-            수집은 GATE 0 동의 범위의 통제 세션만 · 운영 파이프라인은 이 영상을 읽지 않음 · 라벨링 후 삭제 권장
+            수집은 GATE 0 동의 범위의 통제 세션만 · 5분 클립 자동 분할(등교 1시간 = 12클립) · 운영 파이프라인은 이 영상을 읽지 않음 · 라벨링 후 삭제 권장
           </div>
         </div>
 

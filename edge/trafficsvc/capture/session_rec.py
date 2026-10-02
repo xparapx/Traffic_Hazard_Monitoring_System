@@ -20,7 +20,8 @@ from .. import settings
 log = logging.getLogger("trafficsvc.session")
 
 NAME_RE = re.compile(r"^session_\d{8}T\d{6}Z$")
-MAX_MINUTES = 15
+MAX_MINUTES = 90          # 녹화 창 상한 (등교 1시간 + 여유)
+CLIP_MINUTES = 5          # 클립 자동 분할 단위 — 긴 창도 5분 단위 mp4 로 쪼개 저장
 
 
 def sessions_dir() -> Path:
@@ -54,9 +55,10 @@ class SessionRecorder:
         self._lock = threading.Lock()
         self._fh = None
         self._name: str | None = None
-        self._started = 0.0             # monotonic
+        self._started = 0.0             # monotonic — 현재 클립 시작
         self._start_utc = ""
-        self._deadline = 0.0
+        self._deadline = 0.0            # 전체 녹화 창 마감
+        self._clip_deadline = 0.0       # 현재 클립 마감 (CLIP_MINUTES)
         self._frames = 0
         self._converting: set[str] = set()
 
@@ -88,21 +90,28 @@ class SessionRecorder:
         return out
 
     # ---- 녹화 ----
+    def _open_clip(self) -> str:
+        """새 클립 파일 열기 — 호출자는 _lock 보유."""
+        name = datetime.now(timezone.utc).strftime("session_%Y%m%dT%H%M%SZ")
+        self._fh = (sessions_dir() / f"{name}.mjpeg").open("wb")
+        self._name = name
+        self._started = time.monotonic()
+        self._start_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self._clip_deadline = self._started + CLIP_MINUTES * 60
+        self._frames = 0
+        return name
+
     def start(self, minutes: int) -> str:
         minutes = max(1, min(MAX_MINUTES, minutes))
         with self._lock:
             if self._name:
                 raise RuntimeError("이미 녹화 중")
             self._camera.acquire()            # 카메라 열기 실패 시 여기서 raise
-            name = datetime.now(timezone.utc).strftime("session_%Y%m%dT%H%M%SZ")
-            self._fh = (sessions_dir() / f"{name}.mjpeg").open("wb")
-            self._name = name
-            self._started = time.monotonic()
-            self._start_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
-            self._deadline = self._started + minutes * 60
-            self._frames = 0
+            name = self._open_clip()
+            self._deadline = time.monotonic() + minutes * 60
             self._camera.set_tap(self._on_jpg)
-            log.warning("세션 녹화 시작: %s (최대 %d분)", name, minutes)
+            log.warning("세션 녹화 시작: %s (창 %d분 · %d분 클립 자동 분할)",
+                        name, minutes, CLIP_MINUTES)
             return name
 
     def _on_jpg(self, jpg: bytes) -> None:
@@ -117,29 +126,45 @@ class SessionRecorder:
             log.error("세션 기록 실패: %s", e)
             threading.Thread(target=self.stop, daemon=True).start()
             return
-        if time.monotonic() > self._deadline:
+        now = time.monotonic()
+        if now > self._deadline:
             threading.Thread(target=self.stop, daemon=True).start()
+        elif now > self._clip_deadline:
+            threading.Thread(target=self._rotate, daemon=True).start()
+
+    def _rotate(self) -> None:
+        """클립 마감 — 현재 클립을 닫아 변환에 넘기고 즉시 다음 클립을 연다."""
+        with self._lock:
+            if not self._name:
+                return
+            name = self._close_current()
+            self._open_clip()
+        threading.Thread(target=self._convert, args=(name,), daemon=True).start()
+
+    def _close_current(self) -> str:
+        """현재 클립 파일·사이드카 마감 — 호출자는 _lock 보유. 변환은 호출자 몫."""
+        name, self._name = self._name, None
+        fh, self._fh = self._fh, None
+        fh.close()
+        duration = round(time.monotonic() - self._started, 1)
+        meta = {"start_utc": self._start_utc, "duration_s": duration,
+                "fps": self._fps, "frames": self._frames}
+        (sessions_dir() / name).with_suffix(".json").write_text(
+            json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+        self._converting.add(name)
+        log.warning("클립 마감: %s (%.0fs · %d프레임)", name, duration, self._frames)
+        return name
 
     def stop(self) -> dict | None:
         with self._lock:
             if not self._name:
                 return None
             self._camera.set_tap(None)
-            name, self._name = self._name, None
-            fh, self._fh = self._fh, None
-            fh.close()
-            duration = round(time.monotonic() - self._started, 1)
-            meta = {"start_utc": self._start_utc, "duration_s": duration,
-                    "fps": self._fps, "frames": self._frames}
-            base = sessions_dir() / name
-            base.with_suffix(".json").write_text(
-                json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+            name = self._close_current()
             self._camera.release_client()
-            self._converting.add(name)
-            log.warning("세션 녹화 중지: %s (%.0fs · %d프레임) — 변환 시작",
-                        name, duration, self._frames)
+            log.warning("세션 녹화 중지: %s — 변환 시작", name)
         threading.Thread(target=self._convert, args=(name,), daemon=True).start()
-        return meta | {"name": name}
+        return {"name": name}
 
     def _convert(self, name: str) -> None:
         base = sessions_dir() / name
