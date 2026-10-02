@@ -13,6 +13,21 @@ from . import GROUP, Detection
 COCO6 = {0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
 
 
+def preprocess(frame, imgsz: int):
+    """BGR ndarray → (blob NCHW fp32, scale, (px,py), (w,h)) — letterbox 114 패딩.
+    ONNX·TensorRT 백엔드가 공유한다."""
+    import cv2
+    import numpy as np
+    h, w = frame.shape[:2]
+    scale = min(imgsz / w, imgsz / h)
+    nw, nh = round(w * scale), round(h * scale)
+    px, py = (imgsz - nw) // 2, (imgsz - nh) // 2
+    img = np.full((imgsz, imgsz, 3), 114, dtype=np.uint8)
+    img[py:py + nh, px:px + nw] = cv2.resize(frame, (nw, nh))
+    blob = img[:, :, ::-1].transpose(2, 0, 1)[None].astype(np.float32) / 255.0
+    return np.ascontiguousarray(blob), scale, (px, py), (w, h)
+
+
 def _nms(boxes, scores, iou_thr=0.45):
     """클래스 무관 NMS — boxes (N,4) x1y1x2y2, numpy 전제. 반환: 유지 인덱스 리스트."""
     import numpy as np
@@ -86,25 +101,33 @@ class OnnxYoloDetector:
         self.name = f"yolo11n-onnx-cpu"
 
     def detect(self, frame):
-        import cv2
-        import numpy as np
-        h, w = frame.shape[:2]
-        scale = min(self.IMGSZ / w, self.IMGSZ / h)
-        nw, nh = round(w * scale), round(h * scale)
-        px, py = (self.IMGSZ - nw) // 2, (self.IMGSZ - nh) // 2
-        img = np.full((self.IMGSZ, self.IMGSZ, 3), 114, dtype=np.uint8)
-        img[py:py + nh, px:px + nw] = cv2.resize(frame, (nw, nh))
-        blob = img[:, :, ::-1].transpose(2, 0, 1)[None].astype(np.float32) / 255.0
+        blob, scale, pad, src_wh = preprocess(frame, self.IMGSZ)
         out = self._sess.run(None, {self._input: blob})[0]
-        return postprocess(out, scale, (px, py), (w, h), self._conf)
+        return postprocess(out, scale, pad, src_wh, self._conf)
+
+
+def make_detector():
+    """백엔드 선택 — TRAFFIC_DET_BACKEND: auto(기본·TRT 우선 폴백 ONNX) | trt | onnx."""
+    import logging
+    backend = settings._env("TRAFFIC_DET_BACKEND", "auto")
+    if backend in ("auto", "trt"):
+        try:
+            from .trt_yolo import TrtYoloDetector
+            return TrtYoloDetector()
+        except Exception as e:
+            if backend == "trt":
+                raise
+            logging.getLogger("trafficsvc.detect").warning(
+                "TensorRT 백엔드 불가(%s) — ONNX CPU 폴백", e)
+    return OnnxYoloDetector()
 
 
 class AsyncDetector:
     """스트림 오버레이용 비동기 워커 — 최신 프레임만 추론(큐 없음), 결과·지연 공유.
-    CPU 추론이 프리뷰 fps 를 깎지 않게 캡처 스레드와 분리한다."""
+    추론이 프리뷰 fps 를 깎지 않게 캡처 스레드와 분리한다."""
 
     def __init__(self):
-        self._det = OnnxYoloDetector()   # 실패 시 여기서 raise — 호출자가 처리
+        self._det = make_detector()   # 실패 시 여기서 raise — 호출자가 처리
         self._cond = threading.Condition()
         self._frame = None
         self._stop = False

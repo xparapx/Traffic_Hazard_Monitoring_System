@@ -10,7 +10,12 @@ dependencies = [
 
 [project.optional-dependencies]
 # 기기(orin/pi) 전용 — install.sh 가 --extra camera 로 설치. 개발 PC·CI 는 불필요(fake 경로).
-camera = ["opencv-python-headless>=4.8", "onnxruntime>=1.18"]
+camera = [
+    "opencv-python-headless>=4.8",
+    "onnxruntime>=1.18",
+    # TensorRT 백엔드의 GPU 버퍼 관리 (바인딩 자체는 JetPack deb 를 사용)
+    "cuda-python>=13,<14; platform_machine == 'aarch64'",
+]
 
 [project.scripts]
 trafficsvc = "trafficsvc.cli:main"
