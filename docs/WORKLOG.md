@@ -4,6 +4,14 @@
 
 ## 2026-10
 
+### 2026-10-02 (15) — 운용 전환: 더미 걷어내고 실데이터 수집 시작 (R2 1단계)
+- **실데이터 운영 루프(realloop)**: 카메라(소유권 이전) → TRT 검출 → IoU 추적(min_hits 3) → ROI 필터 → 통행 카운트(track당 1회·dir='all') + 정차 20s dwell(K2) → 5분 버킷 flush + qc(fps). 이벤트는 기존 규약대로 events + inferences(YOLO_ONLY) + slowloop 3중 기록 유지(가짜 VLM). 프리뷰·녹화는 realloop 프레임을 공유(wait_frame) — UVC 동시 open 문제 원천 차단. 캡처 오류는 5s 재시도.
+- **구역 2종**: /roi 에 zone(roi|no_stop) — 정차 금지 구역을 UI 로 그리면 K2 판정이 그 안에서만. 미지정 시 ROI 전체 폴백(zone='roi').
+- **전환 절차**: 더미 52.6만 행 삭제(counts 19,348 · events 124,329 · inferences 372,987 등 — 백업 data/traffic-dummy-backup-20261002.db, calib/ROI 보존) → TRAFFIC_FAKE_HW=0 → 재기동.
+- **첫 실측**(11:50 KST 버킷): veh4 120 · person 3 · fps_med 8.3 · qc=0, dwell 이벤트 9건(zone=roi — 신호 대기 차량 포함 추정), 공개 API dummy:false. pytest 31(합성 궤적 5종 신규).
+- **남은 보정**: ① no_stop 구역을 그려야 K2 가 '위반'만 세게 됨(현재는 ROI 내 모든 20s 정지 — 신호 대기 포함) ② 카운트 중복(track 끊김 재생성) 가능 — GATE 1 수동 대조로 오차 측정 ③ 속도(K1)·근접(K3)·방향(dir)은 4점 캘리브레이션(R2 본선) 후.
+
+
 ### 2026-10-02 (14) — 학교 가동 첫날: 탐지 오버레이·ROI·TensorRT·통제 세션 라벨링
 - **학교 설치 성공**: school-wifi 자동 접속(신호 75), 테일넷 차단 없음(Cloudflare 불필요), 이동 중 USB 요동으로 UVC 초기화 실패(-71) 1회 → 재부팅으로 해소. 초점·조리개는 프리뷰 보며 조절.
 - **탐지 오버레이**: ONNX YOLO(yolo11n) → **TensorRT FP16 전환** — trtexec 실측 mean 5.6ms·p99 6.1ms·179fps(**R1 기준 ② 통과**), end-to-end 18.5ms. 백엔드 auto(TRT 우선·ONNX 폴백), 바인딩은 JetPack deb + cuda-python(camera extra, aarch64 마커).
