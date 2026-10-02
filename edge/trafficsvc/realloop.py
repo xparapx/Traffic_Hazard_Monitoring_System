@@ -53,10 +53,13 @@ class Pipeline:
         return foot_in_roi(box, roi) if len(roi) >= 3 else True
 
     def _dwell_zone(self, foot) -> str | None:
-        """정차 이벤트의 구역 — no_stop 폴리곤이 있으면 그 안일 때만, 없으면 ROI 전체."""
-        ns = self.zones.get("no_stop", [])
-        if len(ns) >= 3:
-            return "no_stop" if point_in_poly(foot[0], foot[1], ns) else None
+        """정차 이벤트의 구역 — no_stop 폴리곤(복수 가능)이 있으면 그 안일 때만,
+        하나도 없으면 ROI 전체를 구역으로 본다."""
+        from .detect.roi import no_stop_list
+        polys = no_stop_list(self.zones)
+        if polys:
+            return ("no_stop" if any(point_in_poly(foot[0], foot[1], p) for p in polys)
+                    else None)
         return "roi"
 
     def step(self, t: float, dets) -> tuple[list, list]:

@@ -22,9 +22,14 @@ def draw(frame, dets: Sequence[Detection], status: str,
     if len(roi) >= 3:
         pts = np.array([[int(x * w), int(y * h)] for x, y in roi], dtype=np.int32)
         cv2.polylines(frame, [pts], True, (60, 220, 255), 2, cv2.LINE_AA)
-    if len(no_stop) >= 3:
-        pts = np.array([[int(x * w), int(y * h)] for x, y in no_stop], dtype=np.int32)
-        cv2.polylines(frame, [pts], True, (80, 80, 230), 2, cv2.LINE_AA)
+    # no_stop 은 폴리곤 목록(복수 구역) — 단일 폴리곤이 와도 수용
+    ns_polys = no_stop
+    if ns_polys and not isinstance(ns_polys[0][0], (list, tuple)):
+        ns_polys = [ns_polys]
+    for poly in ns_polys:
+        if len(poly) >= 3:
+            pts = np.array([[int(x * w), int(y * h)] for x, y in poly], dtype=np.int32)
+            cv2.polylines(frame, [pts], True, (80, 80, 230), 2, cv2.LINE_AA)
     for d in excluded:
         x1, y1 = int(d.box[0] * w), int(d.box[1] * h)
         x2, y2 = int(d.box[2] * w), int(d.box[3] * h)

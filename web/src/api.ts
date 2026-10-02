@@ -122,7 +122,8 @@ export const api = {
     get<CalibData>(`${ADM_BASE}/api/admin/calib`, { dummy: true, mode_on: false, remaining_s: 0, current: null }),
   calibMode: (on: boolean) => post(`${ADM_BASE}/api/admin/calib/mode`, { on }),
   roi: () =>
-    get<{ points: [number, number][]; zones: Record<string, [number, number][]> }>(
+    get<{ points: [number, number][];
+      zones: { roi?: [number, number][]; no_stop?: [number, number][][] } }>(
       `${ADM_BASE}/api/admin/roi`, { points: [], zones: {} }),
   setRoi: (points: [number, number][], zone: "roi" | "no_stop" = "roi") =>
     post(`${ADM_BASE}/api/admin/roi`, { points, zone }),

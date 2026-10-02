@@ -10,7 +10,7 @@ export default function SystemPage() {
   const [roiEdit, setRoiEdit] = useState(false);
   const [roiPts, setRoiPts] = useState<[number, number][]>([]);
   const [zoneSel, setZoneSel] = useState<"roi" | "no_stop">("roi");
-  const [zones, setZones] = useState<Record<string, [number, number][]>>({});
+  const [zones, setZones] = useState<{ roi?: [number, number][]; no_stop?: [number, number][][] }>({});
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
@@ -109,15 +109,15 @@ export default function SystemPage() {
                     viewBox="0 0 100 100" preserveAspectRatio="none">
                     {/* 저장된 구역은 항상 표시 — 편집 중에도 기준이 보이게 */}
                     {(zones.roi?.length ?? 0) >= 3 && (
-                      <polygon points={zones.roi.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
+                      <polygon points={zones.roi!.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
                         fill="none" stroke="#ffcd3c" strokeWidth="0.5"
                         strokeDasharray="1.5 1" vectorEffect="non-scaling-stroke" opacity="0.9" />
                     )}
-                    {(zones.no_stop?.length ?? 0) >= 3 && (
-                      <polygon points={zones.no_stop.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
+                    {(zones.no_stop ?? []).map((poly, i) => poly.length >= 3 && (
+                      <polygon key={i} points={poly.map(([x, y]) => `${x * 100},${y * 100}`).join(" ")}
                         fill="rgba(230,80,80,0.10)" stroke="#e65050" strokeWidth="0.5"
                         strokeDasharray="1.5 1" vectorEffect="non-scaling-stroke" opacity="0.9" />
-                    )}
+                    ))}
                   </svg>
                   {roiEdit && roiPts.length > 0 && (
                     <svg className="pointer-events-none absolute inset-0 size-full"
@@ -144,11 +144,12 @@ export default function SystemPage() {
                   {roiEdit ? (
                     <span className="flex items-center gap-2">
                       <b className={zoneSel === "no_stop" ? "text-gravy" : "text-otan"}>
-                        {zoneSel === "no_stop" ? "정차 금지 구역" : "ROI(도로)"}
+                        {zoneSel === "no_stop" ? "정차 금지 구역(새 폴리곤)" : "ROI(도로)"}
                       </b>
                       클릭해 꼭짓점 추가 ({roiPts.length}점)
                       <button className="rounded border border-otan px-2 py-0.5 text-otan disabled:opacity-40"
-                        disabled={roiPts.length < 3} onClick={() => saveRoi(roiPts)}>저장</button>
+                        disabled={roiPts.length < 3} onClick={() => saveRoi(roiPts)}>
+                        {zoneSel === "no_stop" ? "추가" : "저장"}</button>
                       <button className="rounded border border-cobble px-2 py-0.5"
                         onClick={() => setRoiPts([])}>다시</button>
                       <button className="rounded border border-cobble px-2 py-0.5"
@@ -161,12 +162,15 @@ export default function SystemPage() {
                         <option value="roi">ROI(도로)</option>
                         <option value="no_stop">정차 금지 구역</option>
                       </select>
-                      {(zones[zoneSel]?.length ?? 0) >= 3 ? `${zones[zoneSel].length}점 적용 중` : "없음"}
+                      {zoneSel === "roi"
+                        ? ((zones.roi?.length ?? 0) >= 3 ? `${zones.roi!.length}점 적용 중` : "없음")
+                        : ((zones.no_stop?.length ?? 0) > 0 ? `${zones.no_stop!.length}개 구역 적용 중` : "없음")}
                       <button className="rounded border border-cobble px-2 py-0.5"
-                        onClick={() => { setRoiPts([]); setRoiEdit(true); }}>편집</button>
-                      {(zones[zoneSel]?.length ?? 0) >= 3 && (
+                        onClick={() => { setRoiPts([]); setRoiEdit(true); }}>
+                        {zoneSel === "no_stop" ? "구역 추가" : "편집"}</button>
+                      {(zoneSel === "roi" ? (zones.roi?.length ?? 0) >= 3 : (zones.no_stop?.length ?? 0) > 0) && (
                         <button className="rounded border border-cobble px-2 py-0.5"
-                          onClick={() => saveRoi([])}>해제</button>
+                          onClick={() => saveRoi([])}>{zoneSel === "no_stop" ? "전부 해제" : "해제"}</button>
                       )}
                     </span>
                   )}

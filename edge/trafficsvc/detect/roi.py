@@ -30,18 +30,32 @@ def foot_in_roi(box: Sequence[float], poly: Sequence[Sequence[float]]) -> bool:
     return point_in_poly((box[0] + box[2]) / 2, box[3], poly)
 
 
-ZONE_NAMES = ("roi", "no_stop")   # roi=탐지 관심 구역(도로) · no_stop=정차 금지 구역(K2)
+ZONE_NAMES = ("roi", "no_stop")   # roi=탐지 관심 구역(도로, 폴리곤 1개) · no_stop=정차 금지(폴리곤 여러 개)
 
 
-def load_zones(con: sqlite3.Connection) -> dict[str, list[list[float]]]:
+def no_stop_list(zones: dict) -> list[list[list[float]]]:
+    """no_stop 을 '폴리곤 목록'으로 정규화 — 구버전(단일 폴리곤 저장)도 수용."""
+    ns = zones.get("no_stop") or []
+    if not ns:
+        return []
+    first = ns[0]
+    if first and isinstance(first[0], (list, tuple)):
+        return [p for p in ns if len(p) >= 3]
+    return [ns] if len(ns) >= 3 else []
+
+
+def load_zones(con: sqlite3.Connection) -> dict:
     row = con.execute("SELECT zones_json FROM calib WHERE ver=?", (ROI_VER,)).fetchone()
     if not row or not row["zones_json"]:
         return {}
     try:
         z = json.loads(row["zones_json"])
-        return {k: v for k, v in z.items() if k in ZONE_NAMES and isinstance(v, list)}
+        out = {k: v for k, v in z.items() if k in ZONE_NAMES and isinstance(v, list)}
     except (json.JSONDecodeError, AttributeError):
         return {}
+    if "no_stop" in out:
+        out["no_stop"] = no_stop_list(out)
+    return out
 
 
 def load(con: sqlite3.Connection) -> list[list[float]]:
@@ -49,10 +63,16 @@ def load(con: sqlite3.Connection) -> list[list[float]]:
 
 
 def save_zone(con: sqlite3.Connection, name: str, points: list[list[float]],
-              ts: str) -> dict[str, list[list[float]]]:
-    """구역 하나 갱신(빈 목록 = 해제) — 다른 구역은 보존. 갱신된 전체 dict 반환."""
+              ts: str) -> dict:
+    """구역 갱신 — roi 는 교체(빈 목록=해제), no_stop 은 폴리곤 추가(빈 목록=전부 해제).
+    다른 구역은 보존. 갱신된 전체 dict 반환."""
     zones = load_zones(con)
-    if points:
+    if name == "no_stop":
+        if points:
+            zones["no_stop"] = no_stop_list(zones) + [points]
+        else:
+            zones.pop("no_stop", None)
+    elif points:
         zones[name] = points
     else:
         zones.pop(name, None)

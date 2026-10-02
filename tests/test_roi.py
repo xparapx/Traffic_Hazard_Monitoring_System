@@ -35,3 +35,18 @@ def test_roi_api_roundtrip(con, monkeypatch):
 
     assert adm.post("/api/admin/roi", json={"points": []}).status_code == 200
     assert adm.get("/api/admin/roi").json()["points"] == []
+
+
+def test_no_stop_appends_multiple_polygons(con, monkeypatch):
+    monkeypatch.setenv("TRAFFIC_FAKE_HW", "1")
+    adm = TestClient(create_admin_app(con))
+    p1 = [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3]]
+    p2 = [[0.6, 0.6], [0.9, 0.6], [0.9, 0.9]]
+    adm.post("/api/admin/roi", json={"points": SQUARE})                      # roi 는 보존돼야
+    adm.post("/api/admin/roi", json={"points": p1, "zone": "no_stop"})
+    adm.post("/api/admin/roi", json={"points": p2, "zone": "no_stop"})      # 추가(append)
+    z = adm.get("/api/admin/roi").json()["zones"]
+    assert z["no_stop"] == [p1, p2] and z["roi"] == SQUARE
+    adm.post("/api/admin/roi", json={"points": [], "zone": "no_stop"})      # 전부 해제
+    z = adm.get("/api/admin/roi").json()["zones"]
+    assert "no_stop" not in z and z["roi"] == SQUARE                        # roi 는 그대로
