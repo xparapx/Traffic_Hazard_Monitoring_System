@@ -66,6 +66,10 @@ def _rows(con, sql, args=()):
 
 STREAM_MEDIA_TYPE = "multipart/x-mixed-replace; boundary=frame"
 STREAM_PREVIEW_FPS = 10.0   # 프리뷰 전송 상한 — 캡처 fps 와 무관하게 대역폭 억제
+# 전송 전 축소·압축 (학교 2.4GHz Wi-Fi 실측 2026-10-02: 1080p q80 ≈ 230KB/프레임
+# = 18Mbps 로 포화 → 720p q70 ≈ 수십 KB). 탐지는 원본 해상도로 수행.
+PREVIEW_W = int(settings._env("TRAFFIC_PREVIEW_W", "1280"))
+PREVIEW_JPEG_Q = int(settings._env("TRAFFIC_PREVIEW_Q", "70"))
 
 # 더미 모드 프리뷰 프레임(320x180 "FAKE HW") — cv2 없이도 스트림 배선을 검증한다.
 # 프로젝트 빌드 시 메모리에서 생성해 소스에 박아 둔 것으로, 파일로 쓰인 적 없음.
@@ -199,6 +203,7 @@ class SharedCamera:
                 if ts - last < min_dt:
                     continue
                 last = ts
+                small = src.resize_w(frame, PREVIEW_W)   # 탐지는 원본, 전송은 축소본
                 if self._overlay_n > 0:
                     from .detect import overlay, roi as roi_mod
                     det = self._ensure_detector()
@@ -215,10 +220,10 @@ class SharedCamera:
                             kept, out = list(dets), []
                             self._det_status = (
                                 f"{det.name} · {lat:.0f}ms · {len(dets)} obj")
-                        frame = overlay.draw(frame, kept, self._det_status, poly, out)
+                        small = overlay.draw(small, kept, self._det_status, poly, out)
                     elif self._det_status:
-                        frame = overlay.draw(frame, (), self._det_status, self.roi)
-                jpg = src.jpeg(frame)
+                        small = overlay.draw(small, (), self._det_status, self.roi)
+                jpg = src.jpeg(small, PREVIEW_JPEG_Q)
                 with self._cond:
                     self._latest = jpg
                     self._seq += 1

@@ -77,6 +77,13 @@ class UvcFrameSource:
             misses = 0
             yield (time.monotonic(), frame)
 
+    def resize_w(self, frame, width: int):
+        """가로 width 로 축소(비율 유지) — 프리뷰 전송 대역폭 절감용. 원본보다 크면 그대로."""
+        h, w = frame.shape[:2]
+        if w <= width:
+            return frame
+        return self._cv2.resize(frame, (width, round(h * width / w)))
+
     def jpeg(self, frame, quality: int = 80) -> bytes:
         """메모리 인코딩만 — 파일 쓰기 금지 조항(imencode 는 메모리 버퍼) 준수."""
         ok, buf = self._cv2.imencode(".jpg", frame,
