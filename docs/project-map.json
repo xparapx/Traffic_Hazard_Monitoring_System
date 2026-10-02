@@ -1,17 +1,17 @@
 {
  "title": "Traffic Hazard Monitoring System 프로젝트 지도",
- "subtitle": "엣지 AI 통학 시간대 교통 위험 모니터링 — 운영(Fast)·연구(Slow)·배치·배포 흐름 · 지속 갱신 (기준 커밋 98d3302 · 2026-09-22 · R0 더미 단계)",
+ "subtitle": "엣지 AI 통학 시간대 교통 위험 모니터링 — 운영(Fast)·연구(Slow)·배치·배포 흐름 · 지속 갱신 (기준 커밋 f9cbb71 · 2026-10-02 · 학교 설치 완료, 카메라·YOLO 가동)",
  "overview": {
-  "intro": "창 안쪽 Jetson Orin Nano 가 영상을 저장하지 않고 통행을 세어 지표 K1~K3 를 만들고, 위험 이벤트 순간에만 VLM 이 정차 사유를 enum 태그로 붙인다. 설계 제1조건: VLM 이 죽어도 K1~K3 는 나온다 — 그래서 Fast Loop(운영)와 Slow Loop(연구)가 독립이다. 지금은 TRAFFIC_FAKE_HW=1 더미 단계로, synth 가 카메라·검출·추적을 대신한다.",
+  "intro": "한 줄 요약: 교실 창문 안쪽의 작은 컴퓨터(Jetson)가 교문 앞 도로를 카메라로 보면서, 영상은 어디에도 저장하지 않고 '차가 몇 대 지나갔나(K1)·얼마나 빨랐나(K2)·위험하게 서 있었나(K3)'라는 숫자만 만들어 낸다. 위험한 정차가 생긴 순간에만 AI(VLM)가 '왜 서 있었는지'를 보기 4개 중 하나로 고른다. 가장 중요한 설계 원칙: 그 AI가 고장나도 숫자 세 개는 계속 나온다 — 그래서 '세는 쪽(Fast Loop)'과 'AI로 연구하는 쪽(Slow Loop)'을 일부러 분리해 두었다. 현재 상태: 학교에 설치 완료, 카메라와 YOLO 검출은 실제로 돌고, 지표 숫자는 아직 더미(TRAFFIC_FAKE_HW=1)다.",
   "lanes": [
    {
     "label": "① 실시간 계수 (Fast Loop · 운영)",
     "items": [
-     "synth|더미 단계: 등교 피크를 흉내낸 5분 버킷·이벤트 원본 생성 (실HW는 capture→detect 로 교체 예정)",
-     "fastloop|counts_5min·ped_5min·qc_5min 버킷 기록, dwell/conflict 확정 즉시 events + inferences(YOLO_ONLY) 1행",
-     "traffic.db|유일한 DB — 이미지·자유 문장 컬럼 없음",
-     "api :8600|공개 포트가 집계만 JSON 노출",
-     "공개 4페이지|오늘·프로파일·속도·정차 (QR 로 접근)"
+     "capture/uvc|실카메라(Arducam) 프레임 공급 — 메모리에만 존재, 파일 저장 0 (더미 숫자는 아직 synth 몫)",
+     "detect|YOLO(TensorRT 5.6ms)가 사람·이륜·차량을 찾음 — ROI(관심 구역) 밖은 무시",
+     "fastloop|5분 단위로 통행량·품질을 기록, 위험 정차 확정 즉시 events 1행",
+     "traffic.db|유일한 DB — 이미지·자유 문장 칸이 아예 없음",
+     "공개 2페이지|오늘·지표(K1~K3) — QR 로 누구나 접근 (:8600)"
     ]
    },
    {
@@ -34,12 +34,13 @@
     ]
    },
    {
-    "label": "④ 관리·라벨·캘리브레이션",
+    "label": "④ 관리·라벨·캘리브레이션 (테일넷 전용)",
     "items": [
-     "api :8601|테일넷 IP 에만 바인딩 (TRAFFIC_ADMIN_BIND)",
-     "관리 4페이지|벤치·라벨·검토 큐·시스템",
-     "/label POST|이미지 없이 만드는 유일한 정답 — labels 표",
-     "/stream|캘리브레이션 모드를 켠 30분 동안만 — 이중 잠금, 저장 코드 0"
+     "api :8601|관리 전용 비밀 통로 — 테일넷(VPN) IP 에만 열림",
+     "/stream|라이브 프리뷰 + YOLO 오버레이 — 캘리브레이션 모드 30분 동안만, 전송만 하고 저장 0",
+     "/roi|화면 클릭으로 그린 관심 구역(도로) — 주차장 차는 탐지에서 제외",
+     "통제 세션|라벨링용 짧은 녹화(상한 15분·전 과정 로그) → 라벨 화면에서 재생하며 정답 입력",
+     "/label POST|사람이 만드는 정답지 — labels 표 (AI 채점의 기준)"
     ]
    },
    {
@@ -175,16 +176,22 @@
   },
   "capture": {
    "c": "lib",
-   "n": "edge/trafficsvc/capture/",
-   "s": "프레임 소스 인터페이스 (계획)",
-   "d": "FrameSource Protocol 만 고정 — 어떤 구현도 프레임을 파일로 쓰지 않는다는 계약. 실제 백엔드(uvc 등)는 R1 에서.",
+   "n": "edge/trafficsvc/capture/uvc.py",
+   "s": "실카메라 백엔드 (UVC·V4L2)",
+   "d": "Arducam 카메라에서 프레임을 꺼내오는 곳 — 프레임은 메모리에만 있고 파일이 되지 않는다. USB가 순간 끊겨 장치 번호가 바뀌어도 by-id 자동 탐색으로 따라가고, 열기 실패는 '닫고 다시 열기'로 재시도한다 (전부 orin 실측에서 배운 것).",
    "row": 2
+  },
+  "capture.session": {
+   "c": "lib",
+   "n": "edge/trafficsvc/capture/session_rec.py",
+   "s": "통제 세션 녹화기 (유일한 영상 기록 경로)",
+   "d": "라벨링용 짧은 녹화 담당. 캘리브레이션 모드가 켜진 동안에만·상한 15분·시작/중지/삭제 전부 로그. 프리뷰 JPEG 를 이어 쓰고 GStreamer 로 mp4 변환 — 저장 위치는 data/sessions/ 뿐이고 운영 코드는 이 폴더를 읽지 않는다."
   },
   "detect": {
    "c": "lib",
-   "n": "edge/trafficsvc/detect/",
-   "s": "검출기 인터페이스 (계획)",
-   "d": "Detector Protocol + COCO 6종→3그룹 매핑. TensorRT/Hailo import 는 백엔드 모듈 안에서만. 실제 백엔드는 R2·R8 에서.",
+   "n": "edge/trafficsvc/detect/onnx_yolo.py",
+   "s": "YOLO 검출 백엔드 (TensorRT·ONNX)",
+   "d": "프레임에서 사람·이륜·차량을 찾는다. 본선은 TensorRT FP16 엔진(trt_yolo.py, 5.6ms/frame) — GPU 가 없거나 실패하면 ONNX CPU 로 자동 폴백. overlay.py 가 프리뷰에 박스를 그리고, roi.py 가 관심 구역(도로) 밖 탐지를 걸러낸다.",
    "row": 3
   },
   "slowloop": {
@@ -264,6 +271,20 @@
    "d": "FAKE_HW 전환·바인딩 IP(테일넷). install.sh 가 최초 생성하고 이후는 사람이 관리.",
    "row": 8
   },
+  "file:sessions": {
+   "c": "data",
+   "n": "data/sessions/",
+   "s": "통제 세션 영상 (유일한 영상 저장소)",
+   "d": "라벨링용 mp4 만 여기 산다. doctor 의 '이미지 0건' 검사에서 유일하게 제외되는 폴더 — 대신 모든 녹화·삭제가 로그로 남고, 라벨링 후 삭제를 권장한다. git 제외.",
+   "row": 5
+  },
+  "file:models": {
+   "c": "data",
+   "n": "data/models/",
+   "s": "모델 가중치 (yolo11n.onnx · TRT 엔진)",
+   "d": "YOLO ONNX 와 보드에서 빌드한 TensorRT 엔진. 엔진은 보드 간 이식 불가라 각 보드에서 trtexec 로 만든다. git 제외.",
+   "row": 7
+  },
   "file:webdist": {
    "c": "data",
    "n": "web/dist",
@@ -288,22 +309,22 @@
   "api.admin": {
    "c": "api",
    "n": "api.py — 관리 :8601",
-   "s": "/api: /bench · /label · /outbox · /system · /calib · /stream",
-   "d": "테일넷 IP 에만 바인딩(TRAFFIC_ADMIN_BIND). 라벨 입력·outbox 승인/반려·CSV export. /stream 은 캘리브레이션 모드를 켠 30분 동안만 열린다 — 이중 잠금.",
+   "s": "/bench · /label · /outbox · /system · /calib · /stream · /roi · /session",
+   "d": "테일넷 IP 에만 바인딩(TRAFFIC_ADMIN_BIND) — 관리자의 비밀 통로. 라벨 입력·리포트 승인·CSV export, 그리고 카메라 공유 리더(SharedCamera): 프리뷰 MJPEG 스트림(+YOLO 오버레이)·ROI 저장·통제 세션 녹화를 모두 여기서 관장한다. 스트림·녹화는 캘리브레이션 모드 30분 동안만 — 이중 잠금.",
    "row": 3
   },
   "web.public": {
    "c": "web",
-   "n": "pages/ Today · Profile · Speed · Dwell",
-   "s": "공개 4페이지",
-   "d": "K1~K3 카드·통행 프로파일·속도·정차 이벤트. React 18 + Vite + Tailwind v4 + Recharts, MP020 팔레트.",
+   "n": "pages/ Today · Metrics",
+   "s": "공개 2페이지 — 오늘 · 지표(K1~K3 통합)",
+   "d": "오늘 요약과 지표 페이지(통행량·속도 P85·정차 산점도를 한 화면에). React 18 + Vite + Tailwind v4 + Recharts, MP020 팔레트.",
    "row": 0
   },
   "web.admin": {
    "c": "web",
    "n": "pages/ Bench · Label · Outbox · System",
    "s": "관리 4페이지",
-   "d": "벤치 표·라벨 입력 큐·리포트 검토(승인/반려)·시스템 상태. 테일넷 경유로만 닿는다.",
+   "d": "벤치 표·라벨 화면(세션 영상 재생 + 정답 입력)·리포트 검토(승인/반려)·시스템(프리뷰·ROI 편집·탐지 오버레이). 테일넷 경유로만 닿는다.",
    "row": 3
   },
   "web.api": {
@@ -483,6 +504,42 @@
    "file:webdist",
    "wr",
    "비상: 빌드·scp"
+  ],
+  [
+   "api.admin",
+   "capture",
+   "imp",
+   "SharedCamera 프레임"
+  ],
+  [
+   "api.admin",
+   "detect",
+   "imp",
+   "오버레이 탐지"
+  ],
+  [
+   "api.admin",
+   "capture.session",
+   "imp",
+   "녹화 시작/중지"
+  ],
+  [
+   "capture.session",
+   "file:sessions",
+   "wr",
+   "mjpeg→mp4 변환·삭제"
+  ],
+  [
+   "api.admin",
+   "file:sessions",
+   "rd",
+   "/session-video 서빙"
+  ],
+  [
+   "detect",
+   "file:models",
+   "rd",
+   "onnx·TRT 엔진 로드"
   ],
   [
    "api.public",
@@ -850,12 +907,12 @@
      "also": [
       "synth"
      ],
-     "text": "캡처 루프 시작 — 실카메라 또는 TRAFFIC_FAKE_HW=1이면 synth가 합성 궤적을 공급. 프레임은 메모리에만 존재."
+     "text": "카메라(Arducam)가 프레임을 공급 — 메모리에만 존재, 파일 저장 0. 지표 숫자는 실데이터 전환 전까지 synth 더미가 공급."
     },
     {
      "t": "07:31",
      "node": "detect",
-     "text": "YOLO 검출 + ByteTrack 추적 — track_id가 유지되는 궤적 스트림."
+     "text": "YOLO(TensorRT, 5.6ms/frame)가 사람·이륜·차량을 찾고 ROI(도로) 밖은 버림. 추적(track_id)은 R2에서 붙는다."
     },
     {
      "t": "07:32",
@@ -1030,6 +1087,15 @@
     "정밀도·FPR 산출|가공",
     "GATE 2 판정|소비"
    ]
+  },
+  {
+   "label": "세션 영상 (통제 수집 — 유일한 저장 영상)",
+   "steps": [
+    "관리 녹화 시작(모드 중)|탄생",
+    "data/sessions mp4|저장",
+    "라벨 화면 재생·라벨|소비",
+    "라벨링 후 삭제(로그)|소멸"
+   ]
   }
  ],
  "ops": {
@@ -1062,15 +1128,17 @@
      }
     ],
     "notes": [
+     "학교 설치 완료(2026-10-02) — Wi-Fi wi_cne_class_S_2.4G 자동 접속, 테일넷으로 원격 관리",
      "기기 직접 편집 금지 — 고칠 것이 보이면 로컬에서 고쳐 push",
      "관리 포트는 TRAFFIC_ADMIN_BIND(테일스케일 IP)에만 바인딩",
-     "시간대가 AKDT 로 잘못 설정돼 있음 — timedatectl set-timezone Asia/Seoul 을 sudoers 목록에 추가 필요",
-     "sudoers NOPASSWD: apt-get · nvpmodel · jetson_clocks · reboot · enable-linger"
+     "시간대 Asia/Seoul 전환 완료 · sudoers NOPASSWD: apt-get · nvpmodel · jetson_clocks · reboot · enable-linger · nmcli · timedatectl",
+     "주의: USB 허브 순간 분리 실측 — 스트림 끊기면 카메라 케이블 재결착 (장치 번호 변화는 소프트웨어가 자동 추적)",
+     "2.4GHz Wi-Fi 라 프리뷰는 720p 축소 전송 — 5GHz SSID 확보가 근본 개선"
     ]
    },
    {
     "label": "로컬 PC (Windows — 유일한 편집 지점)",
-    "host": "C:\\Users\\JH_School\\Projects\\Traffuc_Hazard_Monitor",
+    "host": "C:\\Users\\phlox\\PRJ\\Traffic_Hazard_Monitoring_System",
     "services": [
      {
       "name": "trafficsvc serve (TRAFFIC_FAKE_HW=1)",
@@ -1108,6 +1176,9 @@
   "edge/trafficsvc/__init__.py",
   "edge/trafficsvc/capture/__init__.py",
   "edge/trafficsvc/detect/__init__.py",
+  "edge/trafficsvc/detect/trt_yolo.py",
+  "edge/trafficsvc/detect/overlay.py",
+  "edge/trafficsvc/detect/roi.py",
   "edge/trafficsvc/vlm/__init__.py",
   "notify/__init__.py"
  ],
@@ -1126,6 +1197,6 @@
   }
  ],
  "glossary": true,
- "glossary_label": "핵심 기술 · 용어",
- "glossary_html": "<h2>이 프로젝트를 관통하는 설계 문법</h2><div class=\"flow\"><div class=\"hl\"><b>미저장 원칙</b>프레임은 파일이 되지 않는다<small>imwrite·VideoWriter·save 금지 — doctor 가 이미지 0건을 상시 검사하고, 위반 코드는 머지 금지</small></div><div class=\"hl\"><b>운영 ⊥ 연구</b>VLM 이 죽어도 K1~K3 는 나온다<small>Fast Loop(계수)와 Slow Loop(VLM)가 독립 — submit 은 절대 블록하지 않고, 큐가 넘치면 드롭하고 드롭 수를 기록</small></div><div><b>enum-only</b>자유 문장은 DB 에 못 들어간다<small>VLM 출력은 태그 4종+unknown · 색·차종·성별·번호판 필드 자체가 없음</small></div><div><b>pull형 CD</b>기기는 pull 만 한다<small>CI 통과 커밋만 latest 릴리스 → 5분 타이머 수거 → 헬스 실패 시 자동 롤백. 기기 직접 편집 금지</small></div><div><b>게이트 체인</b>숫자와 사람이 이중 검문<small>리포트는 검증기(숫자 대조·금지 주어) → 교사 승인 → dispatch 순서로만 나간다</small></div></div><h2>채택 기술 — 왜 이 선택인가</h2><table class=\"cols\"><tr><td>YOLO + ByteTrack</td><td>프레임에서 차량·보행자를 검출하고 track_id 로 이어 붙인다 — 지표는 프레임이 아니라 <b>궤적</b>에서 나오므로, 검출기가 흔들려도 추적이 판정을 안정화한다.</td></tr><tr><td>가상선 · 호모그래피</td><td>화면 픽셀을 도로 평면 좌표로 사상해 속도(km/h)와 거리(m)를 만든다 — 4점 재투영 오차 &lt; 0.3 m 가 R2 기준. 카메라를 옮기면 캘리브레이션만 다시 한다.</td></tr><tr><td>VLM (llama.cpp, 로컬)</td><td>위험 이벤트 순간에만 정차 사유를 <b>고정 선택지 enum</b>으로 태그. 클라우드 없음·자유 문장 없음 — 프라이버시와 검증 가능성을 동시에 지키는 선택.</td></tr><tr><td>FastAPI × 2포트</td><td>공개(:8600)와 관리(:8601)를 앱 수준에서 분리 — 관리 포트는 테일스케일 인터페이스에만 바인딩해, 방화벽 설정이 아니라 <b>바인딩 자체</b>가 접근 통제가 되게 했다.</td></tr><tr><td>SQLite (WAL)</td><td>traffic.db 하나에 카운터 10표+연구 3표 — 엣지 보드에서 서버 DB 없이 재부팅·정전을 견디고, WAL 이면 계수 루프의 쓰기와 API 의 읽기가 서로 막지 않는다. 분석은 파일 복사로 끝난다.</td></tr><tr><td>asyncio.Queue(8) drop-old</td><td>이벤트 폭주 시 VLM 이 밀리면 <b>오래된 것부터 버린다</b> — 운영 루프의 fps 를 지키는 게 연구 데이터 완결성보다 우선이라는 설계 결정. 드롭 수는 qc 에 남겨 정직하게 보고.</td></tr><tr><td>systemd user 유닛 + linger</td><td>sudo 없이 상주·부팅 자동시작·재시작 정책까지 해결. 루트 개방 없이 원격 위임 운용이 가능해진다.</td></tr><tr><td>GitHub Actions + latest 릴리스</td><td>제3의 머신이 push 마다 pytest·doctor·eslint·build 를 재검증 — 릴리스가 곧 배포 단위이고, 배포 시점을 사람 재량이 아니라 파이프라인이 정한다.</td></tr><tr><td>uv</td><td>기기에서도 가상환경·의존성을 한 명령으로 재현(uv sync --no-dev). JetPack 파이썬과 분리.</td></tr><tr><td>React 18 + Vite + Recharts</td><td>8페이지 SPA 를 정적 dist 로 빌드해 FastAPI 가 그대로 서빙 — 기기에 Node 런타임이 필요 없다.</td></tr><tr><td>Tailscale</td><td>학교망 방화벽을 건드리지 않고 관리 접근을 만드는 오버레이. 막히면 Cloudflare 경로가 예비.</td></tr></table><h2>도메인 용어</h2><table class=\"cols\"><tr><td>K1 · K2 · K3</td><td>운영 지표 3개 — K1 등교 시간대 4륜 차량의 30 km/h 초과 비율(%), K2 정차 구역 밖 20초 이상 정차(건/등교일), K3 횡단보도 보행자 존재 중 4륜 2 m 이내 접근(프록시). 이 셋은 VLM 없이도 나온다.</td></tr><tr><td>C1 · C2</td><td>연구 지표 — C1 은 K2 이벤트의 정차 사유 태그 분포(GATE 2 통과 후에만 리포트 노출, 2회 미달 시 \"연구 결과: 미달\"로 보고), C2 는 등교 시간 교문 통과 차량 수.</td></tr><tr><td>YOLO_ONLY · VLM_ONLY · HYBRID</td><td>같은 이벤트를 세 방식으로 판정해 나란히 기록(섀도 로깅). 운영에 쓰는 것은 HYBRID 하나, 나머지 둘은 비교 실험용.</td></tr><tr><td>dwell · conflict · speeding</td><td>이벤트 3종 — 정차 지속·보행자 근접·과속. events.kind 값.</td></tr><tr><td>qc = 0</td><td>5분 버킷의 품질 플래그(비트). 0 이 아닌 버킷은 집계에서 제외 — 지표가 나쁜 데이터 위에 서지 않게.</td></tr><tr><td>GATE 0~3</td><td>사람이 서명하는 관문 — 운영 동의(0), 수동 대조(1), 연구 판정(2), 리포트 신뢰(3). 통과 전에는 다음 단계 기능이 밖에 나가지 않는다.</td></tr><tr><td>R0~R8</td><td>구축 단계. 지금은 R0(더미 전 기능) — 빌드 트랙은 Claude 위임으로 단기 완성, 현장 트랙(카메라·설치·전환)은 달력 종속.</td></tr><tr><td>TRAFFIC_FAKE_HW</td><td>1 이면 synth 합성 궤적 + 가짜 VLM 으로 전 스택이 돈다. 카메라 설치 후 0 으로 전환하는 것이 현장 트랙의 스위치.</td></tr><tr><td>baseline</td><td>GATE 1 통과 시점부터 2주간의 개입 전 측정 — 전후 비교(R7)의 기준선.</td></tr></table><div class=\"note\"><b>가장 오해하기 쉬운 것</b> — VLM 은 이 시스템의 본체가 아니다. 본체는 Fast Loop 의 K1~K3 이고, inferences 의 3행은 \"세 모델 중 좋은 걸 골라 쓴다\"가 아니라 <b>8GB 엣지 보드에 VLM 을 얹는 것이 무엇을 얼마나 개선하는가</b>를 실측하는 대조군이다. 그래서 VLM 이 죽어도(행이 unknown 이어도) 운영 지표는 흔들리지 않는다.</div>"
+ "glossary_label": "작동 원리 · 용어 사전",
+ "glossary_html": "<h2>이 시스템이 돌아가는 원리 — 30초 요약</h2><div class=\"flow\"><div class=\"hl\"><b>① 보되, 남기지 않는다</b>영상은 숫자가 된 뒤 사라진다<small>카메라 프레임은 메모리 안에서만 살다가 '차 1대 통과' 같은 숫자로 바뀌고 즉시 사라진다. 영상 파일을 만드는 코드 자체가 금지이고, doctor 라는 검사기가 '이미지 파일 0건'을 상시 확인한다</small></div><div class=\"hl\"><b>② 세는 기계와 연구 AI는 남남</b>AI가 멈춰도 숫자는 나온다<small>통행을 세는 Fast Loop 와, 정차 사유를 묻는 연구용 AI(Slow Loop)는 완전히 분리돼 있다. AI가 느려지거나 죽어도 K1~K3 숫자는 계속 쌓인다 — 이 프로젝트의 제1 설계 조건</small></div><div><b>③ AI는 객관식만</b>서술형 답변 금지<small>정차 사유를 묻되 '승하차/대기/배송/기타' 보기 중 고르게만 한다. 자유 문장·차량 색·번호판을 적을 칸이 DB에 아예 없어서, 실수로도 개인정보가 남을 수 없다</small></div><div><b>④ 기기는 스스로 업데이트</b>시험 통과한 코드만 받는다<small>코드를 고치면 GitHub 의 자동 시험(CI)이 테스트·프라이버시 검사를 돌리고, 통과한 것만 '릴리스'로 발행된다. 학교의 Jetson 은 5분마다 새 릴리스를 확인해 스스로 설치하고, 문제가 생기면 이전 버전으로 스스로 되돌린다</small></div><div><b>⑤ 나가는 글은 이중 검문</b>기계 검증 + 사람 승인<small>주간 리포트는 AI 가 초안을 쓰지만, 숫자 조작 검사기를 통과하고 교사가 승인 버튼을 눌러야만 발송된다</small></div></div><h2>채택 기술 — 무엇이고, 왜 이걸 썼나</h2><table class=\"cols\"><tr><td>Jetson Orin Nano</td><td>손바닥 크기의 AI 컴퓨터(GPU 내장). 영상을 인터넷·클라우드로 보내지 않고 <b>창가에서 전부 처리</b>한다 — 프라이버시를 약속이 아니라 물리 구조로 지키는 선택.</td></tr><tr><td>YOLO (yolo11n)</td><td>사진 한 장을 보고 '어디에 무엇이 있는지'를 상자(바운딩 박스)로 찾아내는 검출 AI. 여기서는 사람·이륜차·차량 3종류만 본다.</td></tr><tr><td>TensorRT</td><td>NVIDIA GPU 전용 가속 변환기. 같은 YOLO 가 CPU 에서 264ms 걸리던 것이 <b>5.6ms(47배)</b>가 됐다 — 모든 프레임을 검사할 수 있게 된 이유. 변환된 엔진은 보드마다 새로 만들어야 한다.</td></tr><tr><td>ROI (관심 구역)</td><td>관리 화면에서 도로 부분만 다각형으로 클릭해 지정한다. 상자의 '발끝'(하단 중앙)이 구역 안일 때만 유효 — 옆 주차장에 서 있는 차가 오탐으로 잡히는 것을 막는다.</td></tr><tr><td>추적 (ByteTrack 류 · R2 예정)</td><td>프레임마다 따로 찾은 상자를 '같은 차'끼리 이어붙여 궤적(track)을 만든다. 속도·정차 시간은 한 장의 사진이 아니라 <b>궤적</b>에서 나온다.</td></tr><tr><td>호모그래피</td><td>사진 속 픽셀 위치를 실제 도로 위 미터(m)로 바꾸는 변환(기준점 4개 실측). 이게 있어야 '픽셀 이동'이 'km/h'가 된다 — R2 캘리브레이션의 핵심.</td></tr><tr><td>VLM (로컬 llama.cpp)</td><td>사진+질문을 이해하는 AI. 위험 정차 순간에만 '왜 서 있나'를 객관식으로 답한다. 인터넷 없이 보드 안에서만 돌아간다.</td></tr><tr><td>FastAPI 2개 포트</td><td>공개 화면(:8600)과 관리 화면(:8601)을 아예 다른 문으로 분리. 관리 문은 테일넷(VPN) 주소에만 열려 있어 외부에서는 문 자체가 보이지 않는다.</td></tr><tr><td>Tailscale (테일넷)</td><td>학교망 방화벽을 건드리지 않고 관리자 기기들끼리만 연결되는 사설 네트워크. http://orin:8601 같은 주소가 그 안에서만 통한다.</td></tr><tr><td>SQLite (traffic.db)</td><td>파일 하나짜리 DB. 서버 없이 정전·재부팅을 견디고, 분석은 파일 복사로 끝난다. 모든 표를 합쳐도 이미지·자유 문장 칸이 없다.</td></tr><tr><td>systemd user 유닛</td><td>전원만 꽂으면 서비스가 스스로 켜지고, 죽으면 5초 후 되살아나게 하는 리눅스 장치 — 관리자 권한(sudo) 없이 운용한다.</td></tr><tr><td>GStreamer</td><td>라벨링용 통제 세션 영상을 브라우저가 재생할 수 있는 mp4(H.264)로 변환하는 도구 — 이 프로젝트에서 영상 파일을 만드는 유일한 경로이며 data/sessions/ 밖으로 못 나간다.</td></tr><tr><td>React + Recharts</td><td>대시보드 화면. 빌드하면 정적 파일이 되어 FastAPI 가 그대로 서빙 — 기기에 별도 웹서버가 필요 없다.</td></tr></table><h2>용어 사전 — 화면에서 마주치는 말들</h2><table class=\"cols\"><tr><td>K1 · K2 · K3</td><td>운영 지표 3형제 — <b>K1 과속</b>: 등교 시간대 차량이 30km/h 를 넘긴 비율(%), <b>K2 정차 위반</b>: 정차 금지 구역에서 20초 이상 서 있던 건수, <b>K3 근접</b>: 보행자가 건너는 중 차량이 2m 안까지 다가온 건수. 셋 다 AI(VLM) 없이 나온다.</td></tr><tr><td>P85 속도</td><td>'차량의 85%는 이 속도 이하였다'는 값. 평균보다 과속 실태를 잘 보여주는 교통공학 표준 지표 — 속도 차트의 막대가 이것.</td></tr><tr><td>5분 버킷</td><td>데이터를 5분 단위 바구니에 담아 세는 방식. '08:05~08:10 에 차 12대' 처럼 집계된다.</td></tr><tr><td>dwell · conflict · speeding</td><td>이벤트 3종 — 오래 서 있음(정차) · 보행자 근접 · 과속. DB events 표의 kind 값.</td></tr><tr><td>qc = 0</td><td>버킷의 품질 합격 도장. 카메라가 흔들렸거나 fps 가 낮았던 버킷은 qc≠0 이 되어 집계에서 빠진다 — 나쁜 데이터 위에 지표를 세우지 않기.</td></tr><tr><td>캘리브레이션 모드</td><td>관리 화면의 '카메라 보기' 스위치. 켠 동안(최대 30분)에만 프리뷰·녹화가 가능하고, 끄면 영상 통로가 닫힌다. 켜고 끈 기록이 전부 로그에 남는다.</td></tr><tr><td>통제 세션</td><td>라벨링을 위해 허락된 범위에서만 하는 짧은 녹화(상한 15분). 이 시스템에서 유일하게 저장되는 영상이고, 라벨을 달고 나면 지우는 것이 원칙.</td></tr><tr><td>라벨 / source</td><td>사람이 '이 정차 위험했나? 왜 서 있었나?'에 답한 정답지. 영상을 보고 달면 source=session, 창가에서 직접 보고 달면 live. AI 의 답과 비교해 AI 점수(정밀도)를 매긴다.</td></tr><tr><td>YOLO_ONLY · VLM_ONLY · HYBRID</td><td>같은 이벤트를 세 방식으로 나란히 판정해 기록(섀도 로깅). 실제 운영에 쓰는 건 HYBRID 하나 — 나머지 둘은 'AI 를 얹으면 얼마나 나아지나'를 재는 비교군.</td></tr><tr><td>C1 · C2</td><td>연구 지표 — C1: 정차 사유 태그의 분포(검증 관문 GATE 2 통과 후에만 공개), C2: 등교 시간 교문 통과 차량 수.</td></tr><tr><td>GATE 0~3</td><td>사람이 서명·확인하는 관문. 0 운영 동의 → 1 수동 대조(기계 숫자 vs 사람 계수) → 2 AI 연구 판정 → 3 리포트 신뢰. 관문을 못 넘으면 그 단계 결과는 밖에 나가지 않는다.</td></tr><tr><td>R0~R8</td><td>구축 단계 번호. 지금은 R1(카메라·추론 가동) 완료 언저리 — 다음은 R2(추적·속도·캘리브레이션).</td></tr><tr><td>TRAFFIC_FAKE_HW</td><td>더미 스위치. 1 이면 가짜 숫자 생성기(synth)가 전 화면을 채워 개발·시연이 가능하고, 0 으로 바꾸면 실측 데이터로 전환된다.</td></tr><tr><td>baseline (기준선)</td><td>개입(안내문·건의 등) 전 2주간의 측정값. '개입이 효과 있었나'는 이 기준선과 비교해서만 말할 수 있다.</td></tr></table><div class=\"note\"><b>가장 오해하기 쉬운 것</b> — 이 시스템의 본체는 AI(VLM)가 아니라 <b>숫자 세 개(K1~K3)</b>다. VLM 은 '그 정차가 승하차였는지 배송이었는지'라는 맥락을 붙여 오탐을 줄이는 연구용 조수이고, 같은 이벤트에 3중 기록을 남기는 이유도 'AI 를 8GB 엣지 보드에 얹는 게 얼마나 이득인가'를 실측하기 위해서다. 그래서 AI 가 죽어도 지표는 멈추지 않는다.</div>"
 }

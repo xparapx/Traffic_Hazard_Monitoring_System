@@ -84,20 +84,20 @@ export default function Metrics() {
       {/* ---- 지표 요약 타일 (K1 · K2 · K3) ---- */}
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Card>
-          <div className="meta font-bold">K1 · 통행량 (차량+이륜)</div>
+          <div className="meta font-bold">통행량 (차량+이륜 · 기반 데이터)</div>
           <div className="num text-[38px] font-semibold">
             {flowTotal}<span className="text-[15px] text-dim"> 대 · {flow.length}버킷</span>
           </div>
         </Card>
         <div className="rounded-[14px] bg-otan p-5 text-white">
-          <div className="meta font-bold text-white/90">K2 · P85 {latestP85 != null ? `${latestP85} km/h` : "—"}</div>
+          <div className="meta font-bold text-white/90">K1 · 과속 — P85 {latestP85 != null ? `${latestP85} km/h` : "—"}</div>
           <div className="num text-[38px] font-semibold">
             {overPct != null ? `${overPct}%` : "—"}
             <span className="text-[14px] text-white/80"> 버킷이 30km/h 초과</span>
           </div>
         </div>
         <DarkCard>
-          <div className="meta font-bold text-dim-dark">K3 · 구역 밖 정차</div>
+          <div className="meta font-bold text-dim-dark">K2 · 구역 밖 정차 <span className="text-[10px]">(K3 근접은 R2 후)</span></div>
           <div className="num text-[38px] font-semibold">
             {dangerN}<span className="text-[15px] text-dim-dark">건 DANGER · 최장 {longest}s</span>
           </div>
@@ -107,7 +107,7 @@ export default function Metrics() {
       {/* ---- K1 통행량 ---- */}
       <Card className="mb-4">
         <div className="mb-2 text-[14px] font-bold">
-          통행량 <span className="meta">K1 · 5분 버킷 (차량+이륜) · 요일 프로파일은 M1</span>
+          통행량 <span className="meta">5분 버킷 (차량+이륜) · 지표의 기반 데이터 · 요일 프로파일은 M1</span>
         </div>
         {flow.length === 0 ? <Empty note="아직 버킷 데이터가 없습니다." /> : (
           <div className="h-[260px]">
@@ -128,7 +128,7 @@ export default function Metrics() {
       {/* ---- K2 속도 ---- */}
       <Card className="mb-4">
         <div className="mb-2 text-[14px] font-bold">
-          속도 <span className="meta">K2 · 버킷별 P85 · 기준선 30 km/h</span>
+          속도 <span className="meta">K1 과속 · 버킷별 P85 · 기준선 30 km/h</span>
         </div>
         {p85rows.length === 0 ? <Empty note="속도 표본이 아직 없습니다." /> : (
           <div className="h-[260px]">
@@ -155,7 +155,7 @@ export default function Metrics() {
       <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
         <Card>
           <div className="mb-2 text-[14px] font-bold">
-            정차 이벤트 <span className="meta">K3 · 시각×지속시간 · 히트맵은 캘리브레이션(R2) 후</span>
+            정차 이벤트 <span className="meta">K2 · 시각×지속시간 · K3(근접)·히트맵은 캘리브레이션(R2) 후</span>
           </div>
           {dwellPts.all.length === 0 ? <Empty note="정차 이벤트가 아직 없습니다." /> : (
             <>
