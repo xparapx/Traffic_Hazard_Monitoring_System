@@ -367,7 +367,39 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
         k = _rows(con,
             "SELECT date, kind, payload FROM analysis WHERE kind IN ('k1','k2','k3','safety')"
             " ORDER BY date DESC LIMIT 8")
-        return _meta("today") | {"counts_5min": counts, "qc_5min": qc, "analysis": k}
+        kday = "substr(datetime(bucket_utc, '+9 hours'), 1, 10)"
+        totals = _rows(con,
+            f"SELECT cls, SUM(n) AS n FROM counts_5min"
+            f" WHERE n IS NOT NULL AND {kday} = substr(datetime('now', '+9 hours'), 1, 10)"
+            f" GROUP BY cls")
+        ev_today = con.execute(
+            "SELECT COUNT(*) c FROM events"
+            " WHERE substr(datetime(ts, '+9 hours'), 1, 10)"
+            "       = substr(datetime('now', '+9 hours'), 1, 10)").fetchone()["c"]
+        return _meta("today") | {"counts_5min": counts, "qc_5min": qc, "analysis": k,
+                                 "today_totals": totals, "events_today": ev_today}
+
+    @api.get("/buckets")
+    def buckets(hours: int = 24):
+        """최근 hours 시간의 5분 버킷 (dir 합산·ASC) — 차트의 시간 범위를 명시적으로."""
+        hours = max(1, min(168, hours))
+        rows = _rows(con,
+            "SELECT bucket_utc, cls, SUM(n) AS n FROM counts_5min"
+            " WHERE n IS NOT NULL AND datetime(bucket_utc) >= datetime('now', ?)"
+            " GROUP BY bucket_utc, cls ORDER BY bucket_utc ASC",
+            (f"-{hours} hours",))
+        return _meta("buckets") | {"hours": hours, "buckets": rows}
+
+    @api.get("/history")
+    def history(days: int = 182):
+        """KST 일별 cls 합계 — 요일/주/월 비교의 원천."""
+        days = max(1, min(400, days))
+        kday = "substr(datetime(bucket_utc, '+9 hours'), 1, 10)"
+        rows = _rows(con,
+            f"SELECT {kday} AS date, cls, SUM(n) AS n FROM counts_5min"
+            f" WHERE n IS NOT NULL AND datetime(bucket_utc) >= datetime('now', ?)"
+            f" GROUP BY 1, cls ORDER BY 1 ASC", (f"-{days} days",))
+        return _meta("history") | {"days": days, "daily": rows}
 
     @api.get("/profile")
     def profile():

@@ -4,8 +4,19 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, ReferenceLine,
   ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from "recharts";
-import { api, DwellData, Fetched, kst, SpeedData, TodayData } from "../api";
+import { api, BucketRow, DailyRow, DwellData, Fetched, kst, SpeedData, TodayData } from "../api";
 import { Card, DarkCard, DummyBadge, Empty, PageHeader } from "../components/ui";
+
+type FlowRange = "today" | "24h" | "7d";
+type CmpMode = "weekday" | "week" | "month";
+const WD = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** KST 자정 이후 경과 시간(시) — '오늘' 범위의 buckets 요청용 */
+function hoursSinceKstMidnight(): number {
+  const now = new Date();
+  const kstNow = new Date(now.getTime() + 9 * 3600_000);
+  return Math.max(1, Math.ceil((kstNow.getUTCHours() * 60 + kstNow.getUTCMinutes()) / 60));
+}
 
 const INK = "#1f282e";     // cobble
 const ACCENT = "#ff4e20";  // otan
@@ -13,25 +24,73 @@ const DANGER = "#b83312";  // gravy
 const GRID = "#CBC8BC";
 const TIP = { background: "#1F282E", border: "none", borderRadius: 8, color: "#fff", fontSize: 12 };
 
+const RANGE_LABEL: Record<FlowRange, string> = {
+  today: "오늘 (KST 00:00 ~ 현재)", "24h": "최근 24시간", "7d": "최근 7일 (일별 합계)",
+};
+
 export default function Metrics() {
   const [today, setToday] = useState<Fetched<TodayData> | null>(null);
   const [speed, setSpeed] = useState<Fetched<SpeedData> | null>(null);
   const [dwell, setDwell] = useState<Fetched<DwellData> | null>(null);
+  const [range, setRange] = useState<FlowRange>("today");
+  const [bucketRows, setBucketRows] = useState<BucketRow[]>([]);
+  const [daily, setDaily] = useState<DailyRow[]>([]);
+  const [cmp, setCmp] = useState<CmpMode>("weekday");
   useEffect(() => {
     api.today().then(setToday);
     api.speed().then(setSpeed);
     api.dwell().then(setDwell);
+    api.history(182).then((r) => setDaily(r.daily));
   }, []);
+  useEffect(() => {
+    if (range === "7d") return;
+    api.buckets(range === "today" ? hoursSinceKstMidnight() : 24)
+      .then((r) => setBucketRows(r.buckets));
+  }, [range]);
 
-  // K1 — 5분 버킷 통행량 (차량+이륜)
+  // 통행량 — 선택 범위의 5분 버킷(차량+이륜) 또는 7일 일별
   const flow = useMemo(() => {
-    const byBucket = new Map<string, number>();
-    for (const c of today?.counts_5min ?? [])
+    if (range === "7d") {
+      const by = new Map<string, number>();
+      for (const r of daily.slice(-200))
+        if (r.cls !== "person") by.set(r.date, (by.get(r.date) ?? 0) + r.n);
+      return [...by.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7)
+        .map(([date, n]) => ({ t: date.slice(5), n }));
+    }
+    const by = new Map<string, number>();
+    for (const c of bucketRows)
       if (c.cls !== "person" && c.n != null)
-        byBucket.set(c.bucket_utc, (byBucket.get(c.bucket_utc) ?? 0) + c.n);
-    return [...byBucket.entries()].sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, n]) => ({ t: bucket.slice(11, 16) || bucket, n }));
-  }, [today]);
+        by.set(c.bucket_utc, (by.get(c.bucket_utc) ?? 0) + c.n);
+    return [...by.entries()].sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, n]) => ({ t: kst(bucket).slice(0, 5), n }));
+  }, [range, bucketRows, daily]);
+
+  // 기간 비교 — 요일별 평균 · 주별 합계 · 월별 합계 (KST 일별 원천)
+  const cmpRows = useMemo(() => {
+    const dayTotal = new Map<string, number>();
+    for (const r of daily)
+      if (r.cls !== "person") dayTotal.set(r.date, (dayTotal.get(r.date) ?? 0) + r.n);
+    const entries = [...dayTotal.entries()].sort(([a], [b]) => a.localeCompare(b));
+    if (cmp === "weekday") {
+      const sum = Array(7).fill(0), cnt = Array(7).fill(0);
+      for (const [date, n] of entries) {
+        const w = new Date(date + "T00:00:00+09:00").getDay();
+        sum[w] += n; cnt[w] += 1;
+      }
+      return WD.map((l, w) => ({ t: l, n: cnt[w] ? Math.round(sum[w] / cnt[w]) : 0, days: cnt[w] }));
+    }
+    const keyOf = (date: string) => {
+      if (cmp === "month") return date.slice(0, 7);
+      const d = new Date(date + "T00:00:00+09:00");
+      const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      return mon.toISOString().slice(5, 10) + "~";
+    };
+    const by = new Map<string, number>();
+    for (const [date, n] of entries) by.set(keyOf(date), (by.get(keyOf(date)) ?? 0) + n);
+    return [...by.entries()].slice(-12).map(([t, n]) => ({ t, n, days: 0 }));
+  }, [daily, cmp]);
+  const dataDays = useMemo(
+    () => new Set(daily.filter((r) => r.cls !== "person").map((r) => r.date)).size, [daily]);
 
   // K2 — 버킷별 P85
   const p85rows = useMemo(() =>
@@ -84,10 +143,11 @@ export default function Metrics() {
       {/* ---- 지표 요약 타일 (K1 · K2 · K3) ---- */}
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Card>
-          <div className="meta font-bold">통행량 (차량+이륜 · 기반 데이터)</div>
+          <div className="meta font-bold">통행량 (차량+이륜)</div>
           <div className="num text-[38px] font-semibold">
-            {flowTotal}<span className="text-[15px] text-dim"> 대 · {flow.length}버킷</span>
+            {flowTotal.toLocaleString()}<span className="text-[15px] text-dim"> 대</span>
           </div>
+          <div className="text-[10.5px] text-dim">{RANGE_LABEL[range]}</div>
         </Card>
         <div className="rounded-[14px] bg-otan p-5 text-white">
           <div className="meta font-bold text-white/90">K1 · 과속 — P85 {latestP85 != null ? `${latestP85} km/h` : "—"}</div>
@@ -104,22 +164,81 @@ export default function Metrics() {
         </DarkCard>
       </div>
 
-      {/* ---- K1 통행량 ---- */}
+      {/* ---- 통행량 (범위 명시·선택) ---- */}
       <Card className="mb-4">
-        <div className="mb-2 text-[14px] font-bold">
-          통행량 <span className="meta">5분 버킷 (차량+이륜) · 지표의 기반 데이터 · 요일 프로파일은 M1</span>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[14px] font-bold">
+            통행량 <span className="meta">차량+이륜 · {RANGE_LABEL[range]}</span>
+          </span>
+          <span className="flex gap-1">
+            {(["today", "24h", "7d"] as FlowRange[]).map((r) => (
+              <button key={r} onClick={() => setRange(r)}
+                className={`rounded-full px-3 py-1 text-[11.5px] font-bold ${
+                  range === r ? "bg-cobble text-white" : "border border-cobble/40 text-dim"}`}>
+                {r === "today" ? "오늘" : r === "24h" ? "24시간" : "7일"}
+              </button>
+            ))}
+          </span>
         </div>
-        {flow.length === 0 ? <Empty note="아직 버킷 데이터가 없습니다." /> : (
-          <div className="h-[260px]">
+        {flow.length === 0 ? <Empty note="이 범위의 데이터가 아직 없습니다 — 실측 수집 중." /> : (
+          <div className="h-[240px] md:h-[260px]">
             <ResponsiveContainer>
-              <AreaChart data={flow} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+              {range === "7d" ? (
+                <BarChart data={flow} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={TIP} />
+                  <Bar dataKey="n" name="대/일" fill={ACCENT} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              ) : (
+                <AreaChart data={flow} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={TIP} />
+                  <Area type="monotone" dataKey="n" name="대/5분"
+                    stroke={ACCENT} strokeWidth={2} fill={ACCENT} fillOpacity={0.1} />
+                </AreaChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      {/* ---- 기간 비교 (요일·주·월) ---- */}
+      <Card className="mb-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[14px] font-bold">
+            기간 비교 <span className="meta">
+              {cmp === "weekday" ? "요일별 하루 평균 (차량+이륜)"
+                : cmp === "week" ? "주별 합계 (월요일 시작·최근 12주)" : "월별 합계 (최근 12개월)"}
+              {dataDays > 0 && ` · 축적 ${dataDays}일`}
+            </span>
+          </span>
+          <span className="flex gap-1">
+            {(["weekday", "week", "month"] as CmpMode[]).map((m) => (
+              <button key={m} onClick={() => setCmp(m)}
+                className={`rounded-full px-3 py-1 text-[11.5px] font-bold ${
+                  cmp === m ? "bg-cobble text-white" : "border border-cobble/40 text-dim"}`}>
+                {m === "weekday" ? "요일별" : m === "week" ? "주별" : "월별"}
+              </button>
+            ))}
+          </span>
+        </div>
+        {dataDays < 2 ? (
+          <Empty note={`비교할 축적 데이터가 아직 부족합니다 (현재 ${dataDays}일) — 수집이 쌓이면 자동으로 채워집니다.`} />
+        ) : (
+          <div className="h-[220px]">
+            <ResponsiveContainer>
+              <BarChart data={cmpRows} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
                 <CartesianGrid stroke={GRID} vertical={false} />
                 <XAxis dataKey="t" tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
                 <YAxis tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={TIP} />
-                <Area type="monotone" dataKey="n" name="차량+이륜"
-                  stroke={ACCENT} strokeWidth={2} fill={ACCENT} fillOpacity={0.1} />
-              </AreaChart>
+                <Bar dataKey="n" name={cmp === "weekday" ? "대/일 평균" : "대"}
+                  fill={INK} radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}

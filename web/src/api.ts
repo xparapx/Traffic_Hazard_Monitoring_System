@@ -13,7 +13,12 @@ export interface OutboxItem {
   approved_by: string | null; sent: string | null;
 }
 
-export interface TodayData { dummy: boolean; counts_5min: CountRow[]; qc_5min: QcRow[]; analysis: AnalysisRow[] }
+export interface TodayData {
+  dummy: boolean; counts_5min: CountRow[]; qc_5min: QcRow[]; analysis: AnalysisRow[];
+  today_totals: { cls: string; n: number }[]; events_today: number;
+}
+export interface BucketRow { bucket_utc: string; cls: string; n: number }
+export interface DailyRow { date: string; cls: string; n: number }
 export interface SpeedData { dummy: boolean; speed_5min: SpeedRow[] }
 export interface DwellData { dummy: boolean; events: DwellEvent[]; c1_visible: boolean }
 export interface BenchData { dummy: boolean; bench_runs: unknown[]; inference_summary: InferenceSummary[] }
@@ -84,7 +89,14 @@ export const api = {
     get<TodayData>(`${PUB_BASE}/api/public/`, {
       dummy: true, counts_5min: mockCounts,
       qc_5min: [{ bucket_utc: "T0", fps_med: 22, qc: 0 }], analysis: [],
+      today_totals: [], events_today: 0,
     }),
+  buckets: (hours: number) =>
+    get<{ hours: number; buckets: BucketRow[] }>(
+      `${PUB_BASE}/api/public/buckets?hours=${hours}`, { hours, buckets: [] }),
+  history: (days = 182) =>
+    get<{ days: number; daily: DailyRow[] }>(
+      `${PUB_BASE}/api/public/history?days=${days}`, { days, daily: [] }),
   speed: () =>
     get<SpeedData>(`${PUB_BASE}/api/public/speed`, {
       dummy: true,
