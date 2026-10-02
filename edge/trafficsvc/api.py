@@ -142,6 +142,10 @@ class SharedCamera:
         self._overlay_n = 0              # 탐지 오버레이를 요청한 클라이언트 수
         self._detector = None            # AsyncDetector (오버레이 첫 요청 시 생성)
         self._det_status = ""
+        self.roi: list[list[float]] = []   # 정규화 폴리곤 — set_roi 로 갱신
+
+    def set_roi(self, points: list[list[float]]) -> None:
+        self.roi = points
 
     def acquire(self, overlay: bool = False) -> None:
         """클라이언트 등록 — 리더가 없으면 카메라를 연다 (실패 시 raise)."""
@@ -196,17 +200,24 @@ class SharedCamera:
                     continue
                 last = ts
                 if self._overlay_n > 0:
+                    from .detect import overlay, roi as roi_mod
                     det = self._ensure_detector()
                     if det is not None:
                         det.submit(frame)
                         dets, lat = det.result
-                        self._det_status = (
-                            f"{det.name} · {lat:.0f}ms · {len(dets)} obj")
-                        from .detect import overlay
-                        frame = overlay.draw(frame, dets, self._det_status)
+                        poly = self.roi
+                        if len(poly) >= 3:
+                            kept = [d for d in dets if roi_mod.foot_in_roi(d.box, poly)]
+                            out = [d for d in dets if d not in kept]
+                            self._det_status = (f"{det.name} · {lat:.0f}ms"
+                                                f" · {len(kept)}/{len(dets)} obj (ROI)")
+                        else:
+                            kept, out = list(dets), []
+                            self._det_status = (
+                                f"{det.name} · {lat:.0f}ms · {len(dets)} obj")
+                        frame = overlay.draw(frame, kept, self._det_status, poly, out)
                     elif self._det_status:
-                        from .detect import overlay
-                        frame = overlay.draw(frame, (), self._det_status)
+                        frame = overlay.draw(frame, (), self._det_status, self.roi)
                 jpg = src.jpeg(frame)
                 with self._cond:
                     self._latest = jpg
@@ -330,11 +341,18 @@ class CalibModeIn(BaseModel):
     on: bool
 
 
+class RoiIn(BaseModel):
+    """정규화 폴리곤 — [] 는 ROI 해제(전체 화면), 아니면 3점 이상."""
+    points: list[tuple[float, float]] = Field(default_factory=list)
+
+
 def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     app = FastAPI(title="trafficsvc admin", version="0.1.0")
     api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
     camera = SharedCamera(calib_mode)
+    from .detect import roi as roi_mod
+    camera.set_roi(roi_mod.load(con))   # 재시작 후에도 ROI 유지 (calib.zones_json)
 
     @app.get("/healthz")
     def healthz():
@@ -353,6 +371,22 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     def calib_mode_set(body: CalibModeIn):
         calib_mode.set(body.on)
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
+
+    @api.get("/roi")
+    def roi_get():
+        return {"points": camera.roi}
+
+    @api.post("/roi")
+    def roi_set(body: RoiIn):
+        if body.points and len(body.points) < 3:
+            raise HTTPException(422, "ROI 는 3점 이상 또는 빈 목록(해제)")
+        if any(not (0 <= x <= 1 and 0 <= y <= 1) for x, y in body.points):
+            raise HTTPException(422, "좌표는 0~1 정규화")
+        pts = [list(p) for p in body.points]
+        roi_mod.save(con, pts, db.utcnow())
+        camera.set_roi(pts)
+        log.warning("ROI %s — %d점", "해제" if not pts else "저장", len(pts))
+        return {"ok": True, "points": pts}
 
     @api.get("/stream")
     def stream(frames: int | None = None, detect: int = 0):

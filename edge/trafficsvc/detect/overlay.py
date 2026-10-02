@@ -10,10 +10,20 @@ from . import Detection
 COLORS = {"person": (60, 160, 255), "two_wheel": (120, 220, 80), "veh4": (80, 120, 255)}
 
 
-def draw(frame, dets: Sequence[Detection], status: str):
-    """frame(BGR ndarray) 위에 박스·라벨·상태줄을 그려 반환(in-place)."""
+def draw(frame, dets: Sequence[Detection], status: str,
+         roi: Sequence[Sequence[float]] = (), excluded: Sequence[Detection] = ()):
+    """frame(BGR ndarray) 위에 박스·라벨·상태줄·ROI 폴리곤을 그려 반환(in-place).
+    excluded 는 ROI 밖 탐지 — 얇은 회색으로 표시해 필터 동작을 보여준다."""
     import cv2
+    import numpy as np
     h, w = frame.shape[:2]
+    if len(roi) >= 3:
+        pts = np.array([[int(x * w), int(y * h)] for x, y in roi], dtype=np.int32)
+        cv2.polylines(frame, [pts], True, (60, 220, 255), 2, cv2.LINE_AA)
+    for d in excluded:
+        x1, y1 = int(d.box[0] * w), int(d.box[1] * h)
+        x2, y2 = int(d.box[2] * w), int(d.box[3] * h)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (150, 150, 150), 1)
     for d in dets:
         x1, y1 = int(d.box[0] * w), int(d.box[1] * h)
         x2, y2 = int(d.box[2] * w), int(d.box[3] * h)

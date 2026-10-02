@@ -7,15 +7,25 @@ export default function SystemPage() {
   const [calib, setCalib] = useState<Fetched<CalibData> | null>(null);
   const [streamErr, setStreamErr] = useState(false);
   const [detect, setDetect] = useState(false);
+  const [roiEdit, setRoiEdit] = useState(false);
+  const [roiPts, setRoiPts] = useState<[number, number][]>([]);
+  const [roiSaved, setRoiSaved] = useState(0); // 저장된 점 수 표시용
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
   };
   useEffect(() => {
     refresh();
+    api.roi().then((r) => setRoiSaved(r.points.length));
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
   }, []);
+  async function saveRoi(points: [number, number][]) {
+    await api.setRoi(points);
+    setRoiSaved(points.length);
+    setRoiPts([]);
+    setRoiEdit(false);
+  }
   async function toggleCalib() {
     if (!calib) return;
     setStreamErr(false);
@@ -80,15 +90,58 @@ export default function SystemPage() {
               </div>
             ) : (
               <div className="overflow-hidden rounded-[10px] bg-cobble">
-                <img key={detect ? "det" : "raw"} src={api.streamUrl(detect)}
-                  alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
-                  className="mx-auto max-h-[420px] w-auto"
-                  onError={() => setStreamErr(true)} />
-                <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[12.5px] text-dim-dark">
-                  <input type="checkbox" checked={detect}
-                    onChange={(e) => setDetect(e.target.checked)} />
-                  탐지 오버레이 (YOLO · 박스·지연 표시 — 화면 표시용, 저장 없음)
-                </label>
+                <div className="relative mx-auto w-fit">
+                  <img key={detect ? "det" : "raw"} src={api.streamUrl(detect)}
+                    alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
+                    className={`mx-auto max-h-[420px] w-auto ${roiEdit ? "cursor-crosshair" : ""}`}
+                    onError={() => setStreamErr(true)}
+                    onClick={(e) => {
+                      if (!roiEdit) return;
+                      const el = e.currentTarget;
+                      const r = el.getBoundingClientRect();
+                      const x = (e.clientX - r.left) / r.width;
+                      const y = (e.clientY - r.top) / r.height;
+                      setRoiPts([...roiPts, [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))]]);
+                    }} />
+                  {roiEdit && roiPts.length > 0 && (
+                    <svg className="pointer-events-none absolute inset-0 size-full">
+                      <polygon
+                        points={roiPts.map(([x, y]) => `${x * 100}%,${y * 100}%`).join(" ")}
+                        fill="rgba(255,205,60,0.15)" stroke="#ffcd3c" strokeWidth="2" />
+                      {roiPts.map(([x, y], i) => (
+                        <circle key={i} cx={`${x * 100}%`} cy={`${y * 100}%`} r="4" fill="#ffcd3c" />
+                      ))}
+                    </svg>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-[12.5px] text-dim-dark">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={detect}
+                      onChange={(e) => setDetect(e.target.checked)} />
+                    탐지 오버레이 (YOLO · 박스·지연 — 화면 표시용, 저장 없음)
+                  </label>
+                  {roiEdit ? (
+                    <span className="flex items-center gap-2">
+                      화면을 클릭해 꼭짓점 추가 ({roiPts.length}점)
+                      <button className="rounded border border-otan px-2 py-0.5 text-otan disabled:opacity-40"
+                        disabled={roiPts.length < 3} onClick={() => saveRoi(roiPts)}>저장</button>
+                      <button className="rounded border border-cobble px-2 py-0.5"
+                        onClick={() => setRoiPts([])}>다시</button>
+                      <button className="rounded border border-cobble px-2 py-0.5"
+                        onClick={() => { setRoiPts([]); setRoiEdit(false); }}>취소</button>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      ROI: {roiSaved >= 3 ? `${roiSaved}점 적용 중` : "없음(전체 화면)"}
+                      <button className="rounded border border-cobble px-2 py-0.5"
+                        onClick={() => { setRoiPts([]); setRoiEdit(true); }}>편집</button>
+                      {roiSaved >= 3 && (
+                        <button className="rounded border border-cobble px-2 py-0.5"
+                          onClick={() => saveRoi([])}>해제</button>
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
             )
           ) : (
