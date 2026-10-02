@@ -10,7 +10,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # 기기(orin/pi) 전용 — install.sh 가 --extra camera 로 설치. 개발 PC·CI 는 불필요(fake 경로).
-camera = ["opencv-python-headless>=4.8"]
+camera = ["opencv-python-headless>=4.8", "onnxruntime>=1.18"]
 
 [project.scripts]
 trafficsvc = "trafficsvc.cli:main"
@@ -20,6 +20,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "httpx>=0.27",
+    "numpy>=1.26",   # detect postprocess(NMS·letterbox 역변환) 단위 테스트용
 ]
 
 [build-system]

@@ -6,6 +6,7 @@ export default function SystemPage() {
   const [d, setD] = useState<Fetched<SystemData> | null>(null);
   const [calib, setCalib] = useState<Fetched<CalibData> | null>(null);
   const [streamErr, setStreamErr] = useState(false);
+  const [detect, setDetect] = useState(false);
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
@@ -79,9 +80,15 @@ export default function SystemPage() {
               </div>
             ) : (
               <div className="overflow-hidden rounded-[10px] bg-cobble">
-                <img src={api.streamUrl()} alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
+                <img key={detect ? "det" : "raw"} src={api.streamUrl(detect)}
+                  alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
                   className="mx-auto max-h-[420px] w-auto"
                   onError={() => setStreamErr(true)} />
+                <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-[12.5px] text-dim-dark">
+                  <input type="checkbox" checked={detect}
+                    onChange={(e) => setDetect(e.target.checked)} />
+                  탐지 오버레이 (YOLO · 박스·지연 표시 — 화면 표시용, 저장 없음)
+                </label>
               </div>
             )
           ) : (

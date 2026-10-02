@@ -139,8 +139,11 @@ class SharedCamera:
         self._idle_since = 0.0
         self._latest: bytes | None = None
         self._seq = 0
+        self._overlay_n = 0              # 탐지 오버레이를 요청한 클라이언트 수
+        self._detector = None            # AsyncDetector (오버레이 첫 요청 시 생성)
+        self._det_status = ""
 
-    def acquire(self) -> None:
+    def acquire(self, overlay: bool = False) -> None:
         """클라이언트 등록 — 리더가 없으면 카메라를 연다 (실패 시 raise)."""
         with self._cond:
             # 직전 리더가 닫히는 중이면 종료를 잠깐 기다린다
@@ -156,12 +159,27 @@ class SharedCamera:
                     target=self._pump, args=(src,), name="preview-pump", daemon=True)
                 self._thread.start()
             self._clients += 1
+            if overlay:
+                self._overlay_n += 1
 
-    def _release_client(self) -> None:
+    def _release_client(self, overlay: bool = False) -> None:
         with self._cond:
             self._clients -= 1
+            if overlay:
+                self._overlay_n -= 1
             if self._clients <= 0:
                 self._idle_since = time.monotonic()   # 리더는 IDLE_S 후 스스로 닫는다
+
+    def _ensure_detector(self):
+        """오버레이용 검출기 — 생성 실패(모델·onnxruntime 없음)는 상태줄로만 알린다."""
+        if self._detector is None and not self._det_status.startswith("detector 불가"):
+            try:
+                from .detect.onnx_yolo import AsyncDetector
+                self._detector = AsyncDetector()
+            except Exception as e:
+                self._det_status = f"detector 불가: {type(e).__name__}"
+                log.warning("overlay detector 생성 실패: %s", e)
+        return self._detector
 
     def _pump(self, src) -> None:
         min_dt = 1.0 / STREAM_PREVIEW_FPS
@@ -177,6 +195,18 @@ class SharedCamera:
                 if ts - last < min_dt:
                     continue
                 last = ts
+                if self._overlay_n > 0:
+                    det = self._ensure_detector()
+                    if det is not None:
+                        det.submit(frame)
+                        dets, lat = det.result
+                        self._det_status = (
+                            f"{det.name} · {lat:.0f}ms · {len(dets)} obj")
+                        from .detect import overlay
+                        frame = overlay.draw(frame, dets, self._det_status)
+                    elif self._det_status:
+                        from .detect import overlay
+                        frame = overlay.draw(frame, (), self._det_status)
                 jpg = src.jpeg(frame)
                 with self._cond:
                     self._latest = jpg
@@ -186,11 +216,14 @@ class SharedCamera:
             log.warning("preview pump 종료: %s", e)
         finally:
             src.close()
+            if self._detector is not None:
+                self._detector.stop()
+                self._detector = None
             with self._cond:
                 self._running = False
                 self._cond.notify_all()
 
-    def frames_iter(self, mode: CalibMode, frames: int | None):
+    def frames_iter(self, mode: CalibMode, frames: int | None, overlay: bool = False):
         """acquire() 성공 후에만 부른다 — 종료 시(모드 off·이탈 포함) 클라이언트 해제."""
         n = 0
         with self._cond:
@@ -208,7 +241,7 @@ class SharedCamera:
                 yield _mjpeg_part(jpg)
                 n += 1
         finally:
-            self._release_client()
+            self._release_client(overlay)
 
 
 # 수동 분석용 내려받기 대상 — 전부 숫자·enum 텍스트, 이미지 없음
@@ -322,16 +355,18 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
 
     @api.get("/stream")
-    def stream(frames: int | None = None):
+    def stream(frames: int | None = None, detect: int = 0):
         # 이중 잠금: ① 관리 포트 = 테일넷 전용 바인딩 ② 캘리브레이션 모드 동안에만
         # frames=N 이면 N 프레임 후 종료 — 테스트·curl 점검용 (기본 무제한: 브라우저 <img>)
+        # detect=1 이면 탐지 오버레이(박스·클래스·지연) — 화면 표시용, 저장 없음
         if not calib_mode.on:
             raise HTTPException(409, "calibration mode off — POST /calib/mode {on:true} 후 30분간 유효")
         # 프리뷰는 더미 모드에서도 실 카메라를 우선한다 — 설치·초점 조절은 배포(더미) 단계에서
         # 하기 때문. 카메라를 못 열면: 더미 모드 → 내장 더미 프레임, 실기기 모드 → 503.
+        overlay = bool(detect)
         try:
-            camera.acquire()
-            gen = camera.frames_iter(calib_mode, frames)
+            camera.acquire(overlay)
+            gen = camera.frames_iter(calib_mode, frames, overlay)
         except Exception as e:   # cv2 미설치·카메라 미연결·다른 프로세스 점유
             if not settings.fake_hw():
                 raise HTTPException(503, f"카메라 사용 불가: {e}")
