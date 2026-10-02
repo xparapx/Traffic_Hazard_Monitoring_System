@@ -1,8 +1,6 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import Today from "./pages/Today";
-import Profile from "./pages/Profile";
-import Speed from "./pages/Speed";
-import Dwell from "./pages/Dwell";
+import Metrics from "./pages/Metrics";
 import Bench from "./pages/Bench";
 import Label from "./pages/Label";
 import Outbox from "./pages/Outbox";
@@ -10,9 +8,7 @@ import SystemPage from "./pages/System";
 
 const PUBLIC_NAV = [
   { to: "/", label: "오늘" },
-  { to: "/profile", label: "프로파일" },
-  { to: "/speed", label: "속도" },
-  { to: "/dwell", label: "정차" },
+  { to: "/metrics", label: "지표" },
 ];
 const ADMIN_NAV = [
   { to: "/bench", label: "벤치" },
@@ -62,9 +58,11 @@ export default function App() {
         <main className="mx-auto max-w-[1200px] px-4 py-6 md:px-8">
           <Routes>
             <Route path="/" element={<Today />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/speed" element={<Speed />} />
-            <Route path="/dwell" element={<Dwell />} />
+            <Route path="/metrics" element={<Metrics />} />
+            {/* 구 탭 경로 — 기존 링크·QR 호환용 리다이렉트 */}
+            <Route path="/profile" element={<Navigate to="/metrics" replace />} />
+            <Route path="/speed" element={<Navigate to="/metrics" replace />} />
+            <Route path="/dwell" element={<Navigate to="/metrics" replace />} />
             <Route path="/bench" element={<Bench />} />
             <Route path="/label" element={<Label />} />
             <Route path="/outbox" element={<Outbox />} />
