@@ -619,6 +619,25 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return _meta("system") | {"db_rows": rowcounts, "fake_hw": settings.fake_hw()}
 
     app.include_router(api)
+
+    # 관리 포트 전용 아이콘·매니페스트 — 홈 화면에서 공개용(주황)과 구분되는 다크 변형.
+    # 라우트가 "/" 정적 마운트보다 먼저 매칭되어 같은 경로를 덮어쓴다.
+    from fastapi.responses import FileResponse
+    dist = Path(settings._env("TRAFFIC_WEB_DIST", str(settings.REPO_ROOT / "web" / "dist")))
+    for route, fname in {
+        "/apple-touch-icon.png": "apple-touch-icon-admin.png",
+        "/favicon.png": "favicon-admin.png",
+        "/icon-192.png": "icon-192-admin.png",
+        "/icon-512.png": "icon-512-admin.png",
+        "/manifest.webmanifest": "manifest-admin.webmanifest",
+    }.items():
+        def _serve(fname=fname):
+            p = dist / fname
+            if not p.exists():
+                raise HTTPException(404, "asset 없음")
+            return FileResponse(p)
+        app.get(route, include_in_schema=False)(_serve)
+
     # 세션 영상 서빙 (Range 지원 → <video> 탐색 가능) — 관리 포트(테일넷)에만 존재
     app.mount("/session-video", StaticFiles(directory=sessions_dir()), name="sessions")
     _mount_web(app)
