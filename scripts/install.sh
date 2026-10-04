@@ -84,7 +84,8 @@ for port in 8600 8601; do
 done
 
 # 6) 프라이버시 검사 — 이미지 파일 0건 (data/sessions 제외)
-BAD=$(find . -path ./data/sessions -prune -o \( -name '*.jpg' -o -name '*.png' -o -name '*.mp4' -o -name '*.h264' \) -print | head -5)
+# web/ 는 앱 아이콘 등 정적 디자인 에셋 — 프레임 저장 검사 대상 아님
+BAD=$(find . -path ./data/sessions -prune -o -path ./web -prune -o \( -name '*.jpg' -o -name '*.png' -o -name '*.mp4' -o -name '*.h264' \) -print | head -5)
 if [ -n "$BAD" ]; then echo "[install] 경고: 이미지 파일 발견!"; echo "$BAD"; fi
 
 if [ "$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null)" != "yes" ]; then
