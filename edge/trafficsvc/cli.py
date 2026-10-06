@@ -100,6 +100,11 @@ def _analyze(date: str | None, weekly: bool) -> int:
         print("weekly draft:", "outbox(draft) 저장됨" if ok else f"검증 실패 — {body}")
         if not ok:
             return 1
+    # 승인 완료분 자동 발송 — SMTP·수신자 미설정이면 보류(로그만)
+    from notify.dispatch import dispatch_approved
+    sent = dispatch_approved(con)
+    if sent:
+        print(f"dispatch: {len(sent)}건 발송")
     return 0
 
 

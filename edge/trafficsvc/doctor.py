@@ -13,7 +13,7 @@ IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".mp4", ".h264", ".avi", ".mkv", "
 def check_schema(con: sqlite3.Connection) -> dict:
     need = {"counts_5min", "ped_5min", "events", "qc_5min", "calib", "ext_wx",
             "school_cal", "validation", "analysis", "outbox",
-            "inferences", "labels", "bench_runs"}
+            "inferences", "labels", "bench_runs", "recipients"}
     have = {r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     missing = sorted(need - have)

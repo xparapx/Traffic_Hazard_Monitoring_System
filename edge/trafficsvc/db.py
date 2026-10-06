@@ -30,6 +30,10 @@ MIGRATIONS = [
     " fps REAL, lat_ms INTEGER, mem_mb INTEGER, swap_mb INTEGER,"
     " power_w REAL, gpu_pct INTEGER, temp_c REAL)",
     "CREATE INDEX IF NOT EXISTS ix_bs_run ON bench_samples(run_id)",
+    # 주간 리포트 이메일 수신처 (사람이 관리 UI 에서 등록)
+    "CREATE TABLE IF NOT EXISTS recipients("
+    " id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE,"
+    " label TEXT, created TEXT NOT NULL)",
 ]
 
 

@@ -133,6 +133,22 @@ def weekly_facts(con: sqlite3.Connection, end_date: str | None = None) -> dict:
     return facts
 
 
+def write_comment(facts: dict) -> str:
+    """리포트의 '맥락 한 줄' 슬롯 — 지금은 규칙 기반, R7 에 같은 인터페이스로 로컬 LLM 교체.
+    규약: 숫자를 쓰지 않는다(숫자는 템플릿·검증기 몫) · 금칙 주어 금지 · 한 문장."""
+    k1, k2, k3 = facts.get("k1"), facts.get("k2"), facts.get("k3")
+    if k1 is None and k2 is None and k3 is None:
+        return "이번 주는 집계 표본이 부족해 추세 해석을 보류합니다."
+    parts = []
+    if k1 is not None:
+        parts.append("과속 비율이 높은 편" if k1 >= 50 else "과속 비율은 관리 범위")
+    if k2 is not None:
+        parts.append("금지 구역 정차가 잦았음" if k2 >= 5 else "금지 구역 정차는 드묾")
+    if k3 is not None and k3 > 0:
+        parts.append("횡단 중 근접 사례가 관측됨")
+    return "이번 주 요약: " + ", ".join(parts) + "." if parts else "이번 주 특이 사항 없음."
+
+
 def build_weekly_draft(facts: dict) -> str:
     def fmt(v, unit):
         return f"{v}{unit}" if v is not None else "집계 없음"
@@ -141,6 +157,8 @@ def build_weekly_draft(facts: dict) -> str:
         f"· 30 km/h 초과 비율(K1): 주 평균 {fmt(facts['k1'], '%')}\n"
         f"· 정차 구역 밖 20초 이상 정차(K2): 하루 평균 {fmt(facts['k2'], '건')}\n"
         f"· 횡단 중 차량 2 m 이내 접근(K3): 하루 평균 {fmt(facts['k3'], '건')}\n"
+        f"· {write_comment(facts)}
+"
         f"(자동 카운트 · 등교일 기준 · 수동 대조 오차는 GATE 1 후 병기)"
     )
 

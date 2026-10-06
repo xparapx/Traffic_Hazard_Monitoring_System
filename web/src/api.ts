@@ -159,6 +159,13 @@ export const api = {
       `${ADM_BASE}/api/admin/autocollect`,
       { enabled: false, labels_n: 0, target: 60, recording: null, windows: [] }),
   setAutocollect: (on: boolean) => post(`${ADM_BASE}/api/admin/autocollect`, { on }),
+  recipients: () =>
+    get<{ recipients: { id: number; email: string; label: string | null }[] }>(
+      `${ADM_BASE}/api/admin/recipients`, { recipients: [] }),
+  addRecipient: (email: string, label?: string) =>
+    post(`${ADM_BASE}/api/admin/recipients`, { email, label }),
+  delRecipient: (id: number) => del(`${ADM_BASE}/api/admin/recipients/${id}`),
+  outboxPreviewUrl: (id: number) => `${ADM_BASE}/api/admin/outbox/${id}/preview`,
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>
     post(`${ADM_BASE}/api/admin/outbox/${id}`, { action, by }),
 };

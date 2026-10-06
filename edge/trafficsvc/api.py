@@ -446,6 +446,11 @@ class CalibModeIn(BaseModel):
     on: bool
 
 
+class RecipientIn(BaseModel):
+    email: str = Field(min_length=3, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    label: str | None = None
+
+
 class RoiIn(BaseModel):
     """정규화 폴리곤 — [] 는 해제, 아니면 3점 이상. zone: roi(탐지 구역)·no_stop(정차 금지)."""
     points: list[tuple[float, float]] = Field(default_factory=list)
@@ -602,6 +607,39 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             (body.event_id, db.utcnow(), body.hazard, body.tag, body.labeler,
              body.source, body.note))
         con.commit()
+        return {"ok": True}
+
+    @api.get("/outbox/{item_id}/preview", include_in_schema=False)
+    def outbox_preview(item_id: int):
+        from fastapi.responses import HTMLResponse
+        from notify.dispatch import build_html
+        row = con.execute("SELECT created FROM outbox WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "no such outbox item")
+        return HTMLResponse(build_html(con, row["created"]))
+
+    @api.get("/recipients")
+    def recipients_list():
+        return {"recipients": _rows(con, "SELECT id, email, label FROM recipients ORDER BY id")}
+
+    @api.post("/recipients")
+    def recipients_add(body: RecipientIn):
+        try:
+            con.execute("INSERT INTO recipients(email, label, created) VALUES(?,?,?)",
+                        (body.email.strip(), body.label, db.utcnow()))
+            con.commit()
+        except Exception:
+            raise HTTPException(409, "이미 등록된 주소")
+        log.warning("리포트 수신자 추가: %s", body.email)
+        return {"ok": True}
+
+    @api.delete("/recipients/{rid}")
+    def recipients_del(rid: int):
+        n = con.execute("DELETE FROM recipients WHERE id=?", (rid,)).rowcount
+        con.commit()
+        if not n:
+            raise HTTPException(404, "없음")
+        log.warning("리포트 수신자 삭제: id=%d", rid)
         return {"ok": True}
 
     @api.get("/outbox")

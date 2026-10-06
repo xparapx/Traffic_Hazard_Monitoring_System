@@ -12,7 +12,12 @@ const STATUS_STYLE: Record<string, string> = {
 export default function Outbox() {
   const [d, setD] = useState<Fetched<OutboxData> | null>(null);
   const [sel, setSel] = useState<OutboxItem | null>(null);
-  const load = () => api.outbox().then((r) => { setD(r); setSel(r.items[0] ?? null); });
+  const [recips, setRecips] = useState<{ id: number; email: string; label: string | null }[]>([]);
+  const [newMail, setNewMail] = useState("");
+  const load = () => {
+    api.outbox().then((r) => { setD(r); setSel(r.items[0] ?? null); });
+    api.recipients().then((r) => setRecips(r.recipients));
+  };
   useEffect(() => { load(); }, []);
   if (!d) return null;
 
@@ -26,7 +31,7 @@ export default function Outbox() {
 
   return (
     <div>
-      <PageHeader port="ADMIN" path="/OUTBOX" title="리포트 결재"
+      <PageHeader port="ADMIN" path="/OUTBOX" title="리포트 승인 · 발송"
         right={<DummyBadge show={d.dummy || d.offline} />} />
 
       {d.items.length === 0 ? (
@@ -59,6 +64,10 @@ export default function Outbox() {
               <div className="rounded-[10px] bg-sandstone p-4 text-[13px] leading-relaxed whitespace-pre-wrap">
                 {sel.body}
               </div>
+              <a href={api.outboxPreviewUrl(sel.id)} target="_blank" rel="noreferrer"
+                className="mt-2 inline-block rounded-lg border border-cobble/40 px-3 py-1.5 text-[12px] font-bold">
+                HTML 리포트 미리보기 (이메일 발송 포맷)
+              </a>
               {(sel.status === "draft" || sel.status === "approved") && (
                 <div className="mt-4 flex gap-2.5">
                   {sel.status === "draft" && (
@@ -70,12 +79,44 @@ export default function Outbox() {
                 </div>
               )}
               <div className="mt-3 text-[9.5px] text-dim">
-                발송은 승인 후 dispatch가 수행합니다 · draft는 어떤 경로로도 발송되지 않습니다
+                승인된 리포트는 매일 22:00 배치가 아래 수신자에게 HTML 메일로 자동 발송합니다 · draft는 어떤 경로로도 발송되지 않습니다
               </div>
             </Card>
           )}
         </div>
       )}
+
+      {/* ---- 이메일 수신자 관리 ---- */}
+      <Card className="mt-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[14px] font-bold">
+            리포트 수신자 <span className="meta">승인된 주간 리포트가 발송되는 이메일 · SMTP 설정은 기기 traffic.env</span>
+          </span>
+          <span className="flex gap-2">
+            <input value={newMail} onChange={(e) => setNewMail(e.target.value)}
+              placeholder="email@example.com"
+              className="w-[220px] rounded-lg border border-cobble/30 bg-white px-3 py-1.5 text-[12.5px] outline-none" />
+            <button onClick={async () => {
+              if (!newMail.trim()) return;
+              await api.addRecipient(newMail.trim());
+              setNewMail(""); load();
+            }} className="rounded-full bg-cobble px-4 py-1.5 text-[12px] font-bold text-white">추가</button>
+          </span>
+        </div>
+        {recips.length === 0 ? (
+          <div className="py-3 text-[12px] text-dim">수신자가 없습니다 — 추가 전까지 발송은 보류됩니다</div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {recips.map((r) => (
+              <span key={r.id} className="flex items-center gap-2 rounded-full bg-sandstone px-3 py-1.5 text-[12.5px]">
+                {r.email}
+                <button onClick={async () => { await api.delRecipient(r.id); load(); }}
+                  className="text-dim hover:text-gravy">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
