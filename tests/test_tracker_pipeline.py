@@ -63,6 +63,26 @@ def test_dwell_fires_in_no_stop_zone_only():
     assert len(ended) == 1 and ended[0] >= 2
 
 
+def test_dwell_duration_survives_departure():
+    """회귀: 정차 후 다시 출발하면 '출발 순간'까지가 지속시간 — 0.1s 덮어쓰기 버그 방지."""
+    started, ended = [], []
+    p = Pipeline({},
+                 on_dwell_start=lambda tr, zone, dur: (started.append(dur), "ev-1")[1],
+                 on_dwell_end=lambda tr, dur: ended.append(dur),
+                 dwell_s=2.0)
+    t = 0.0
+    for i in range(int(4 * FPS)):          # 4초 정지 (2초에 dwell 확정)
+        t = i * DT
+        p.step(t, [det(0.5, 0.6)])
+    for i in range(int(2 * FPS)):          # 출발해 이동 — 이 순간 정차 종료
+        t = 4.0 + i * DT
+        p.step(t, [det(0.5 + 0.03 * (i + 1), 0.6)])
+    for i in range(30):                    # track 소멸 — 종료 콜백 중복 금지
+        p.step(6.0 + i * DT, [])
+    assert len(started) == 1
+    assert len(ended) == 1 and 3.5 <= ended[0] <= 4.5   # 정지 ~4초 (0.1s 아님)
+
+
 def test_roi_filter_excludes_parking_lot():
     counts = []
     zones = {"roi": [[0.4, 0], [1, 0], [1, 1], [0.4, 1]]}   # 오른쪽만 도로

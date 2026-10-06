@@ -33,6 +33,7 @@ class Track:
     anchor: tuple[float, float] | None = None   # 정지 판정 기준 발점
     anchor_t: float = 0.0
     dwell_event_id: str | None = None
+    dwell_done: bool = False                    # 정차 종료(재이동) 확정 — 중복 마감 방지
 
     @property
     def foot(self) -> tuple[float, float]:

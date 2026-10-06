@@ -74,14 +74,20 @@ class Pipeline:
             if tr.cls in VEH_CLASSES:
                 self._dwell_step(tr, t)
         for tr in self.tracker.ended():
-            if tr.dwell_event_id:
+            if tr.dwell_event_id and not tr.dwell_done:
+                tr.dwell_done = True               # 화면 밖으로 사라지며 종료
                 self.on_dwell_end(tr, round(tr.last_t - tr.anchor_t, 1))
         return kept, excluded
 
     def _dwell_step(self, tr: Track, t: float) -> None:
         foot = tr.foot
         if tr.anchor is None or math.dist(foot, tr.anchor) > self.move_eps:
-            tr.anchor, tr.anchor_t = foot, t       # 움직였다 — 정지 시계 리셋
+            # 움직였다 — 진행 중이던 정차가 있으면 '이 순간'이 정차의 끝이다.
+            # (기준점 리셋 후에 마감하면 지속시간이 0.1s 로 덮이는 버그의 원인)
+            if tr.dwell_event_id and not tr.dwell_done:
+                tr.dwell_done = True
+                self.on_dwell_end(tr, round(t - tr.anchor_t, 1))
+            tr.anchor, tr.anchor_t = foot, t       # 정지 시계 리셋
             return
         if tr.dwell_event_id is None and t - tr.anchor_t >= self.dwell_s:
             zone = self._dwell_zone(foot)
