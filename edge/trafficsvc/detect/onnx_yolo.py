@@ -106,19 +106,34 @@ class OnnxYoloDetector:
         return postprocess(out, scale, pad, src_wh, self._conf)
 
 
+def _trt_probe_ok(timeout_s: int = 90) -> bool:
+    """TRT 초기화를 서브프로세스로 먼저 시도 — GPU 가 안 올라온 부팅에서는
+    CUDA 초기화가 예외가 아니라 segfault(139) 로 죽는다(orin 실측 2026-10-06).
+    본 프로세스를 지키기 위해 격리 탐침 후에만 in-process 로딩한다."""
+    import subprocess
+    import sys
+    r = subprocess.run(
+        [sys.executable, "-c",
+         "from trafficsvc.detect.trt_yolo import TrtYoloDetector; TrtYoloDetector()"],
+        capture_output=True, timeout=timeout_s)
+    return r.returncode == 0
+
+
 def make_detector():
     """백엔드 선택 — TRAFFIC_DET_BACKEND: auto(기본·TRT 우선 폴백 ONNX) | trt | onnx."""
     import logging
+    log = logging.getLogger("trafficsvc.detect")
     backend = settings._env("TRAFFIC_DET_BACKEND", "auto")
     if backend in ("auto", "trt"):
         try:
+            if not _trt_probe_ok():
+                raise RuntimeError("TRT 탐침 실패 (GPU 미가용 부팅 가능성)")
             from .trt_yolo import TrtYoloDetector
             return TrtYoloDetector()
         except Exception as e:
             if backend == "trt":
                 raise
-            logging.getLogger("trafficsvc.detect").warning(
-                "TensorRT 백엔드 불가(%s) — ONNX CPU 폴백", e)
+            log.warning("TensorRT 백엔드 불가(%s) — ONNX CPU 폴백", e)
     return OnnxYoloDetector()
 
 
