@@ -14,14 +14,25 @@ def resolve_dev() -> str | int:
     video0→video1) 고정 번호 대신 안정 경로를 쓴다. 숫자·경로 지정도 허용."""
     dev = settings._env("TRAFFIC_CAM_DEV", "auto")
     if dev != "auto":
-        return int(dev) if dev.isdigit() else dev
+        return int(dev) if dev.isdigit() else _to_index(dev)
     by_id = sorted(glob.glob("/dev/v4l/by-id/*-video-index0"))
     if by_id:
-        return by_id[0]
+        return _to_index(by_id[0])
     nodes = sorted(glob.glob("/dev/video*"))
     if nodes:
-        return nodes[0]
+        return _to_index(nodes[0])
     raise RuntimeError("V4L2 장치 없음 — 카메라 연결 확인")
+
+
+def _to_index(path: str) -> int | str:
+    """경로 → cv2 용 정수 인덱스. 이 보드의 OpenCV V4L2 는 경로 문자열 open 을
+    지원하지 않는다("can't be used to capture by name" — orin 실측 2026-10-06).
+    by-id 심링크를 실노드로 풀어 /dev/videoN 의 N 을 돌려준다."""
+    import os
+    import re
+    real = os.path.realpath(path)
+    m = re.fullmatch(r"/dev/video(\d+)", real)
+    return int(m.group(1)) if m else path
 
 
 def _fourcc(code: str) -> int:
