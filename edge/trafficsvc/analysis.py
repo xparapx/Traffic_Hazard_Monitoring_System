@@ -157,8 +157,7 @@ def build_weekly_draft(facts: dict) -> str:
         f"· 30 km/h 초과 비율(K1): 주 평균 {fmt(facts['k1'], '%')}\n"
         f"· 정차 구역 밖 20초 이상 정차(K2): 하루 평균 {fmt(facts['k2'], '건')}\n"
         f"· 횡단 중 차량 2 m 이내 접근(K3): 하루 평균 {fmt(facts['k3'], '건')}\n"
-        f"· {write_comment(facts)}
-"
+        f"· {write_comment(facts)}\n"
         f"(자동 카운트 · 등교일 기준 · 수동 대조 오차는 GATE 1 후 병기)"
     )
 
