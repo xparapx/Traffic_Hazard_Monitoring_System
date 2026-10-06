@@ -12,7 +12,12 @@ url=$(echo "$rel" | grep -oE '"browser_download_url": *"[^"]*web-dist[^"]*"' | h
 [ -z "${sha:-}" ] || [ -z "${url:-}" ] && exit 0
 
 cur=$(git rev-parse HEAD)
-[ "$sha" = "$cur" ] && exit 0
+# dist 무결성 — 재부팅이 교체 도중을 덮치면 0바이트 파일이 남는다(2026-10-06 실측).
+# sha 가 같아도 깨져 있으면 강제 재설치.
+if [ "$sha" = "$cur" ]; then
+  [ -s web/dist/index.html ] && exit 0
+  echo "[autoupdate] dist 손상 감지(index.html 비어 있음) — 강제 재설치"
+fi
 echo "[autoupdate] $(date -Is) $cur -> $sha"
 
 # 백업 (롤백용)

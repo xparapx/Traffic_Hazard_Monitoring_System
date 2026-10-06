@@ -198,7 +198,9 @@ class RealLoop:
 
     # ---- 메인 루프 ----
     def _run(self) -> None:
+        from .capture.camwatch import CamWatch
         from .detect.onnx_yolo import make_detector
+        watch = CamWatch()
         try:
             detector = make_detector()
             self.model_ver = detector.name
@@ -212,6 +214,7 @@ class RealLoop:
             try:
                 from .capture.uvc import UvcFrameSource
                 src = UvcFrameSource()
+                watch.ok()
                 self.status = "가동"
                 last = 0.0
                 prev = None
@@ -244,6 +247,10 @@ class RealLoop:
                 self._dropped += 1
                 self.status = f"카메라 재시도: {e}"
                 log.warning("realloop 캡처 오류 — 5s 후 재시도: %s", e)
+                try:
+                    watch.fail()   # 단계적 자동 복구 (USB 재열거 → 최후수단 재부팅)
+                except Exception as we:
+                    log.error("camwatch 오류: %s", we)
                 time.sleep(5)
             finally:
                 if src is not None:

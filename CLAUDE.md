@@ -28,7 +28,7 @@
 - **sudo가 불가피한 작업 목록** (집에서 보드 앞에 있을 때 몰아서, 또는 아래 sudoers 등록 후 원격):
   apt 패키지(TensorRT·GStreamer·v4l-utils) · nvpmodel/jetson_clocks · udev/video 그룹 · tailscale up 재설정 · reboot · (선택) loginctl enable-linger
 - 원격 위임용 표준 해법: `/etc/sudoers.d/traffic`에 위 명령만 NOPASSWD 등록(1회, 사람 몫). 전체 루트 개방 금지.
-- NOPASSWD 등록 현황: `traffic`(apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) + `traffic-net`(nmcli·timedatectl, 2026-10-02) — 시간대 Asia/Seoul 전환 완료.
+- NOPASSWD 등록 현황: `traffic`(apt-get·nvpmodel·jetson_clocks·reboot·enable-linger) + `traffic-net`(nmcli·timedatectl, 2026-10-02) + **`traffic-cam`(scripts/camreset.sh — 카메라 USB 재열거, 2026-10-06 등록 필요)** — 시간대 Asia/Seoul 전환 완료.
 
 ## 기기 접속
 - `ssh orin` = kjhs@orin — Jetson Orin Nano Super 8GB (주 보드, JetPack 7.2.1 예정). 2026-09-15 공개키 등록, 무비밀번호 접속.
