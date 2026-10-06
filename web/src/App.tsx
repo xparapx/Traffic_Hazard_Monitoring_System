@@ -13,7 +13,7 @@ const PUBLIC_NAV = [
 const ADMIN_NAV = [
   { to: "/bench", label: "벤치" },
   { to: "/label", label: "라벨" },
-  { to: "/outbox", label: "검토 큐" },
+  { to: "/outbox", label: "결재함" },
   { to: "/system", label: "시스템" },
 ];
 

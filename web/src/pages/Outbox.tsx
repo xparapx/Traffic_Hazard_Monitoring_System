@@ -26,7 +26,7 @@ export default function Outbox() {
 
   return (
     <div>
-      <PageHeader port="ADMIN" path="/OUTBOX" title="검토 큐"
+      <PageHeader port="ADMIN" path="/OUTBOX" title="리포트 결재"
         right={<DummyBadge show={d.dummy || d.offline} />} />
 
       {d.items.length === 0 ? (
