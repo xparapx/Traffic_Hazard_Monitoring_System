@@ -461,10 +461,13 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     api = APIRouter(prefix="/api/admin")
     calib_mode = CalibMode()
     camera = SharedCamera(calib_mode)
+    from .autocollect import AutoCollector
     from .capture.session_rec import SessionRecorder, sessions_dir
     from .detect import roi as roi_mod
     camera.set_zones(roi_mod.load_zones(con))   # 재시작 후에도 구역 유지 (calib.zones_json)
     recorder = SessionRecorder(camera, fps=int(STREAM_PREVIEW_FPS))
+    collector = AutoCollector(con, calib_mode, recorder)
+    collector.start()   # daemon — 토글 OFF 면 유휴
 
     @app.get("/healthz")
     def healthz():
@@ -549,6 +552,15 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         if meta is None:
             raise HTTPException(409, "녹화 중이 아님")
         return {"ok": True} | meta
+
+    @api.get("/autocollect")
+    def autocollect_status():
+        return collector.status()
+
+    @api.post("/autocollect")
+    def autocollect_set(body: CalibModeIn):
+        collector.set_enabled(body.on)
+        return collector.status()
 
     @api.delete("/session/{name}")
     def session_delete(name: str):

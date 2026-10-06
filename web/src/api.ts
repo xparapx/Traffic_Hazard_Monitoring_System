@@ -154,6 +154,11 @@ export const api = {
   sessionStop: () => post(`${ADM_BASE}/api/admin/session/stop`, {}),
   sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
+  autocollect: () =>
+    get<{ enabled: boolean; labels_n: number; target: number; recording: string | null; windows: string[] }>(
+      `${ADM_BASE}/api/admin/autocollect`,
+      { enabled: false, labels_n: 0, target: 60, recording: null, windows: [] }),
+  setAutocollect: (on: boolean) => post(`${ADM_BASE}/api/admin/autocollect`, { on }),
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>
     post(`${ADM_BASE}/api/admin/outbox/${id}`, { action, by }),
 };

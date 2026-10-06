@@ -31,6 +31,7 @@ export default function Label() {
   const [playing, setPlaying] = useState<string | null>(null);
   const [usedVideo, setUsedVideo] = useState(false);
   const [recMin, setRecMin] = useState(5);
+  const [auto, setAuto] = useState<{ enabled: boolean; labels_n: number; target: number; windows: string[] } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const load = () => {
@@ -38,11 +39,15 @@ export default function Label() {
       setD(r); setIdx(0); setHazard(null); setTag(null); setMsg(""); setUsedVideo(false);
     });
     api.sessionList().then(setSess);
+    api.autocollect().then(setAuto);
   };
   useEffect(() => {
     load();
     const t = setInterval(() => setNow(Date.now()), 1000);
-    const t2 = setInterval(() => api.sessionList().then(setSess), 10000);
+    const t2 = setInterval(() => {
+      api.sessionList().then(setSess);
+      api.autocollect().then(setAuto);
+    }, 10000);
     return () => { clearInterval(t); clearInterval(t2); };
   }, []);
 
@@ -179,6 +184,17 @@ export default function Label() {
                 )}
               </div>
             ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-smoke/60 px-3 py-2">
+            <button onClick={async () => { await api.setAutocollect(!auto?.enabled); api.autocollect().then(setAuto); }}
+              className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold ${
+                auto?.enabled ? "bg-otan text-white" : "border border-smoke text-dim-dark"}`}>
+              자동 수집 {auto?.enabled ? "ON" : "OFF"}
+            </button>
+            <span className="text-[11px] text-dim-dark">
+              매일 {auto?.windows?.join(" · ") || "07:30-08:30 · 16:30-17:30"} 자동 녹화 ·
+              라벨 <b className="num text-white">{auto?.labels_n ?? 0}</b>/{auto?.target ?? 60}건 달성 시 자동 종료 (재가동 가능)
+            </span>
           </div>
           <div className="mt-2 text-[9.5px] text-dim-dark">
             수집은 GATE 0 동의 범위의 통제 세션만 · 5분 클립 자동 분할(등교 1시간 = 12클립) · 운영 파이프라인은 이 영상을 읽지 않음 · 라벨링 후 삭제 권장.
