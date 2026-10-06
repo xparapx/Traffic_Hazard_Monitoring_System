@@ -34,6 +34,9 @@ export type Fetched<T> = T & { offline: boolean };
 const loc = window.location;
 const PUB_BASE = loc.port === "8601" ? `${loc.protocol}//${loc.hostname}:8600` : "";
 export const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
+/** 관리 화면 노출 여부 — 관리 포트(:8601)와 개발 서버(:5173)에서만.
+ *  공개 포트(:8600)에는 관리 탭·라우트 자체가 없어야 한다 (데이터 통제는 테일넷 바인딩 몫). */
+export const IS_ADMIN_UI = loc.port === "8601" || loc.port === "5173";
 
 /** 수동 분석용 CSV 내려받기 대상 (관리 API /export/{name}.csv) */
 export const EXPORT_TABLES = [

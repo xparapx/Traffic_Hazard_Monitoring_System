@@ -1,4 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { IS_ADMIN_UI } from "./api";
 import Today from "./pages/Today";
 import Metrics from "./pages/Metrics";
 import Bench from "./pages/Bench";
@@ -27,7 +28,7 @@ export default function App() {
           </svg>
         </div>
         <nav className="flex flex-col gap-1 text-center">
-          {[...PUBLIC_NAV, ...ADMIN_NAV].map((n) => (
+          {[...PUBLIC_NAV, ...(IS_ADMIN_UI ? ADMIN_NAV : [])].map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -43,7 +44,7 @@ export default function App() {
 
       <div className="min-w-0 flex-1">
         <nav className="flex gap-3 overflow-x-auto bg-cobble px-4 py-3 md:hidden">
-          {[...PUBLIC_NAV, ...ADMIN_NAV].map((n) => (
+          {[...PUBLIC_NAV, ...(IS_ADMIN_UI ? ADMIN_NAV : [])].map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -63,10 +64,16 @@ export default function App() {
             <Route path="/profile" element={<Navigate to="/metrics" replace />} />
             <Route path="/speed" element={<Navigate to="/metrics" replace />} />
             <Route path="/dwell" element={<Navigate to="/metrics" replace />} />
-            <Route path="/bench" element={<Bench />} />
-            <Route path="/label" element={<Label />} />
-            <Route path="/outbox" element={<Outbox />} />
-            <Route path="/system" element={<SystemPage />} />
+            {IS_ADMIN_UI ? (
+              <>
+                <Route path="/bench" element={<Bench />} />
+                <Route path="/label" element={<Label />} />
+                <Route path="/outbox" element={<Outbox />} />
+                <Route path="/system" element={<SystemPage />} />
+              </>
+            ) : (
+              <Route path="*" element={<Navigate to="/" replace />} />
+            )}
           </Routes>
         </main>
       </div>
