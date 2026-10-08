@@ -5,9 +5,10 @@ import { DummyBadge, Empty, PageHeader } from "../components/ui";
 const WINDOW_S = 60;       // live 입력 카운트다운 — 기억 신선도 보증 (개요 절 6-02)
 const DWELL_CONFIRM_S = 20; // 이벤트 ts = 정차 20초 경과 '확정' 시각 — 실제 정차 시작은 ts-20s
 
-/** 이벤트 ts(UTC)를 포함하는 세션 찾기 */
+/** 정차 '구간 시작'(ts-20s, 재생은 -3s 부터)을 담은 세션 찾기 — 확정 시각(ts)이
+ *  다음 클립으로 넘어간 경우에도 시작 장면이 있는 클립을 고른다. */
 function findSession(sessions: SessionItem[], ts: string): SessionItem | null {
-  const t = Date.parse(ts);
+  const t = Date.parse(ts) - (DWELL_CONFIRM_S + 3) * 1000;
   for (const s of sessions) {
     if (s.status !== "ready") continue;
     const start = Date.parse(s.start_utc);
@@ -197,7 +198,7 @@ export default function Label() {
             </span>
           </div>
           <div className="mt-2 text-[9.5px] text-dim-dark">
-            수집은 GATE 0 동의 범위의 통제 세션만 · 5분 클립 자동 분할(등교 1시간 = 12클립) · 운영 파이프라인은 이 영상을 읽지 않음 · 라벨링 후 삭제 권장.
+            수집은 GATE 0 동의 범위의 통제 세션만 · 5분 클립 자동 분할 · 정차 이벤트가 없는 자동 수집 클립은 자동 삭제(로그) · 운영 파이프라인은 이 영상을 읽지 않음 · 라벨링 후 삭제 권장.
             클립을 직접 눌러 보는 것은 탐색용 — 라벨은 항상 오른쪽 카드의 이벤트에 등록됩니다.
           </div>
         </div>

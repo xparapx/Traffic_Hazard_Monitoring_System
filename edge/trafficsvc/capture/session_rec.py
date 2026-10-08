@@ -60,6 +60,7 @@ class SessionRecorder:
         self._deadline = 0.0            # 전체 녹화 창 마감
         self._clip_deadline = 0.0       # 현재 클립 마감 (CLIP_MINUTES)
         self._frames = 0
+        self._auto = False
         self._converting: set[str] = set()
 
     # ---- 상태 ----
@@ -101,12 +102,13 @@ class SessionRecorder:
         self._frames = 0
         return name
 
-    def start(self, minutes: int) -> str:
+    def start(self, minutes: int, auto: bool = False) -> str:
         minutes = max(1, min(MAX_MINUTES, minutes))
         with self._lock:
             if self._name:
                 raise RuntimeError("이미 녹화 중")
             self._camera.acquire()            # 카메라 열기 실패 시 여기서 raise
+            self._auto = auto                 # 자동 수집 표식 — 빈 클립 정리 대상 여부
             name = self._open_clip()
             self._deadline = time.monotonic() + minutes * 60
             self._camera.set_tap(self._on_jpg)
@@ -148,7 +150,7 @@ class SessionRecorder:
         fh.close()
         duration = round(time.monotonic() - self._started, 1)
         meta = {"start_utc": self._start_utc, "duration_s": duration,
-                "fps": self._fps, "frames": self._frames}
+                "fps": self._fps, "frames": self._frames, "auto": self._auto}
         (sessions_dir() / name).with_suffix(".json").write_text(
             json.dumps(meta, ensure_ascii=False), encoding="utf-8")
         self._converting.add(name)

@@ -590,12 +590,22 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
 
     @api.get("/label")
     def label_queue():
+        # 라벨의 본선은 영상 확인 — 세션 클립이 담고 있는 미라벨 이벤트는 '전부'
+        # 먼저(시각 오름차순), 영상 없는 이벤트는 최신 10건만 뒤에(live 직후 입력용).
+        # 최신 20건만 주던 구버전은 밤사이 이벤트가 등하교 창 이벤트를 밀어내는 결함.
+        from .autocollect import event_overlaps
         rows = _rows(con,
             "SELECT e.event_id, e.ts, e.zone, e.duration_s FROM events e"
             " LEFT JOIN labels l ON l.event_id = e.event_id"
-            " WHERE e.kind='dwell' AND l.id IS NULL ORDER BY e.ts DESC LIMIT 20")
+            " WHERE e.kind='dwell' AND l.id IS NULL ORDER BY e.ts DESC LIMIT 1000")
+        wins = [(s["start_utc"], s["duration_s"]) for s in recorder.list()
+                if s["status"] == "ready"]
+        covered = [r for r in rows if any(
+            event_overlaps(r["ts"], r["duration_s"], w0, wd) for w0, wd in wins)]
+        rest = [r for r in rows if r not in covered][:10]
+        pending = sorted(covered, key=lambda r: r["ts"]) + rest
         # 이미지는 없다 — 시각·구역·지속시간만 (개요 절 6-02 라벨 화면)
-        return _meta("label") | {"pending": rows, "tags": list(TAGS)}
+        return _meta("label") | {"pending": pending, "tags": list(TAGS)}
 
     @api.post("/label")
     def label_post(body: LabelIn):

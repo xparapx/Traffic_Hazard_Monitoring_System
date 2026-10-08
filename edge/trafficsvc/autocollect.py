@@ -21,6 +21,23 @@ KST = timezone(timedelta(hours=9))
 WINDOWS = ((7, 30, 8, 30), (16, 30, 17, 30))   # (시작h, 시작m, 끝h, 끝m) KST
 TARGET_LABELS = 60
 TICK_S = 30
+DWELL_CONFIRM_S = 20       # 이벤트 ts = 정차 20초 '확정' 시각 — 실제 시작은 ts-20s
+SEEK_MARGIN_S = 3          # 라벨 UI 가 시작 3초 전부터 재생 — 겹침 판정에도 포함
+PRUNE_GRACE_S = 120        # 클립 종료 후 지연 확정 이벤트를 기다리는 여유
+
+
+def event_overlaps(ev_ts: str, ev_dur, clip_start: str, clip_dur) -> bool:
+    """정차 '구간'(ts-23s ~ ts+지속)이 클립 창과 겹치는가 — 라벨 UI 의 시킹 규칙과
+    같은 정의. 라벨 큐의 영상 우선 정렬과 빈 클립 정리가 공유한다."""
+    try:
+        t = datetime.fromisoformat(ev_ts.replace("Z", "+00:00"))
+        c0 = datetime.fromisoformat(clip_start.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    ev0 = t - timedelta(seconds=DWELL_CONFIRM_S + SEEK_MARGIN_S)
+    ev1 = t + timedelta(seconds=float(ev_dur or 0))
+    c1 = c0 + timedelta(seconds=float(clip_dur or 0))
+    return ev0 < c1 and ev1 > c0
 
 
 def is_school_day(con, now_kst: datetime) -> bool:
@@ -86,9 +103,35 @@ class AutoCollector(threading.Thread):
                 log.error("autocollect tick 오류: %s", e)
             time.sleep(TICK_S)
 
+    def _prune_empty_clips(self) -> None:
+        """자동 수집 클립 중 정차 이벤트가 하나도 안 걸친 것을 삭제(로그) —
+        라벨링은 이벤트 기반이므로 빈 클립은 저장 가치가 없다(2026-10-09 사용자 결정).
+        사람이 수동 시작한 녹화(auto 플래그 없음)는 건드리지 않는다."""
+        now = datetime.now(timezone.utc)
+        for s in self._recorder.list():
+            if s["status"] != "ready" or not s.get("auto"):
+                continue
+            try:
+                start = datetime.fromisoformat(s["start_utc"])
+            except ValueError:
+                continue
+            end = start + timedelta(seconds=float(s["duration_s"] or 0))
+            if (now - end).total_seconds() < PRUNE_GRACE_S:
+                continue   # 클립 끝 직후 확정되는 이벤트 대기
+            rows = self._con.execute(
+                "SELECT ts, duration_s FROM events WHERE kind='dwell' AND ts BETWEEN ? AND ?",
+                ((start - timedelta(hours=1)).isoformat(timespec="seconds"),
+                 (end + timedelta(minutes=1)).isoformat(timespec="seconds"))).fetchall()
+            if any(event_overlaps(ts, dur, s["start_utc"], s["duration_s"])
+                   for ts, dur in rows):
+                continue
+            if self._recorder.delete(s["name"]):
+                log.warning("빈 클립 자동 정리: %s (정차 이벤트 0건)", s["name"])
+
     def _tick(self) -> None:
         if not self._enabled:
             return
+        self._prune_empty_clips()
         if self.labels_n() >= TARGET_LABELS:
             self.set_enabled(False, f"목표 {TARGET_LABELS}건 달성 — 자동 종료")
             return
@@ -106,7 +149,7 @@ class AutoCollector(threading.Thread):
         try:
             # 이중 잠금의 상시 동의 버전: 사람이 켠 토글 아래, 창 길이만큼만 모드 연장(로그)
             self._mode.extend(remaining_min * 60 + 120)
-            name = self._recorder.start(remaining_min)
+            name = self._recorder.start(remaining_min, auto=True)
             log.warning("자동 수집 시작: %s (창 종료 %s 까지 %d분)",
                         name, end.strftime("%H:%M"), remaining_min)
         except Exception as e:
