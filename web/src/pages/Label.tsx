@@ -35,9 +35,12 @@ export default function Label() {
   const [auto, setAuto] = useState<{ enabled: boolean; labels_n: number; target: number; windows: string[] } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const load = () => {
+  const load = (keepIdx = false) => {
     api.label().then((r) => {
-      setD(r); setIdx(0); setHazard(null); setTag(null); setMsg(""); setUsedVideo(false);
+      // 저장 직후에는 위치 유지 — 라벨한 이벤트가 큐에서 빠지므로 같은 자리가
+      // 곧 '다음 이벤트'다 (1번으로 튕겨 몇 번째였는지 잊는 문제 방지)
+      setD(r); if (!keepIdx) setIdx(0);
+      setHazard(null); setTag(null); setMsg(""); setUsedVideo(false);
     });
     api.sessionList().then(setSess);
     api.autocollect().then(setAuto);
@@ -102,7 +105,7 @@ export default function Label() {
       note: !usedVideo && late ? "late" : null,
     });
     setMsg(ok ? "저장됨" : "저장 실패 — 백엔드 연결 확인");
-    if (ok) load();
+    if (ok) load(true);
   }
 
   async function toggleRecord() {
@@ -145,7 +148,24 @@ export default function Label() {
 
           {playing ? (
             <video ref={videoRef} controls src={api.sessionVideoUrl(playing)}
-              className="w-full rounded-[10px] bg-black" />
+              className="w-full rounded-[10px] bg-black"
+              onEnded={() => {
+                // 정차 구간이 이 클립 끝을 넘어 이어지면 다음 클립 자동 재생
+                // (5분 클립은 연속 녹화 — 경계에 걸친 이벤트의 '구간 전체' 판단용)
+                const s = sess.sessions.find((x) => x.name === playing);
+                if (!ev || !s || !usedVideo) return;
+                const clipEnd = Date.parse(s.start_utc) + s.duration_s * 1000;
+                const evEnd = Date.parse(ev.ts) + (ev.duration_s ?? 0) * 1000;
+                if (evEnd <= clipEnd) return;
+                const next = sess.sessions
+                  .filter((x) => x.status === "ready" &&
+                    Math.abs(Date.parse(x.start_utc) - clipEnd) < 15000)
+                  .sort((a, b) => a.start_utc.localeCompare(b.start_utc))[0];
+                if (next) {
+                  setPlaying(next.name);
+                  setTimeout(() => videoRef.current?.play().catch(() => {}), 200);
+                }
+              }} />
           ) : (
             <div className="grid place-items-center rounded-[10px] bg-smoke py-14 text-[12px] text-dim-dark">
               {sess.sessions.length
