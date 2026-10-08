@@ -30,6 +30,7 @@ export default function Label() {
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
   const [playing, setPlaying] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
   const [usedVideo, setUsedVideo] = useState(false);
   const [recMin, setRecMin] = useState(5);
   const [auto, setAuto] = useState<{ enabled: boolean; labels_n: number; target: number; windows: string[] } | null>(null);
@@ -68,13 +69,22 @@ export default function Label() {
   }, [d, sess.sessions]);
   const coveredN = queue.filter((q) => q.session).length;
 
-  if (!d) return null;
-
   const cur = queue[Math.min(idx, Math.max(0, queue.length - 1))];
   const ev = cur?.ev;
   const evSession = cur?.session ?? null;
   // 정차 구간: 시작(ts-20s) ~ 시작+지속. 영상은 시작 3초 전부터 본다.
   const stopStartMs = ev ? Date.parse(ev.ts) - DWELL_CONFIRM_S * 1000 : 0;
+
+  // 이벤트가 바뀌면(저장·이전/다음 포함) 해당 정차 구간을 자동 재생 —
+  // "영상 보기를 안 누르고 이전 영상인 줄 알고 라벨" 하는 오류 방지.
+  // 영상 없는 이벤트로 넘어가면 이전 클립 재생을 멈춰 혼동을 차단한다.
+  useEffect(() => {
+    if (ev && evSession) seekToEvent();
+    else setPlaying(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ev?.event_id, evSession?.name]);
+
+  if (!d) return null;
   const confirmedAt = ev ? Date.parse(ev.ts) + (ev.duration_s ?? 0) * 1000 : 0;
   const elapsed = ev ? Math.max(0, (now - confirmedAt) / 1000) : 0;
   const remain = Math.max(0, Math.round(WINDOW_S - elapsed));
@@ -147,8 +157,11 @@ export default function Label() {
           </div>
 
           {playing ? (
-            <video ref={videoRef} controls src={api.sessionVideoUrl(playing)}
+            <video ref={videoRef} controls muted playsInline
+              src={api.sessionVideoUrl(playing)}
               className="w-full rounded-[10px] bg-black"
+              onPlay={() => setPaused(false)}
+              onPause={() => setPaused(true)}
               onEnded={() => {
                 // 정차 구간이 이 클립 끝을 넘어 이어지면 다음 클립 자동 재생
                 // (5분 클립은 연속 녹화 — 경계에 걸친 이벤트의 '구간 전체' 판단용)
@@ -169,7 +182,7 @@ export default function Label() {
           ) : (
             <div className="grid place-items-center rounded-[10px] bg-smoke py-14 text-[12px] text-dim-dark">
               {sess.sessions.length
-                ? "오른쪽 이벤트 카드의 '정차 구간 영상 보기'를 누르면 해당 순간이 재생됩니다"
+                ? "오른쪽 카드의 이벤트에 영상이 있으면 정차 구간이 여기서 자동 재생됩니다 (지금 이벤트는 영상 없음)"
                 : "세션이 없습니다 — 캘리브레이션 모드를 켜고 녹화를 시작하세요"}
             </div>
           )}
@@ -232,10 +245,10 @@ export default function Label() {
               <span className="text-[16px] font-bold">이 정차, 위험했나요?</span>
               <span className="flex items-center gap-1 text-[11px] text-dim-dark">
                 <button onClick={() => gotoEvent(idx - 1)} disabled={idx === 0}
-                  className="rounded border border-smoke px-2 py-0.5 disabled:opacity-40">이전</button>
+                  className="rounded border border-smoke px-2 py-0.5 transition active:scale-90 active:bg-otan active:text-white disabled:opacity-40">이전</button>
                 <span className="num px-1">{idx + 1}/{queue.length}</span>
                 <button onClick={() => gotoEvent(idx + 1)} disabled={idx >= queue.length - 1}
-                  className="rounded border border-smoke px-2 py-0.5 disabled:opacity-40">다음</button>
+                  className="rounded border border-smoke px-2 py-0.5 transition active:scale-90 active:bg-otan active:text-white disabled:opacity-40">다음</button>
               </span>
             </div>
             <div className="mt-1 text-[10.5px] text-dim-dark">
@@ -255,9 +268,17 @@ export default function Label() {
               <div className="text-[10px] text-dim">위험 여부는 순간이 아니라 이 구간 전체를 보고 판단합니다</div>
               <div className="mt-2 border-t border-dashed border-line pt-2">
                 {evSession ? (
-                  <button onClick={seekToEvent}
-                    className="w-full rounded-lg bg-otan py-2 text-[13px] font-bold text-white">
-                    ▶ 정차 구간 영상 보기 (시작 3초 전부터)
+                  <button onClick={() => {
+                    const v = videoRef.current;
+                    if (playing !== evSession.name || !v) { seekToEvent(); return; }
+                    if (v.paused) v.play().catch(() => {}); else v.pause();
+                  }}
+                    className={`w-full rounded-lg py-2 text-[13px] font-bold text-white
+                      transition-transform active:scale-[0.96] ${
+                      playing === evSession.name && !paused ? "bg-cobble border border-otan" : "bg-otan"}`}>
+                    {playing !== evSession.name
+                      ? "▶ 정차 구간 다시 보기 (시작 3초 전부터)"
+                      : paused ? "▶ 재생 (일시 정지됨)" : "⏸ 일시 정지 — 자동 재생 중"}
                   </button>
                 ) : (
                   <span className="text-[10px] text-dim">
