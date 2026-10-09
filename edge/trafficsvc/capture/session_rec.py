@@ -31,14 +31,16 @@ def sessions_dir() -> Path:
 
 
 def _gst_convert(mjpeg: Path, mp4: Path, frames: int, duration_s: float) -> bool:
-    # 입력 프레임레이트를 '실측'(프레임 수/실측 시간)으로 명시 — 미명시 시 1fps 로
-    # 해석되어 5분 클립이 41분 슬로모션·10배 비대 mp4 가 되는 버그(orin 실측 2026-10-09).
-    # 분수 그대로(예: 2496/300) 넘겨 재생 시간 = 실제 시간이 되게 한다.
+    # 타임스탬프 없는 mjpeg 를 jpegparse 가 1fps 로 해석 → 5분 클립이 41분 슬로모션·
+    # 10배 비대 mp4 가 되던 버그(orin 실측 2026-10-09). 입력 caps 의 framerate 는
+    # 무시되므로(실측) videorate 의 rate 속성으로 타임스탬프를 실측 fps(프레임수/
+    # 실측시간)만큼 압축해 재생 시간 = 실제 시간이 되게 한다(합성 50프레임→10.0s 검증).
     num, den = max(1, frames), max(1, int(round(duration_s)))
+    rate = num / den
     cmd = ["gst-launch-1.0", "-q",
-           "filesrc", f"location={mjpeg}", "!",
-           f"image/jpeg,framerate={num}/{den}", "!", "jpegparse", "!", "jpegdec", "!",
-           "videoconvert", "!", "videorate", "!", f"video/x-raw,framerate={num}/{den}", "!",
+           "filesrc", f"location={mjpeg}", "!", "jpegparse", "!", "jpegdec", "!",
+           "videoconvert", "!", "videorate", f"rate={rate:.4f}", "!",
+           f"video/x-raw,framerate={num}/{den}", "!",
            # bitrate(kbps) 제한 — 미지정 시 1분 117MB 실측(orin). 2500k ≈ 19MB/분
            "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30", "!",
            "h264parse", "!", "mp4mux", "faststart=true", "!",
