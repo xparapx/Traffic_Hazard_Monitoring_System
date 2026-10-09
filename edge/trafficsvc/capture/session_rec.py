@@ -30,10 +30,15 @@ def sessions_dir() -> Path:
     return d
 
 
-def _gst_convert(mjpeg: Path, mp4: Path, fps: int) -> bool:
+def _gst_convert(mjpeg: Path, mp4: Path, frames: int, duration_s: float) -> bool:
+    # 입력 프레임레이트를 '실측'(프레임 수/실측 시간)으로 명시 — 미명시 시 1fps 로
+    # 해석되어 5분 클립이 41분 슬로모션·10배 비대 mp4 가 되는 버그(orin 실측 2026-10-09).
+    # 분수 그대로(예: 2496/300) 넘겨 재생 시간 = 실제 시간이 되게 한다.
+    num, den = max(1, frames), max(1, int(round(duration_s)))
     cmd = ["gst-launch-1.0", "-q",
-           "filesrc", f"location={mjpeg}", "!", "jpegparse", "!", "jpegdec", "!",
-           "videoconvert", "!", "videorate", "!", f"video/x-raw,framerate={fps}/1", "!",
+           "filesrc", f"location={mjpeg}", "!",
+           f"image/jpeg,framerate={num}/{den}", "!", "jpegparse", "!", "jpegdec", "!",
+           "videoconvert", "!", "videorate", "!", f"video/x-raw,framerate={num}/{den}", "!",
            # bitrate(kbps) 제한 — 미지정 시 1분 117MB 실측(orin). 2500k ≈ 19MB/분
            "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30", "!",
            "h264parse", "!", "mp4mux", "faststart=true", "!",
@@ -170,7 +175,9 @@ class SessionRecorder:
 
     def _convert(self, name: str) -> None:
         base = sessions_dir() / name
-        ok = _gst_convert(base.with_suffix(".mjpeg"), base.with_suffix(".mp4"), self._fps)
+        meta = json.loads(base.with_suffix(".json").read_text(encoding="utf-8"))
+        ok = _gst_convert(base.with_suffix(".mjpeg"), base.with_suffix(".mp4"),
+                          meta["frames"], meta["duration_s"])
         if ok:
             base.with_suffix(".mjpeg").unlink(missing_ok=True)
             log.warning("세션 변환 완료: %s.mp4 (임시 mjpeg 삭제)", name)

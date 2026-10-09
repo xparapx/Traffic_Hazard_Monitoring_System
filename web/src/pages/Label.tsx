@@ -95,15 +95,30 @@ export default function Label() {
     setHazard(null); setTag(null); setUsedVideo(false); setMsg("");
   }
 
+  // 실제 경과 초 → 영상 초 변환: 변환 fps 가 어긋난 구버전 클립(41분 슬로모션)도
+  // 영상 길이/실측 길이 비율로 보정해 올바른 순간으로 시킹된다.
+  function toVideoTime(realS: number, s: SessionItem, v: HTMLVideoElement) {
+    const scale = Number.isFinite(v.duration) && s.duration_s > 0
+      ? v.duration / s.duration_s : 1;
+    return realS * scale;
+  }
+
   function seekToEvent() {
     if (!ev || !evSession) return;
-    setPlaying(evSession.name);
+    const target = evSession;
+    setPlaying(target.name);
     setUsedVideo(true);
-    const offset = Math.max(0, (stopStartMs - Date.parse(evSession.start_utc)) / 1000 - 3);
-    setTimeout(() => {
+    const offset = Math.max(0, (stopStartMs - Date.parse(target.start_utc)) / 1000 - 3);
+    const trySeek = (left: number) => {
       const v = videoRef.current;
-      if (v) { v.currentTime = offset; v.play().catch(() => {}); }
-    }, 150);
+      if (v && Number.isFinite(v.duration) && v.duration > 0) {
+        v.currentTime = toVideoTime(offset, target, v);
+        v.play().catch(() => {});
+      } else if (left > 0) {
+        setTimeout(() => trySeek(left - 1), 200);   // 메타데이터 로드 대기
+      }
+    };
+    setTimeout(() => trySeek(25), 150);
   }
 
   async function save() {
