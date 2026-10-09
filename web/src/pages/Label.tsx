@@ -113,6 +113,9 @@ export default function Label() {
       const v = videoRef.current;
       if (v && Number.isFinite(v.duration) && v.duration > 0) {
         v.currentTime = toVideoTime(offset, target, v);
+        // 변환 fps 가 어긋난 구버전 슬로모션 클립은 배속으로 실시간 재생
+        const scale = target.duration_s > 0 ? v.duration / target.duration_s : 1;
+        v.playbackRate = scale > 1.5 ? Math.min(16, scale) : 1;
         v.play().catch(() => {});
       } else if (left > 0) {
         setTimeout(() => trySeek(left - 1), 200);   // 메타데이터 로드 대기
