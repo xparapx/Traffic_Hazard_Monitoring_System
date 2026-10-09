@@ -6,7 +6,9 @@ import random
 from dataclasses import dataclass
 from typing import Protocol
 
-TAGS = ("boarding", "waiting", "delivery", "other")  # 고정 선택지 4개 + unknown
+# 고정 선택지 + unknown. parking(주차)은 2026-10-09 추가 — 대기(운전자 탑승·일시)와
+# 주차(이탈·방치)는 위험 지속·개입 방법이 달라 별도 선택지여야 한다(사용자 결정).
+TAGS = ("boarding", "waiting", "parking", "delivery", "other")
 UNKNOWN = "unknown"
 
 

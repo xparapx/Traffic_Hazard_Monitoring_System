@@ -124,7 +124,7 @@ export const api = {
     }),
   label: () =>
     get<LabelData>(`${ADM_BASE}/api/admin/label`, {
-      dummy: true, tags: ["boarding", "waiting", "delivery", "other"],
+      dummy: true, tags: ["boarding", "waiting", "parking", "delivery", "other"],
       pending: [{ event_id: "mock-1", ts: "2026-09-15T08:21:14", zone: "no_stop", duration_s: 27 }],
     }),
   outbox: () => get<OutboxData>(`${ADM_BASE}/api/admin/outbox`, { dummy: true, items: [] }),
@@ -181,5 +181,6 @@ export function kst(ts: string): string {
 }
 
 export const TAG_KO: Record<string, string> = {
-  boarding: "승하차", waiting: "대기", delivery: "배송", other: "기타",
+  boarding: "승하차", waiting: "대기 (운전자 탑승)", parking: "주차 (이탈·방치)",
+  delivery: "배송", other: "기타",
 };

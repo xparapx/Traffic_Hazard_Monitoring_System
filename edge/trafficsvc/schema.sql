@@ -84,7 +84,7 @@ CREATE TABLE inferences(
 CREATE TABLE labels(
   id INTEGER PRIMARY KEY, event_id TEXT NOT NULL, ts TEXT NOT NULL,
   hazard INTEGER NOT NULL,             -- 1 = 실제 위험 정차 · 0 = 정상
-  tag TEXT,                            -- boarding | waiting | delivery | other
+  tag TEXT,                            -- boarding | waiting | parking | delivery | other
   labeler TEXT NOT NULL, source TEXT NOT NULL,   -- live | session
   note TEXT);
 

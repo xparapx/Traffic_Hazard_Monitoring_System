@@ -431,7 +431,7 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
 class LabelIn(BaseModel):
     event_id: str
     hazard: int = Field(ge=0, le=1)
-    tag: Literal["boarding", "waiting", "delivery", "other"] | None = None
+    tag: Literal["boarding", "waiting", "parking", "delivery", "other"] | None = None
     labeler: str
     source: Literal["live", "session"] = "live"
     note: str | None = None
