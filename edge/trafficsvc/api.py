@@ -235,7 +235,10 @@ class SharedCamera:
                     small = cv2.resize(frame, (PREVIEW_W, round(h * PREVIEW_W / w)))
                 else:
                     small = frame.copy()
-                if self._overlay_n > 0:
+                # 세션 녹화(tap) 중에는 시청자가 없어도 탐지 박스를 굽는다 — 라벨링 때
+                # "어떤 객체의 정차인지" 보이게. (과거 클립에 박스가 있던 건 수동 녹화
+                # 중 오버레이 프리뷰를 보고 있던 부수효과 — 이제 녹화 자체가 보장)
+                if self._overlay_n > 0 or self._tap is not None:
                     small = overlay.draw(small, kept, rl.status, self.roi, excl,
                                          self.zones.get("no_stop", []))
                 ok, buf = cv2.imencode(".jpg", small,
