@@ -7,6 +7,13 @@ on:
     branches: [main]
   pull_request:
 
+# 연속 push 시 release 잡이 동시에 돌면 latest 삭제/생성이 겹쳐 draft 로 끼는
+# 경합(2026-10-12 실측 — orin 404 로 수거 불가). ref 단위로 직렬화하고, 이전 실행은
+# 취소해 마지막 커밋만 릴리스되게 한다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   python:
     runs-on: ubuntu-latest
