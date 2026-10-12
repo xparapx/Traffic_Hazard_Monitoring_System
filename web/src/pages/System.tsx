@@ -6,7 +6,6 @@ export default function SystemPage() {
   const [d, setD] = useState<Fetched<SystemData> | null>(null);
   const [calib, setCalib] = useState<Fetched<CalibData> | null>(null);
   const [streamErr, setStreamErr] = useState(false);
-  const [detect, setDetect] = useState(false);
   const [roiEdit, setRoiEdit] = useState(false);
   const [roiPts, setRoiPts] = useState<[number, number][]>([]);
   const [zoneSel, setZoneSel] = useState<"roi" | "no_stop">("roi");
@@ -93,7 +92,8 @@ export default function SystemPage() {
             ) : (
               <div className="overflow-hidden rounded-[10px] bg-cobble">
                 <div className="relative mx-auto w-fit">
-                  <img key={detect ? "det" : "raw"} src={api.streamUrl(detect)}
+                  {/* 탐지 오버레이 상시 활성 — 프리뷰의 목적이 탐지 상태 확인이므로 토글 없음 */}
+                  <img src={api.streamUrl(true)}
                     alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
                     className={`mx-auto max-h-[420px] w-auto ${roiEdit ? "cursor-crosshair" : ""}`}
                     onError={() => setStreamErr(true)}
@@ -136,11 +136,7 @@ export default function SystemPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-[12.5px] text-dim-dark">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" checked={detect}
-                      onChange={(e) => setDetect(e.target.checked)} />
-                    탐지 오버레이 (YOLO · 박스·지연 — 화면 표시용, 저장 없음)
-                  </label>
+                  <span>탐지 오버레이 상시 표시 (YOLO · 박스·지연 — 화면 표시용, 저장 없음)</span>
                   {roiEdit ? (
                     <span className="flex items-center gap-2">
                       <b className={zoneSel === "no_stop" ? "text-gravy" : "text-otan"}>
