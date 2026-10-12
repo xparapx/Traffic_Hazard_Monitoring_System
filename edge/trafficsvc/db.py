@@ -37,6 +37,13 @@ MIGRATIONS = [
 ]
 
 
+def _ensure_column(con: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    """ALTER ADD COLUMN 은 멱등이 아니므로 존재 검사 후 추가."""
+    cols = {r[1] for r in con.execute(f"PRAGMA table_info({table})").fetchall()}
+    if col not in cols:
+        con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+
+
 def init_db(con: sqlite3.Connection) -> None:
     """스키마가 없으면 생성, 있으면 멱등 마이그레이션만 적용."""
     has = con.execute(
@@ -46,15 +53,18 @@ def init_db(con: sqlite3.Connection) -> None:
         con.executescript(SCHEMA.read_text(encoding="utf-8"))
     for sql in MIGRATIONS:
         con.execute(sql)
+    _ensure_column(con, "events", "track_id", "INTEGER")   # 라벨 영상 차량 강조용
     con.commit()
 
 
 def insert_event(con, *, ts, kind, zone, duration_s=None, speed_kmh=None,
-                 dist_m=None, track_cls=None, event_id=None, calib_ver=None) -> int:
+                 dist_m=None, track_cls=None, event_id=None, calib_ver=None,
+                 track_id=None) -> int:
     cur = con.execute(
-        "INSERT INTO events(ts,kind,zone,duration_s,speed_kmh,dist_m,track_cls,event_id,calib_ver)"
-        " VALUES(?,?,?,?,?,?,?,?,?)",
-        (ts, kind, zone, duration_s, speed_kmh, dist_m, track_cls, event_id, calib_ver))
+        "INSERT INTO events(ts,kind,zone,duration_s,speed_kmh,dist_m,track_cls,event_id,"
+        "calib_ver,track_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        (ts, kind, zone, duration_s, speed_kmh, dist_m, track_cls, event_id, calib_ver,
+         track_id))
     con.commit()
     return cur.lastrowid
 

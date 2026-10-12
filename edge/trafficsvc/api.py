@@ -202,10 +202,10 @@ class SharedCamera:
             if self._clients <= 0:
                 self._idle_since = time.monotonic()   # 리더는 IDLE_S 후 스스로 닫는다
 
-    def _emit(self, jpg: bytes) -> None:
+    def _emit(self, jpg: bytes, tracks: list | None = None) -> None:
         tap = self._tap
         if tap is not None:
-            tap(jpg)                   # 세션 녹화 — append 만 하므로 지연 미미
+            tap(jpg, tracks)           # 세션 녹화 — append 만 하므로 지연 미미
         with self._cond:
             self._latest = jpg
             self._seq += 1
@@ -229,7 +229,7 @@ class SharedCamera:
                 item = rl.wait_frame(last_seq, timeout=2.0)
                 if item is None:
                     continue
-                last_seq, ts, frame, kept, excl = item
+                last_seq, ts, frame, kept, excl, tracks = item
                 h, w = frame.shape[:2]
                 if w > PREVIEW_W:
                     small = cv2.resize(frame, (PREVIEW_W, round(h * PREVIEW_W / w)))
@@ -244,7 +244,7 @@ class SharedCamera:
                 ok, buf = cv2.imencode(".jpg", small,
                                        [cv2.IMWRITE_JPEG_QUALITY, PREVIEW_JPEG_Q])
                 if ok:
-                    self._emit(buf.tobytes())
+                    self._emit(buf.tobytes(), tracks)
         except Exception as e:
             log.warning("preview pump(realloop) 종료: %s", e)
         finally:
@@ -598,7 +598,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # 최신 20건만 주던 구버전은 밤사이 이벤트가 등하교 창 이벤트를 밀어내는 결함.
         from .autocollect import event_overlaps
         rows = _rows(con,
-            "SELECT e.event_id, e.ts, e.zone, e.duration_s FROM events e"
+            "SELECT e.event_id, e.ts, e.zone, e.duration_s, e.track_id FROM events e"
             " LEFT JOIN labels l ON l.event_id = e.event_id"
             " WHERE e.kind='dwell' AND l.id IS NULL ORDER BY e.ts DESC LIMIT 1000")
         wins = [(s["start_utc"], s["duration_s"]) for s in recorder.list()

@@ -112,3 +112,7 @@ CREATE VIEW traffic_monitoring_events AS
 CREATE INDEX ix_inf_event ON inferences(event_id);
 CREATE INDEX ix_lab_event ON labels(event_id);
 CREATE INDEX ix_evt_eid ON events(event_id);
+
+-- 라벨 화면에서 "그 정차의 차량"을 영상 위에 강조하기 위한 추적 연결 (2026-10-12)
+-- 기존 DB 는 db.py 의 _ensure_column 멱등 마이그레이션이 같은 컬럼을 추가한다.
+ALTER TABLE events ADD COLUMN track_id INTEGER;

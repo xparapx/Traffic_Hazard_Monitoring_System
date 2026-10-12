@@ -26,6 +26,8 @@ export default function Label() {
     try { return localStorage.getItem("labeler") ?? ""; } catch { return ""; }
   });
   const [now, setNow] = useState(Date.now());
+  const [boxes, setBoxes] = useState<number[][][] | null>(null);  // 클립 사이드카 (프레임별 track 박스)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [msg, setMsg] = useState("");
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
@@ -72,6 +74,57 @@ export default function Label() {
   const cur = queue[Math.min(idx, Math.max(0, queue.length - 1))];
   const ev = cur?.ev;
   const evSession = cur?.session ?? null;
+
+  // 클립의 track 박스 사이드카 로드 — 구 클립은 파일이 없다(404 → 강조 생략)
+  useEffect(() => {
+    setBoxes(null);
+    if (!playing) return;
+    let gone = false;
+    fetch(api.sessionBoxesUrl(playing))
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
+      .then((txt) => {
+        if (gone) return;
+        const rows = txt.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+        setBoxes(rows);
+      })
+      .catch(() => { if (!gone) setBoxes(null); });
+    return () => { gone = true; };
+  }, [playing]);
+
+  // 이벤트 차량 강조 — 사이드카의 i번째 프레임(i = currentTime/duration × frames)에서
+  // 이 이벤트의 track_id 박스만 빨간 테두리로 비디오 위 캔버스에 그린다.
+  useEffect(() => {
+    const v = videoRef.current, c = canvasRef.current;
+    const tid = ev?.track_id;
+    if (!playing || !v || !c || !boxes?.length || tid == null) {
+      c?.getContext("2d")?.clearRect(0, 0, c?.width ?? 0, c?.height ?? 0);
+      return;
+    }
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      if (!Number.isFinite(v.duration) || v.duration <= 0) return;
+      if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
+        c.width = v.videoWidth; c.height = v.videoHeight;
+      }
+      const g = c.getContext("2d");
+      if (!g) return;
+      g.clearRect(0, 0, c.width, c.height);
+      const i = Math.min(boxes.length - 1,
+        Math.max(0, Math.floor((v.currentTime / v.duration) * boxes.length)));
+      const hit = boxes[i]?.find((t) => t[0] === tid);
+      if (!hit) return;
+      const [, , x1, y1, x2, y2] = hit as unknown as [number, string, number, number, number, number];
+      const w = (x2 - x1) * c.width, h = (y2 - y1) * c.height;
+      g.strokeStyle = "#e65050"; g.lineWidth = Math.max(3, c.width / 300);
+      g.strokeRect(x1 * c.width, y1 * c.height, w, h);
+      g.fillStyle = "#e65050";
+      g.font = `bold ${Math.max(14, c.width / 60)}px sans-serif`;
+      g.fillText("이 차량", x1 * c.width, Math.max(16, y1 * c.height - 6));
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, boxes, ev?.track_id]);
   // 정차 구간: 시작(ts-20s) ~ 시작+지속. 영상은 시작 3초 전부터 본다.
   const stopStartMs = ev ? Date.parse(ev.ts) - DWELL_CONFIRM_S * 1000 : 0;
 
@@ -175,6 +228,7 @@ export default function Label() {
           </div>
 
           {playing ? (
+            <div className="relative">
             <video ref={videoRef} controls muted playsInline
               src={api.sessionVideoUrl(playing)}
               className="w-full rounded-[10px] bg-black"
@@ -197,6 +251,10 @@ export default function Label() {
                   setTimeout(() => videoRef.current?.play().catch(() => {}), 200);
                 }
               }} />
+            {/* 이벤트 차량 강조 — 사이드카 track 박스를 비디오 위에 그림 (저장 없음) */}
+            <canvas ref={canvasRef}
+              className="pointer-events-none absolute inset-0 size-full" />
+            </div>
           ) : (
             <div className="grid place-items-center rounded-[10px] bg-smoke py-14 text-[12px] text-dim-dark">
               {sess.sessions.length

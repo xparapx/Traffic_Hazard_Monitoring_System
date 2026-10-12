@@ -140,15 +140,16 @@ class RealLoop:
 
     # ---- 프리뷰 공유 (SharedCamera 가 소비) ----
     def wait_frame(self, last_seq: int, timeout: float = 5.0):
-        """last_seq 이후의 새 프레임을 기다렸다가 (seq, ts, frame, kept, excl) 반환."""
+        """last_seq 이후의 새 프레임을 기다렸다가 (seq, ts, frame, kept, excl, tracks) 반환.
+        tracks = [(track_id, cls, x1, y1, x2, y2), ...] — 녹화 사이드카·강조용."""
         with self._cond:
             if not self._cond.wait_for(
                     lambda: self._seq != last_seq or self._stop, timeout=timeout):
                 return None
             if self._frame is None:
                 return None
-            ts, frame, kept, excl = self._frame
-            return (self._seq, ts, frame, kept, excl)
+            ts, frame, kept, excl, tracks = self._frame
+            return (self._seq, ts, frame, kept, excl, tracks)
 
     # ---- 판정 콜백 → DB ----
     def _on_count(self, cls: str) -> None:
@@ -157,7 +158,8 @@ class RealLoop:
     def _on_dwell_start(self, tr: Track, zone: str, dur: float) -> str:
         event_id = str(uuid.uuid4())
         db.insert_event(self.con, ts=db.utcnow(), kind="dwell", zone=zone,
-                        duration_s=dur, track_cls=tr.cls, event_id=event_id)
+                        duration_s=dur, track_cls=tr.cls, event_id=event_id,
+                        track_id=tr.track_id)
         db.insert_inference(
             self.con, event_id=event_id, ts=db.utcnow(), model_type="YOLO_ONLY",
             risk_level="DANGER" if zone == "no_stop" else "WARNING",
@@ -239,8 +241,10 @@ class RealLoop:
                     n_tracks = len(self.pipeline.tracker.confirmed())
                     self.status = (f"{self.model_ver} · {len(kept)} det"
                                    f" · {n_tracks} trk · 버킷 {sum(self._counts.values())}")
+                    tracks = [(tr.track_id, tr.cls, *tr.box)
+                              for tr in self.pipeline.tracker.confirmed()]
                     with self._cond:
-                        self._frame = (ts, frame, kept, excl)
+                        self._frame = (ts, frame, kept, excl, tracks)
                         self._seq += 1
                         self._cond.notify_all()
             except Exception as e:

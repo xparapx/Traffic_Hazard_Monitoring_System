@@ -6,7 +6,10 @@ export interface QcRow { bucket_utc: string; fps_med: number | null; qc: number 
 export interface AnalysisRow { date: string; kind: string; payload: string }
 export interface SpeedRow { bucket_utc: string; speed_p85: number | null; speed_med: number | null }
 export interface DwellEvent { ts: string; zone: string | null; duration_s: number | null; risk_level: string | null }
-export interface PendingEvent { event_id: string; ts: string; zone: string | null; duration_s: number | null }
+export interface PendingEvent {
+  event_id: string; ts: string; zone: string | null; duration_s: number | null;
+  track_id?: number | null;   // 영상 강조용 — 구 이벤트는 null
+}
 export interface InferenceSummary { model_type: string; n: number; lat_avg: number | null }
 export interface OutboxItem {
   id: number; created: string; kind: string; body: string; status: string;
@@ -57,6 +60,7 @@ async function get<T>(url: string, mock: T): Promise<Fetched<T>> {
 export interface SessionItem {
   name: string; status: "recording" | "converting" | "ready" | "failed";
   start_utc: string; duration_s: number; fps: number; size_mb: number;
+  frames?: number;
 }
 
 export async function del(url: string): Promise<boolean> {
@@ -157,6 +161,8 @@ export const api = {
   sessionStop: () => post(`${ADM_BASE}/api/admin/session/stop`, {}),
   sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
+  // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)
+  sessionBoxesUrl: (name: string) => `${ADM_BASE}/session-video/${name}.boxes.jsonl`,
   autocollect: () =>
     get<{ enabled: boolean; labels_n: number; target: number; recording: string | null; windows: string[] }>(
       `${ADM_BASE}/api/admin/autocollect`,

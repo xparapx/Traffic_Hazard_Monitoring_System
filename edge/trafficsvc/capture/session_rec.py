@@ -61,6 +61,7 @@ class SessionRecorder:
         self._fps = fps
         self._lock = threading.Lock()
         self._fh = None
+        self._mfh = None                # .boxes.jsonl — 프레임별 track 박스 사이드카
         self._name: str | None = None
         self._started = 0.0             # monotonic — 현재 클립 시작
         self._start_utc = ""
@@ -102,6 +103,10 @@ class SessionRecorder:
         """새 클립 파일 열기 — 호출자는 _lock 보유."""
         name = datetime.now(timezone.utc).strftime("session_%Y%m%dT%H%M%SZ")
         self._fh = (sessions_dir() / f"{name}.mjpeg").open("wb")
+        # 프레임별 track 박스 사이드카 — 라벨 화면이 이벤트 track_id 를 강조할 때 사용.
+        # 좌표·id 만 담는 텍스트라 프라이버시 조항(이미지 금지)과 무관.
+        self._mfh = (sessions_dir() / f"{name}.boxes.jsonl").open(
+            "w", encoding="utf-8")
         self._name = name
         self._started = time.monotonic()
         self._start_utc = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -123,13 +128,20 @@ class SessionRecorder:
                         name, minutes, CLIP_MINUTES)
             return name
 
-    def _on_jpg(self, jpg: bytes) -> None:
-        """pump 스레드에서 호출 — 지연 최소 (파일 append 만)."""
+    def _on_jpg(self, jpg: bytes, tracks: list | None = None) -> None:
+        """pump 스레드에서 호출 — 지연 최소 (파일 append 만).
+        tracks 는 프레임과 같은 순번으로 사이드카에 1행씩 — 재생 시 i번째 프레임의
+        시각은 i/frames × duration_s 로 복원한다."""
         fh = self._fh
         if fh is None:
             return
         try:
             fh.write(jpg)
+            mfh = self._mfh
+            if mfh is not None:
+                row = [[t[0], t[1], *(round(float(v), 4) for v in t[2:6])]
+                       for t in (tracks or [])]
+                mfh.write(json.dumps(row, separators=(",", ":")) + "\n")
             self._frames += 1
         except Exception as e:
             log.error("세션 기록 실패: %s", e)
@@ -155,6 +167,9 @@ class SessionRecorder:
         name, self._name = self._name, None
         fh, self._fh = self._fh, None
         fh.close()
+        mfh, self._mfh = self._mfh, None
+        if mfh is not None:
+            mfh.close()
         duration = round(time.monotonic() - self._started, 1)
         meta = {"start_utc": self._start_utc, "duration_s": duration,
                 "fps": self._fps, "frames": self._frames, "auto": self._auto}
@@ -193,7 +208,7 @@ class SessionRecorder:
             return False
         base = sessions_dir() / name
         found = False
-        for ext in (".mp4", ".mjpeg", ".json"):
+        for ext in (".mp4", ".mjpeg", ".json", ".boxes.jsonl"):
             p = base.with_suffix(ext)
             if p.exists():
                 p.unlink()
