@@ -81,7 +81,7 @@ def test_autocollect_toggle_persists(con, monkeypatch, tmp_path):
     monkeypatch.setenv("TRAFFIC_DATA_DIR", str(tmp_path))
     adm = TestClient(create_admin_app(con))
     st = adm.get("/api/admin/autocollect").json()
-    assert st["enabled"] is False and st["target"] == 60
+    assert st["enabled"] is False and st["target"] == 150
     assert adm.post("/api/admin/autocollect", json={"on": True}).json()["enabled"] is True
     assert (tmp_path / "autocollect.json").exists()              # 재부팅 생존 상태 파일
     assert adm.post("/api/admin/autocollect", json={"on": False}).json()["enabled"] is False

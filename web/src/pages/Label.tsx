@@ -303,7 +303,7 @@ export default function Label() {
             </button>
             <span className="text-[11px] text-dim-dark">
               매일 {auto?.windows?.join(" · ") || "07:30-08:30 · 16:30-17:30"} 자동 녹화 ·
-              라벨 <b className="num text-white">{auto?.labels_n ?? 0}</b>/{auto?.target ?? 60}건 달성 시 자동 종료 (재가동 가능)
+              라벨 <b className="num text-white">{auto?.labels_n ?? 0}</b>/{auto?.target ?? 150}건 달성 시 자동 종료 (재가동 가능)
             </span>
           </div>
           <div className="mt-2 text-[9.5px] text-dim-dark">
