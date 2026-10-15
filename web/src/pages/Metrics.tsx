@@ -114,12 +114,21 @@ export default function Metrics() {
       risk: e.risk_level ?? "…", ts: e.ts,
       px: e.pos_x ?? null, py: e.pos_y ?? null,
     })).filter((p) => !Number.isNaN(p.x));
+    // 5분 격자 — 운영 버킷 단위와 일치. 라벨은 30분 눈금에만 (격자는 촘촘히, 글자는 성기게)
+    const FIVE = 5 * 60 * 1000;
+    const xs = pts.map((p) => p.x);
+    const lo = Math.floor(Math.min(...xs, Date.now()) / FIVE) * FIVE;
+    const hi = Math.ceil(Math.max(...xs, lo + FIVE) / FIVE) * FIVE;
+    const ticks: number[] = [];
+    for (let t = lo; t <= hi && ticks.length < 400; t += FIVE) ticks.push(t);
     return {
       danger: pts.filter((p) => p.risk === "DANGER"),
       warn: pts.filter((p) => p.risk === "WARNING"),
       safe: pts.filter((p) => p.risk !== "DANGER" && p.risk !== "WARNING"),
       all: pts,
       posN: pts.filter((p) => p.px != null).length,   // 좌표 축적 수 — 지도 카드 안내용
+      domain: [lo, hi] as [number, number],
+      ticks,
     };
   }, [dwell]);
 
@@ -292,8 +301,11 @@ export default function Metrics() {
                 <ResponsiveContainer>
                   <ScatterChart margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
                     <CartesianGrid stroke={GRID} horizontal={false} />
-                    <XAxis dataKey="x" type="number" domain={["dataMin", "dataMax"]}
-                      tickFormatter={(v) => kst(new Date(v).toISOString()).slice(0, 5)}
+                    <XAxis dataKey="x" type="number"
+                      domain={dwellPts.domain} ticks={dwellPts.ticks} interval={0}
+                      tickFormatter={(v) =>   /* 격자는 5분마다, 라벨은 30분 눈금에만 */
+                        new Date(v).getMinutes() % 30 === 0
+                          ? kst(new Date(v).toISOString()).slice(0, 5) : ""}
                       tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
                     <YAxis dataKey="band" type="number" domain={[-0.55, 1.55]}
                       ticks={[0, 1]} tickFormatter={(v) => (v === 1 ? "금지구역" : "기타구역")}
