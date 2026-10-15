@@ -570,6 +570,16 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         collector.set_enabled(body.on)
         return collector.status()
 
+    @api.delete("/session")
+    def session_delete_all():
+        """ready 클립 일괄 삭제 — 녹화·변환 중인 것은 건드리지 않는다.
+        개별 삭제와 같은 경로(recorder.delete)라 클립·사이드카·메타가 함께 지워지고
+        건별 삭제 로그(프라이버시 조항)도 그대로 남는다."""
+        names = [s["name"] for s in recorder.list() if s["status"] == "ready"]
+        deleted = [n for n in names if recorder.delete(n)]
+        log.warning("세션 일괄 삭제: %d/%d건", len(deleted), len(names))
+        return {"ok": True, "deleted": len(deleted)}
+
     @api.delete("/session/{name}")
     def session_delete(name: str):
         if not recorder.delete(name):

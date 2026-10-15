@@ -263,7 +263,30 @@ export default function Label() {
             </div>
           )}
 
-          <div className="mt-3 flex max-h-[180px] flex-col gap-1 overflow-y-auto">
+          {/* 클립 목록 헤더 — 개수·용량 요약 + 일괄 삭제 (ready 2개 이상일 때만 노출) */}
+          {sess.sessions.filter((s) => s.status === "ready").length >= 2 && (
+            <div className="mt-3 flex items-center justify-between px-3 text-[11.5px] text-dim-dark">
+              <span>
+                클립 {sess.sessions.filter((s) => s.status === "ready").length}개 ·{" "}
+                {Math.round(sess.sessions.reduce((a, s) => a + (s.size_mb || 0), 0))}MB
+              </span>
+              <button
+                onClick={async () => {
+                  const n = sess.sessions.filter((s) => s.status === "ready").length;
+                  if (confirm(`클립 ${n}개를 모두 삭제할까요? (복구 불가)\n` +
+                    `아직 라벨하지 않은 이벤트의 영상도 함께 사라집니다 — ` +
+                    `라벨링을 마친 뒤 삭제를 권장합니다.`)) {
+                    await api.sessionDeleteAll();
+                    setPlaying(null);
+                    api.sessionList().then(setSess);
+                  }
+                }}
+                className="rounded border border-cobble px-2 py-0.5 hover:border-gravy hover:text-gravy">
+                전체 삭제
+              </button>
+            </div>
+          )}
+          <div className="mt-1 flex max-h-[180px] flex-col gap-1 overflow-y-auto">
             {sess.recording && (
               <div className="flex items-center gap-2 rounded-lg bg-gravy/30 px-3 py-2 text-[12px]">
                 <span className="size-2 animate-pulse rounded-full bg-gravy" />

@@ -160,6 +160,7 @@ export const api = {
   sessionRecord: (minutes: number) => post(`${ADM_BASE}/api/admin/session/record`, { minutes }),
   sessionStop: () => post(`${ADM_BASE}/api/admin/session/stop`, {}),
   sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
+  sessionDeleteAll: () => del(`${ADM_BASE}/api/admin/session`),   // ready 클립 일괄 삭제
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)
   sessionBoxesUrl: (name: string) => `${ADM_BASE}/session-video/${name}.boxes.jsonl`,
