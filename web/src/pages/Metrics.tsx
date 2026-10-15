@@ -98,18 +98,28 @@ export default function Metrics() {
       .map((r) => ({ t: r.bucket_utc.slice(11, 16) || r.bucket_utc, p85: Number(r.speed_p85!.toFixed(1)) })),
     [speed]);
 
-  // K3 — 정차 이벤트: x=시각 y=지속, 판정별 시리즈 (색 + 채움/빈원 이중 인코딩)
+  // K3 — 정차 이벤트 strip plot: x=시각, y=구역 밴드(금지/기타) + 결정적 지터,
+  // 점 크기=지속시간, 색=판정. 밀집 구간(등교 피크)이 띠의 농도로 바로 읽힌다.
   const dwellPts = useMemo(() => {
+    const jitter = (ts: string) => {   // 시각 해시 기반 — 리렌더에도 흔들리지 않는 지터
+      let h = 0;
+      for (const c of ts) h = (h * 31 + c.charCodeAt(0)) | 0;
+      return ((h >>> 4) % 1000) / 1000 - 0.5;
+    };
     const pts = (dwell?.events ?? []).map((e) => ({
-      x: Date.parse(e.ts), y: Math.round(e.duration_s ?? 0),
+      x: Date.parse(e.ts),
+      band: (e.zone === "no_stop" ? 1 : 0) + jitter(e.ts) * 0.52,
+      dur: Math.round(e.duration_s ?? 0),
       zone: e.zone === "no_stop" ? "정차 금지" : "승하차 구역",
       risk: e.risk_level ?? "…", ts: e.ts,
+      px: e.pos_x ?? null, py: e.pos_y ?? null,
     })).filter((p) => !Number.isNaN(p.x));
     return {
       danger: pts.filter((p) => p.risk === "DANGER"),
       warn: pts.filter((p) => p.risk === "WARNING"),
       safe: pts.filter((p) => p.risk !== "DANGER" && p.risk !== "WARNING"),
       all: pts,
+      posN: pts.filter((p) => p.px != null).length,   // 좌표 축적 수 — 지도 카드 안내용
     };
   }, [dwell]);
 
@@ -120,7 +130,7 @@ export default function Metrics() {
     ? Math.round((p85rows.filter((r) => r.p85 > 30).length / p85rows.length) * 100) : null;
   const flowTotal = flow.reduce((s, r) => s + r.n, 0);
   const dangerN = dwellPts.danger.length;
-  const longest = dwellPts.all.reduce((m, p) => Math.max(m, p.y), 0);
+  const longest = dwellPts.all.reduce((m, p) => Math.max(m, p.dur), 0);
   const offline = today.offline || speed.offline || dwell.offline;
 
   const dwellTip = ({ active, payload }: { active?: boolean; payload?: readonly { payload?: unknown }[] }) => {
@@ -130,7 +140,7 @@ export default function Metrics() {
     return (
       <div style={TIP} className="px-3 py-2">
         <div className="num font-semibold">{kst(p.ts)}</div>
-        <div>{p.zone} · {p.y}s · {p.risk}</div>
+        <div>{p.zone} · {p.dur}s · {p.risk}</div>
       </div>
     );
   };
@@ -274,25 +284,28 @@ export default function Metrics() {
       <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
         <Card>
           <div className="mb-2 text-[14px] font-bold">
-            정차 이벤트 <span className="meta">K2 · 시각×지속시간 · K3(근접)·히트맵은 캘리브레이션(R2) 후</span>
+            정차 이벤트 <span className="meta">K2 · 시간대 strip plot — 띠의 농도=빈도 · 점 크기=지속시간</span>
           </div>
           {dwellPts.all.length === 0 ? <Empty note="정차 이벤트가 아직 없습니다." /> : (
             <>
               <div className="h-[260px]">
                 <ResponsiveContainer>
-                  <ScatterChart margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
-                    <CartesianGrid stroke={GRID} />
+                  <ScatterChart margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+                    <CartesianGrid stroke={GRID} horizontal={false} />
                     <XAxis dataKey="x" type="number" domain={["dataMin", "dataMax"]}
                       tickFormatter={(v) => kst(new Date(v).toISOString()).slice(0, 5)}
                       tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
-                    <YAxis dataKey="y" unit="s" tick={{ fontSize: 10, fill: "#6E7780" }}
+                    <YAxis dataKey="band" type="number" domain={[-0.55, 1.55]}
+                      ticks={[0, 1]} tickFormatter={(v) => (v === 1 ? "금지구역" : "기타구역")}
+                      width={56} tick={{ fontSize: 10, fill: "#6E7780" }}
                       tickLine={false} axisLine={false} />
-                    <ZAxis range={[70, 70]} />
+                    <ZAxis dataKey="dur" range={[28, 320]} name="지속" />
                     <Tooltip content={dwellTip} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Scatter name="DANGER (정차 금지)" data={dwellPts.danger} fill={DANGER} />
+                    <Scatter name="DANGER (정차 금지)" data={dwellPts.danger} fill={DANGER}
+                      fillOpacity={0.75} />
                     <Scatter name="WARNING" data={dwellPts.warn} fill={ACCENT}
-                      shape="triangle" stroke={INK} strokeWidth={1} />
+                      fillOpacity={0.7} shape="triangle" stroke={INK} strokeWidth={1} />
                     <Scatter name="SAFE (승하차)" data={dwellPts.safe} fill="transparent"
                       stroke={INK} strokeWidth={1.5} />
                   </ScatterChart>
@@ -304,7 +317,7 @@ export default function Metrics() {
                   {dwellPts.all.slice(0, 5).map((p, i) => (
                     <div key={i} className="flex justify-between border-b border-line py-1 last:border-0 md:last:border-b">
                       <span className="num">{kst(p.ts)}</span>
-                      <span className="text-dim">{p.zone} · {p.y}s</span>
+                      <span className="text-dim">{p.zone} · {p.dur}s</span>
                       <span className={`num font-semibold ${
                         p.risk === "DANGER" ? "text-gravy" : p.risk === "WARNING" ? "text-otan" : "text-dim"}`}>
                         {p.risk}
@@ -315,6 +328,43 @@ export default function Metrics() {
               </div>
             </>
           )}
+        </Card>
+
+        <div className="flex flex-col gap-4">
+        <Card>
+          {/* 공간 분포 top-view 약도 — 랜드마크는 지금, 이벤트 투영은 R2 호모그래피 후.
+              좌표(pos_x·y)는 이미 기록 중이라 캘리브레이션 즉시 과거 이벤트까지 표시된다. */}
+          <div className="meta font-bold">공간 분포 · 교문 앞 (top-view)</div>
+          <svg viewBox="0 0 300 190" className="mt-2 w-full" role="img"
+            aria-label="교문 앞 도로 약도 — 위치 히트맵은 캘리브레이션 후 표시">
+            {/* 배경 블록 (지도 참조: 좌상 공용주차장 · 우상 GS25 상가 · 하단 학교) */}
+            <rect x="0" y="0" width="300" height="190" fill="#EDEBE2" />
+            <rect x="8" y="8" width="86" height="56" rx="4" fill="#DEDBD0" />
+            <text x="51" y="38" textAnchor="middle" fontSize="9.5" fill="#6E7780">공용주차장</text>
+            <rect x="206" y="8" width="86" height="56" rx="4" fill="#DEDBD0" />
+            <text x="249" y="32" textAnchor="middle" fontSize="9.5" fill="#6E7780">상가</text>
+            <text x="249" y="46" textAnchor="middle" fontSize="9" fill="#C77B3A" fontWeight="700">GS25</text>
+            {/* 도로 (공주고담길) — 가로 밴드 */}
+            <rect x="0" y="82" width="300" height="44" fill="#CFCCC0" />
+            <line x1="0" y1="104" x2="300" y2="104" stroke="#EDEBE2" strokeWidth="1.6" strokeDasharray="8 7" />
+            <text x="292" y="78" textAnchor="end" fontSize="8.5" fill="#8A8578">공주고담길</text>
+            {/* 횡단보도 — 정문 앞 */}
+            <g fill="#F4F2EA">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <rect key={i} x={132 + i * 8} y={84} width="5" height="40" />
+              ))}
+            </g>
+            {/* 학교 · 정문 */}
+            <rect x="0" y="126" width="300" height="64" fill="#E2E7DD" />
+            <rect x="136" y="126" width="28" height="10" fill="#4A5A50" />
+            <text x="150" y="152" textAnchor="middle" fontSize="10" fill="#4A5A50" fontWeight="700">정문</text>
+            <text x="150" y="166" textAnchor="middle" fontSize="8.5" fill="#8A8578">학교</text>
+          </svg>
+          <div className="mt-2 text-[11.5px] leading-relaxed text-dim">
+            위치 히트맵은 <b>캘리브레이션(R2)</b> 후 이 약도 위에 표시됩니다 — 정차 좌표는
+            지금부터 기록 중(<span className="num">{dwellPts.posN}</span>건 축적,
+            캘리브레이션 즉시 소급 표시).
+          </div>
         </Card>
 
         <Card>
@@ -335,6 +385,7 @@ export default function Metrics() {
             </div>
           )}
         </Card>
+        </div>
       </div>
 
       <div className="mt-3 text-[12px] text-dim">

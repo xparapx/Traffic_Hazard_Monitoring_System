@@ -116,3 +116,9 @@ CREATE INDEX ix_evt_eid ON events(event_id);
 -- 라벨 화면에서 "그 정차의 차량"을 영상 위에 강조하기 위한 추적 연결 (2026-10-12)
 -- 기존 DB 는 db.py 의 _ensure_column 멱등 마이그레이션이 같은 컬럼을 추가한다.
 ALTER TABLE events ADD COLUMN track_id INTEGER;
+
+-- 정차 위치 (정규화 영상 좌표 0~1 — 발점) (2026-10-16)
+-- 공간 히트맵용: R2 호모그래피가 생기면 이 좌표를 도로 평면(top-view)으로 투영한다.
+-- 영상이 아니라 숫자 2개 — 프라이버시 조항과 무관.
+ALTER TABLE events ADD COLUMN pos_x REAL;
+ALTER TABLE events ADD COLUMN pos_y REAL;

@@ -54,17 +54,19 @@ def init_db(con: sqlite3.Connection) -> None:
     for sql in MIGRATIONS:
         con.execute(sql)
     _ensure_column(con, "events", "track_id", "INTEGER")   # 라벨 영상 차량 강조용
+    _ensure_column(con, "events", "pos_x", "REAL")          # 정차 위치(정규화) — R2 후 지도 투영
+    _ensure_column(con, "events", "pos_y", "REAL")
     con.commit()
 
 
 def insert_event(con, *, ts, kind, zone, duration_s=None, speed_kmh=None,
                  dist_m=None, track_cls=None, event_id=None, calib_ver=None,
-                 track_id=None) -> int:
+                 track_id=None, pos_x=None, pos_y=None) -> int:
     cur = con.execute(
         "INSERT INTO events(ts,kind,zone,duration_s,speed_kmh,dist_m,track_cls,event_id,"
-        "calib_ver,track_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "calib_ver,track_id,pos_x,pos_y) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         (ts, kind, zone, duration_s, speed_kmh, dist_m, track_cls, event_id, calib_ver,
-         track_id))
+         track_id, pos_x, pos_y))
     con.commit()
     return cur.lastrowid
 

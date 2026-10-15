@@ -419,7 +419,7 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
     @api.get("/dwell")
     def dwell():
         events = _rows(con,
-            "SELECT ts, zone, duration_s, risk_level FROM events WHERE kind='dwell'"
+            "SELECT ts, zone, duration_s, risk_level, pos_x, pos_y FROM events WHERE kind='dwell'"
             " ORDER BY ts DESC LIMIT 50")
         # C1(태그 분포)은 GATE 2 통과 전에는 공개 화면에 내지 않는다 (CLAUDE.md)
         return _meta("dwell") | {"events": events, "c1_visible": False}

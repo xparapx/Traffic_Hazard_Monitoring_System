@@ -5,7 +5,10 @@ export interface CountRow { bucket_utc: string; cls: string; dir: string; n: num
 export interface QcRow { bucket_utc: string; fps_med: number | null; qc: number }
 export interface AnalysisRow { date: string; kind: string; payload: string }
 export interface SpeedRow { bucket_utc: string; speed_p85: number | null; speed_med: number | null }
-export interface DwellEvent { ts: string; zone: string | null; duration_s: number | null; risk_level: string | null }
+export interface DwellEvent {
+  ts: string; zone: string | null; duration_s: number | null; risk_level: string | null;
+  pos_x?: number | null; pos_y?: number | null;   // 정규화 영상 좌표 — R2 후 지도 투영
+}
 export interface PendingEvent {
   event_id: string; ts: string; zone: string | null; duration_s: number | null;
   track_id?: number | null;   // 영상 강조용 — 구 이벤트는 null

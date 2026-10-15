@@ -157,9 +157,11 @@ class RealLoop:
 
     def _on_dwell_start(self, tr: Track, zone: str, dur: float) -> str:
         event_id = str(uuid.uuid4())
+        foot = tr.anchor or tr.foot   # 정차 기준점(발점, 정규화) — R2 후 지도 투영용
         db.insert_event(self.con, ts=db.utcnow(), kind="dwell", zone=zone,
                         duration_s=dur, track_cls=tr.cls, event_id=event_id,
-                        track_id=tr.track_id)
+                        track_id=tr.track_id,
+                        pos_x=round(foot[0], 4), pos_y=round(foot[1], 4))
         db.insert_inference(
             self.con, event_id=event_id, ts=db.utcnow(), model_type="YOLO_ONLY",
             risk_level="DANGER" if zone == "no_stop" else "WARNING",
