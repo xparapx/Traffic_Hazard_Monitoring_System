@@ -28,6 +28,7 @@ export default function Label() {
   const [now, setNow] = useState(Date.now());
   const [boxes, setBoxes] = useState<number[][][] | null>(null);  // 클립 사이드카 (프레임별 track 박스)
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fsRef = useRef<HTMLDivElement>(null);     // 전체화면 래퍼 — 캔버스 오버레이 동반
   const [msg, setMsg] = useState("");
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
@@ -115,12 +116,24 @@ export default function Label() {
       const hit = boxes[i]?.find((t) => t[0] === tid);
       if (!hit) return;
       const [, , x1, y1, x2, y2] = hit as unknown as [number, string, number, number, number, number];
+      // 마젠타 — 구워진 탐지 박스(초록·빨강 계열)·도로 장면에 없는 색으로 대상 차량 구별
+      const C = "#FF37C2";
       const w = (x2 - x1) * c.width, h = (y2 - y1) * c.height;
-      g.strokeStyle = "#e65050"; g.lineWidth = Math.max(3, c.width / 300);
+      const lw = Math.max(3, c.width / 300);
+      g.strokeStyle = C; g.lineWidth = lw;
       g.strokeRect(x1 * c.width, y1 * c.height, w, h);
-      g.fillStyle = "#e65050";
-      g.font = `bold ${Math.max(14, c.width / 60)}px sans-serif`;
-      g.fillText("이 차량", x1 * c.width, Math.max(16, y1 * c.height - 6));
+      // 중심 조준 레티클 — 원 + 십자 틱 4개 + 중심점
+      const cx = (x1 + x2) / 2 * c.width, cy = (y1 + y2) / 2 * c.height;
+      const r = Math.max(7, c.width / 90);
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+      g.beginPath();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        g.moveTo(cx + dx * r * 0.55, cy + dy * r * 0.55);
+        g.lineTo(cx + dx * r * 1.55, cy + dy * r * 1.55);
+      }
+      g.stroke();
+      g.fillStyle = C;
+      g.beginPath(); g.arc(cx, cy, Math.max(1.6, lw * 0.6), 0, Math.PI * 2); g.fill();
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
@@ -228,10 +241,15 @@ export default function Label() {
           </div>
 
           {playing ? (
-            <div className="relative">
+            // 전체화면은 래퍼에 건다 — 네이티브 버튼은 video 만 올려 캔버스("이 차량")가
+            // 뒤에 남는 버그. controlsList 로 네이티브 버튼을 숨기고 자체 ⛶ 버튼 사용.
+            <div ref={fsRef}
+              className="relative [&:fullscreen]:flex [&:fullscreen]:items-center [&:fullscreen]:justify-center [&:fullscreen]:bg-black">
+            <div className="relative w-full [:fullscreen_&]:h-full [:fullscreen_&]:w-auto">
             <video ref={videoRef} controls muted playsInline
+              controlsList="nofullscreen"
               src={api.sessionVideoUrl(playing)}
-              className="w-full rounded-[10px] bg-black"
+              className="w-full rounded-[10px] bg-black [:fullscreen_&]:h-full [:fullscreen_&]:w-auto [:fullscreen_&]:max-w-full [:fullscreen_&]:rounded-none"
               onPlay={() => setPaused(false)}
               onPause={() => setPaused(true)}
               onEnded={() => {
@@ -254,6 +272,15 @@ export default function Label() {
             {/* 이벤트 차량 강조 — 사이드카 track 박스를 비디오 위에 그림 (저장 없음) */}
             <canvas ref={canvasRef}
               className="pointer-events-none absolute inset-0 size-full" />
+            </div>
+            <button title="전체화면 (강조 표시 유지)"
+              onClick={() => {
+                if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+                else fsRef.current?.requestFullscreen?.().catch(() => {});
+              }}
+              className="absolute right-2 top-2 rounded bg-cobble/75 px-2 py-1 text-[13px] text-white hover:bg-cobble">
+              ⛶
+            </button>
             </div>
           ) : (
             <div className="grid place-items-center rounded-[10px] bg-smoke py-14 text-[12px] text-dim-dark">

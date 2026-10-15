@@ -335,30 +335,41 @@ export default function Metrics() {
           {/* 공간 분포 top-view 약도 — 랜드마크는 지금, 이벤트 투영은 R2 호모그래피 후.
               좌표(pos_x·y)는 이미 기록 중이라 캘리브레이션 즉시 과거 이벤트까지 표시된다. */}
           <div className="meta font-bold">공간 분포 · 교문 앞 (top-view)</div>
+          {/* 도로 축 정렬 약도 — 정북 기준이 아니라 공주고담길을 수평(x축)으로 돌리고
+              교문을 x=150(중앙 원점)에 둔다. 랜드마크는 도로 기준 상대 위치로 재배치:
+              횡단보도=교문 정면, GS25 상가=건너편 약간 우측, 공용주차장=건너편 좌측. */}
           <svg viewBox="0 0 300 190" className="mt-2 w-full" role="img"
-            aria-label="교문 앞 도로 약도 — 위치 히트맵은 캘리브레이션 후 표시">
-            {/* 배경 블록 (지도 참조: 좌상 공용주차장 · 우상 GS25 상가 · 하단 학교) */}
+            aria-label="교문 앞 도로 약도(도로 축 수평 정렬) — 위치 히트맵은 캘리브레이션 후 표시">
             <rect x="0" y="0" width="300" height="190" fill="#EDEBE2" />
-            <rect x="8" y="8" width="86" height="56" rx="4" fill="#DEDBD0" />
-            <text x="51" y="38" textAnchor="middle" fontSize="9.5" fill="#6E7780">공용주차장</text>
-            <rect x="206" y="8" width="86" height="56" rx="4" fill="#DEDBD0" />
-            <text x="249" y="32" textAnchor="middle" fontSize="9.5" fill="#6E7780">상가</text>
-            <text x="249" y="46" textAnchor="middle" fontSize="9" fill="#C77B3A" fontWeight="700">GS25</text>
-            {/* 도로 (공주고담길) — 가로 밴드 */}
+            {/* 건너편(북측) 블록 */}
+            <rect x="14" y="10" width="92" height="54" rx="4" fill="#DEDBD0" />
+            <text x="60" y="40" textAnchor="middle" fontSize="9.5" fill="#6E7780">공용주차장</text>
+            <rect x="178" y="10" width="78" height="54" rx="4" fill="#DEDBD0" />
+            <text x="217" y="32" textAnchor="middle" fontSize="9.5" fill="#6E7780">상가</text>
+            <text x="217" y="46" textAnchor="middle" fontSize="9" fill="#C77B3A" fontWeight="700">GS25</text>
+            {/* 도로 (공주고담길) — 수평 밴드, 중앙선 */}
             <rect x="0" y="82" width="300" height="44" fill="#CFCCC0" />
             <line x1="0" y1="104" x2="300" y2="104" stroke="#EDEBE2" strokeWidth="1.6" strokeDasharray="8 7" />
-            <text x="292" y="78" textAnchor="end" fontSize="8.5" fill="#8A8578">공주고담길</text>
-            {/* 횡단보도 — 정문 앞 */}
+            <text x="4" y="78" fontSize="8.5" fill="#8A8578">공주고담길</text>
+            {/* 횡단보도 — 교문 정면(중앙 원점) */}
             <g fill="#F4F2EA">
               {[0, 1, 2, 3, 4].map((i) => (
-                <rect key={i} x={132 + i * 8} y={84} width="5" height="40" />
+                <rect key={i} x={131 + i * 8} y={84} width="5" height="40" />
               ))}
             </g>
-            {/* 학교 · 정문 */}
+            {/* 학교측(남측) · 정문 = x 중앙 */}
             <rect x="0" y="126" width="300" height="64" fill="#E2E7DD" />
             <rect x="136" y="126" width="28" height="10" fill="#4A5A50" />
+            <line x1="150" y1="126" x2="150" y2="190" stroke="#4A5A50" strokeWidth="0.6"
+              strokeDasharray="2 3" opacity="0.45" />
             <text x="150" y="152" textAnchor="middle" fontSize="10" fill="#4A5A50" fontWeight="700">정문</text>
             <text x="150" y="166" textAnchor="middle" fontSize="8.5" fill="#8A8578">학교</text>
+            {/* 나침반 — 도로 축 정렬이라 북쪽이 기울어 있음을 표시 (반시계 ~15°) */}
+            <g transform="translate(281,172) rotate(-15)">
+              <line x1="0" y1="8" x2="0" y2="-8" stroke="#8A8578" strokeWidth="1.4" />
+              <path d="M0 -8 L-3.4 -1.6 L3.4 -1.6 Z" fill="#8A8578" />
+              <text x="0" y="-11" textAnchor="middle" fontSize="7.5" fill="#8A8578">N</text>
+            </g>
           </svg>
           <div className="mt-2 text-[11.5px] leading-relaxed text-dim">
             위치 히트맵은 <b>캘리브레이션(R2)</b> 후 이 약도 위에 표시됩니다 — 정차 좌표는
