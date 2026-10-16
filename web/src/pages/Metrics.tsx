@@ -376,10 +376,10 @@ export default function Metrics() {
             <text x="208" y="56" textAnchor="middle" fontSize="9" fill="#C77B3A" fontWeight="700">GS25</text>
             <rect x="176" y="0" width="64" height="20" rx="3" fill="#E4E1D6" />
             <rect x="248" y="8" width="44" height="58" rx="3" fill="#E4E1D6" />
-            {/* 공주고담길 — 수평 본선 */}
-            <rect x="0" y="82" width="300" height="44" fill="#CFCCC0" />
+            {/* 공주고담길 — 서측은 넓고(중앙선), 동측(GS25 앞)은 1차선 폭으로 좁아짐(실사) */}
+            <rect x="0" y="82" width="168" height="44" fill="#CFCCC0" />
+            <path d="M168 82 L190 88 H300 V114 H190 L168 126 Z" fill="#CFCCC0" />
             <line x1="0" y1="104" x2="124" y2="104" stroke="#EDEBE2" strokeWidth="1.6" strokeDasharray="8 7" />
-            <line x1="176" y1="104" x2="300" y2="104" stroke="#EDEBE2" strokeWidth="1.6" strokeDasharray="8 7" />
             <text x="4" y="78" fontSize="8.5" fill="#8A8578">공주고담길</text>
             {/* 횡단보도 3곳 */}
             <g fill="#F4F2EA">
@@ -391,9 +391,9 @@ export default function Metrics() {
               {[0, 1, 2, 3].map((i) => (
                 <rect key={`n${i}`} x={134} y={54 + i * 7} width="32" height="4.2" />
               ))}
-              {/* ③ 동측 도로 횡단 (GS25 → 학교 — 지도 미표기·실사 확인) */}
+              {/* ③ 동측 도로 횡단 (GS25 → 학교 — 좁은 1차선 구간이라 짧다) */}
               {[0, 1, 2, 3, 4].map((i) => (
-                <rect key={`e${i}`} x={182 + i * 7.5} y={84} width="4.5" height="40" />
+                <rect key={`e${i}`} x={196 + i * 7.5} y={90} width="4.5" height="22" />
               ))}
             </g>
             {/* 학교측 · 정문 양쪽 기둥 (실사: 돌기둥 2 + 우측 태극기) */}
