@@ -35,7 +35,7 @@ export default function Label() {
   const [playing, setPlaying] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [usedVideo, setUsedVideo] = useState(false);
-  const [recMin, setRecMin] = useState(5);
+  const REC_MIN = 10;   // 수동 녹화 고정 길이 — 등하교 창은 자동 수집이 전담
   const [auto, setAuto] = useState<{ enabled: boolean; labels_n: number; target: number; windows: string[] } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -205,7 +205,7 @@ export default function Label() {
   async function toggleRecord() {
     if (sess.recording) await api.sessionStop();
     else {
-      const ok = await api.sessionRecord(recMin);
+      const ok = await api.sessionRecord(REC_MIN);
       if (!ok) setMsg("녹화 시작 실패 — 캘리브레이션 모드가 켜져 있어야 합니다 (시스템 페이지)");
     }
     api.sessionList().then(setSess);
@@ -224,18 +224,12 @@ export default function Label() {
               세션 영상 <span className="meta text-dim-dark">통제 수집 · 삭제 로그 관리</span>
             </span>
             <span className="flex items-center gap-2 text-[12px]">
-              {!sess.recording && (
-                <select value={recMin} onChange={(e) => setRecMin(Number(e.target.value))}
-                  className="rounded bg-smoke px-1.5 py-1 text-white">
-                  {[5, 10, 15, 30, 60, 90].map((m) => (
-                    <option key={m} value={m}>{m >= 60 ? `${m}분 (등교 창)` : `${m}분`}</option>
-                  ))}
-                </select>
-              )}
+              {/* 길이 선택 제거(2026-10-16) — 등하교 창은 자동 수집이 전담하므로
+                  수동 녹화는 점검용 10분 고정 */}
               <button onClick={toggleRecord}
                 className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold ${
                   sess.recording ? "bg-gravy" : "border border-otan text-otan"}`}>
-                {sess.recording ? "녹화 중지" : "녹화 시작"}
+                {sess.recording ? "녹화 중지" : "녹화 시작 (10분)"}
               </button>
             </span>
           </div>
