@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+### 2026-10-18 (26) — 자동수집 자동종료 제거·R4 대조 도구·VLM 준비 완료·전원 부족 판정
+- **자동수집 '풀림' 해결**: 라벨(180)≥목표(150)라 켤 때마다 30초 내 자동 OFF 되던 설계 결함 — 자동 종료 제거(목표=이정표·1회 로그), 중단은 수동 토글만. 라이브 검증(65초 생존). CLAUDE.md 조항 ⑥ 개정.
+- **R4 수동 대조 도구(7b46dff)**: 라벨 화면 클립 [대조] → Space 계수 → /validation 이 버킷 안분으로 auto_n 산출·오차 기록(±10% 합격선). 주말 수동 녹화 클립 2개로 즉시 사용 가능 확인.
+- **VLM 자산 준비**: Qwen3.5-4B Q4(2.74GB)+mmproj 다운로드(중단 1회·이어받기), llama.cpp CUDA 빌드 완료.
+- **전원 부족 확정**: llama-server GPU 적재 순간 보드 리셋 재현(25W 모드). 금 22:39·토 07:05 재부팅도 동일 원인 추정 — 함정 목록 등재, **정격 어댑터 확인 전 VLM 기동 동결**. 자가 복구 3종은 이번에도 무개입 완전 복구. 별건: Wi-Fi(rtl88x2ce) 단기 순단 2회(재부팅 무관).
+- GATE 0 운영 동의서 초안 docs/GATE0.md — 교사 검토 대기.
+
 ### 2026-10-17 (25) — fps 기준 통과·VLM 교체형 백엔드·후보 벤치 확정 · 전원사고 2차 복구
 - **fps ≥ 15 충족(R1①·R2①)**: TRAFFIC_LOOP_FPS=30 으로 상한 해제 → 실측 **fps_med 16.7 · p05 16.4 · drop 0**(카메라 33fps 의 2프레임 간격). 자원 여유 큼 — RAM 1.3/7.5GB·GPU 대부분 유휴·53°C·6.7W → VLM 동거 헤드룸 확보. track 10대 유지는 월요일 등교 피크에서 확인.
 - **VLM 교체형 백엔드(9d2676d)**: vlm/llama_cpp.py(OpenAI 호환·객관식 JSON 강제·enum 밖→unknown·실패→unknown 행), 태거 신원(model_ver·prompt_ver·backend) 스탬프로 후보별 성적 자동 분리, make_tagger(TRAFFIC_VLM=fake|llama), realloop crop(메모리 15% 여유) 전달, traffic-vlm.service 템플릿(--log-disable 필수). pytest 54.
