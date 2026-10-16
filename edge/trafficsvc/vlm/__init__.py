@@ -41,6 +41,10 @@ class FakeVlmTagger:
         else:
             t = self._rng.choice(("waiting", "delivery", "other"))
             door, near = 0, int(t == "delivery")
+        # realloop 이 YOLO 추적으로 관측한 보행자 근접이 있으면 그 값을 쓴다 —
+        # h2(위험=정차∧보행자 통행)가 실 VLM 전에도 실데이터로 동작하게 (R5 에서 교체)
+        if meta.get("person_near") is not None:
+            near = int(bool(meta["person_near"]))
         return VlmResult(tag=t, door_open=door, person_near=near,
                          conf=round(self._rng.uniform(0.6, 0.95), 2),
                          latency_ms=self._rng.randint(300, 1200))

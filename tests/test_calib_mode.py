@@ -26,3 +26,25 @@ def test_stream_locked_until_calib_mode_on(con, monkeypatch):
     adm.post("/api/admin/calib/mode", json={"on": False})
     assert adm.get("/api/admin/stream").status_code == 409          # 다시 잠김
     assert adm.get("/api/admin/calib").json()["remaining_s"] == 0
+
+
+def test_homography_api_fit_and_save(con, monkeypatch):
+    """4점 캘리브레이션 API — 검증(오차 보고) → 저장(calib 행 + status 노출)."""
+    monkeypatch.setenv("TRAFFIC_FAKE_HW", "1")
+    adm = TestClient(create_admin_app(con))
+    # 합성 정답: 사다리꼴 화면 ↔ 직사각형 도로 (완전 정합 → 오차 0)
+    body = {
+        "image_points": [[0.3, 0.8], [0.7, 0.8], [0.6, 0.4], [0.4, 0.4]],
+        "world_points": [[0, 0], [6, 0], [6, 20], [0, 20]],
+        "save": False,
+    }
+    rep = adm.post("/api/admin/calib/homography", json=body).json()
+    assert rep["max_err_m"] < 1e-6 and rep["saved"] is None
+    rep = adm.post("/api/admin/calib/homography", json=body | {"save": True}).json()
+    assert rep["saved"] and rep["saved"].startswith("h4-")
+    st = adm.get("/api/admin/calib").json()
+    assert st["homography"]["ver"] == rep["saved"]
+    # 일직선 점 배치는 422 로 거부
+    bad = {"image_points": [[0.1, 0.1], [0.3, 0.3], [0.5, 0.5], [0.7, 0.7]],
+           "world_points": [[0, 0], [1, 1], [2, 2], [3, 3]], "save": False}
+    assert adm.post("/api/admin/calib/homography", json=bad).status_code == 422

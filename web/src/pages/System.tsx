@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, CalibData, Fetched, SystemData } from "../api";
+import { api, CalibData, Fetched, HomographyReport, SystemData } from "../api";
 import { Card, DarkCard, DummyBadge, PageHeader } from "../components/ui";
 
 export default function SystemPage() {
@@ -10,6 +10,11 @@ export default function SystemPage() {
   const [roiPts, setRoiPts] = useState<[number, number][]>([]);
   const [zoneSel, setZoneSel] = useState<"roi" | "no_stop">("roi");
   const [zones, setZones] = useState<{ roi?: [number, number][]; no_stop?: [number, number][][] }>({});
+  // R2 4점 캘리브레이션 — 프리뷰 클릭(u,v 정규화) + 실측 좌표(m) 입력
+  const [homoEdit, setHomoEdit] = useState(false);
+  const [homoPts, setHomoPts] = useState<{ u: number; v: number; X: string; Y: string }[]>([]);
+  const [homoRep, setHomoRep] = useState<HomographyReport | null>(null);
+  const [homoMsg, setHomoMsg] = useState("");
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
@@ -95,15 +100,22 @@ export default function SystemPage() {
                   {/* 탐지 오버레이 상시 활성 — 프리뷰의 목적이 탐지 상태 확인이므로 토글 없음 */}
                   <img src={api.streamUrl(true)}
                     alt="카메라 프리뷰 (MJPEG · 전송만, 저장 없음)"
-                    className={`mx-auto max-h-[420px] w-auto ${roiEdit ? "cursor-crosshair" : ""}`}
+                    className={`mx-auto max-h-[420px] w-auto ${roiEdit || homoEdit ? "cursor-crosshair" : ""}`}
                     onError={() => setStreamErr(true)}
                     onClick={(e) => {
-                      if (!roiEdit) return;
+                      if (!roiEdit && !homoEdit) return;
                       const el = e.currentTarget;
                       const r = el.getBoundingClientRect();
-                      const x = (e.clientX - r.left) / r.width;
-                      const y = (e.clientY - r.top) / r.height;
-                      setRoiPts([...roiPts, [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))]]);
+                      const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+                      const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+                      if (homoEdit) {
+                        if (homoPts.length < 8) {
+                          setHomoPts([...homoPts, { u: x, v: y, X: "", Y: "" }]);
+                          setHomoRep(null);
+                        }
+                        return;
+                      }
+                      setRoiPts([...roiPts, [x, y]]);
                     }} />
                   <svg className="pointer-events-none absolute inset-0 size-full"
                     viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -119,6 +131,21 @@ export default function SystemPage() {
                         strokeDasharray="1.5 1" vectorEffect="non-scaling-stroke" opacity="0.9" />
                     ))}
                   </svg>
+                  {homoPts.length > 0 && (
+                    <svg className="pointer-events-none absolute inset-0 size-full"
+                      viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {homoPts.map((p, i) => (
+                        <g key={i}>
+                          <line x1={p.u * 100 - 1.6} y1={p.v * 100} x2={p.u * 100 + 1.6} y2={p.v * 100}
+                            stroke="#FF37C2" strokeWidth="0.45" vectorEffect="non-scaling-stroke" />
+                          <line x1={p.u * 100} y1={p.v * 100 - 1.6} x2={p.u * 100} y2={p.v * 100 + 1.6}
+                            stroke="#FF37C2" strokeWidth="0.45" vectorEffect="non-scaling-stroke" />
+                          <text x={p.u * 100 + 1.2} y={p.v * 100 - 1.2} fontSize="3.2"
+                            fill="#FF37C2" fontWeight="700">P{i + 1}</text>
+                        </g>
+                      ))}
+                    </svg>
+                  )}
                   {roiEdit && roiPts.length > 0 && (
                     <svg className="pointer-events-none absolute inset-0 size-full"
                       viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -181,6 +208,100 @@ export default function SystemPage() {
           <div className="mt-2 text-[10.5px] text-dim">
             현재 캘리브레이션: {calib?.current ? `${calib.current.ver} (${calib.current.ts})` : "없음 — R2에서 4점 실측"}
           </div>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[14px] font-bold">
+              4점 캘리브레이션 (R2) <span className="meta">화면 클릭 ↔ 실측 좌표(m) — 재투영 &lt; 0.3 m 합격</span>
+            </span>
+            <span className="flex items-center gap-2 text-[12px]">
+              {homoPts.length > 0 && (
+                <button className="rounded border border-cobble px-2 py-0.5"
+                  onClick={() => { setHomoPts([]); setHomoRep(null); setHomoMsg(""); }}>초기화</button>
+              )}
+              <button disabled={!calib?.mode_on}
+                onClick={() => { setHomoEdit(!homoEdit); setHomoMsg(""); }}
+                className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold disabled:opacity-40 ${
+                  homoEdit ? "bg-otan text-cobble" : "border border-otan text-otan"}`}>
+                {homoEdit ? "점 찍기 끝" : "점 찍기"}
+              </button>
+            </span>
+          </div>
+          <div className="text-[11.5px] text-dim">
+            현재: {calib?.homography
+              ? `${calib.homography.ver} · 오차 ${calib.homography.reproj_err_m ?? "?"}m — 속도(K1)·히트맵 활성`
+              : "없음 — 프리뷰에서 노면 기준점 4~6개를 찍고 실측 좌표를 입력하세요 (좌표는 측정 거리에서 산출해 드립니다)"}
+          </div>
+          {homoPts.length > 0 && (
+            <>
+              <div className="mt-2 grid gap-1">
+                {homoPts.map((p, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2 text-[12.5px]">
+                    <b className="w-8 text-[#FF37C2]">P{i + 1}</b>
+                    <span className="num w-28 text-dim">({p.u.toFixed(3)}, {p.v.toFixed(3)})</span>
+                    <label className="flex items-center gap-1">X
+                      <input value={p.X} placeholder="m" inputMode="decimal"
+                        onChange={(e) => setHomoPts(homoPts.map((q, j) => j === i ? { ...q, X: e.target.value } : q))}
+                        className="w-20 rounded border border-cobble bg-transparent px-1.5 py-0.5" />
+                    </label>
+                    <label className="flex items-center gap-1">Y
+                      <input value={p.Y} placeholder="m" inputMode="decimal"
+                        onChange={(e) => setHomoPts(homoPts.map((q, j) => j === i ? { ...q, Y: e.target.value } : q))}
+                        className="w-20 rounded border border-cobble bg-transparent px-1.5 py-0.5" />
+                    </label>
+                    {homoRep?.errors_m[i] != null && (
+                      <span className={`num ${homoRep.errors_m[i] < 0.3 ? "text-otan" : "text-gravy"}`}>
+                        오차 {homoRep.errors_m[i]}m{homoRep.loo_err_m ? ` · 교차 ${homoRep.loo_err_m[i]}m` : ""}
+                      </span>
+                    )}
+                    <button className="text-dim hover:text-gravy"
+                      onClick={() => { setHomoPts(homoPts.filter((_, j) => j !== i)); setHomoRep(null); }}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-[12px]">
+                <button disabled={homoPts.length < 4 || homoPts.some((p) => p.X.trim() === "" || p.Y.trim() === "")}
+                  onClick={async () => {
+                    const body = {
+                      image_points: homoPts.map((p) => [p.u, p.v]),
+                      world_points: homoPts.map((p) => [Number(p.X), Number(p.Y)]),
+                      save: false,
+                    };
+                    const r = await api.calibHomography(body);
+                    if (r && typeof r !== "string") { setHomoRep(r); setHomoMsg(""); }
+                    else setHomoMsg(typeof r === "string" ? r : "검증 실패 — 백엔드 연결 확인");
+                  }}
+                  className="rounded border border-otan px-3 py-1 font-bold text-otan disabled:opacity-40">
+                  검증
+                </button>
+                <button disabled={!homoRep || homoRep.max_err_m >= 0.3}
+                  onClick={async () => {
+                    const body = {
+                      image_points: homoPts.map((p) => [p.u, p.v]),
+                      world_points: homoPts.map((p) => [Number(p.X), Number(p.Y)]),
+                      save: true,
+                    };
+                    const r = await api.calibHomography(body);
+                    if (r && typeof r !== "string" && r.saved) {
+                      setHomoMsg(`저장됨: ${r.saved} — 속도(K1) 즉시 활성`);
+                      setHomoEdit(false);
+                      refresh();
+                    } else setHomoMsg(typeof r === "string" ? r : "저장 실패");
+                  }}
+                  className="rounded bg-otan px-3 py-1 font-bold text-cobble disabled:opacity-40">
+                  저장
+                </button>
+                {homoRep && (
+                  <span className={`num ${homoRep.max_err_m < 0.3 ? "text-otan" : "text-gravy"}`}>
+                    최대 오차 {homoRep.max_err_m}m{homoRep.max_loo_err_m != null ? ` · 교차검증 ${homoRep.max_loo_err_m}m` : ""}
+                    {homoRep.max_err_m >= 0.3 && " — 0.3m 초과: 빨간 점 재확인"}
+                  </span>
+                )}
+                {homoMsg && <span className="text-dim">{homoMsg}</span>}
+              </div>
+            </>
+          )}
         </Card>
 
         <Card className="md:col-span-2">

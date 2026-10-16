@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import sqlite3
 import threading
@@ -454,6 +455,14 @@ class RecipientIn(BaseModel):
     label: str | None = None
 
 
+class HomographyIn(BaseModel):
+    """R2 4점 캘리브레이션 — image: 정규화(0~1) 클릭 좌표, world: 실측 미터 좌표."""
+    image_points: list[tuple[float, float]] = Field(min_length=4, max_length=8)
+    world_points: list[tuple[float, float]] = Field(min_length=4, max_length=8)
+    note: str | None = None
+    save: bool = False
+
+
 class RoiIn(BaseModel):
     """정규화 폴리곤 — [] 는 해제, 아니면 3점 이상. zone: roi(탐지 구역)·no_stop(정차 금지)."""
     points: list[tuple[float, float]] = Field(default_factory=list)
@@ -484,16 +493,47 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     @api.get("/calib")
     def calib_status():
         row = con.execute("SELECT ver, ts, reproj_err_m FROM calib ORDER BY ts DESC LIMIT 1").fetchone()
+        hrow = con.execute(
+            "SELECT ver, ts, reproj_err_m FROM calib WHERE h_json IS NOT NULL"
+            " ORDER BY ts DESC LIMIT 1").fetchone()
         return _meta("calib") | {
             "mode_on": calib_mode.on,
             "remaining_s": calib_mode.remaining_s(),
             "current": dict(row) if row else None,
+            "homography": dict(hrow) if hrow else None,   # R2 4점 — 없으면 K1·히트맵 비활성
         }
 
     @api.post("/calib/mode")
     def calib_mode_set(body: CalibModeIn):
         calib_mode.set(body.on)
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
+
+    @api.post("/calib/homography")
+    def calib_homography(body: HomographyIn):
+        """R2 4점 캘리브레이션 — 적합·오차 보고, save=true 면 calib 버전 저장 후 즉시 적용.
+        world 좌표(m)는 현장 실측 거리에서 산출(세션 기록 절차 참조)."""
+        from . import homography as homo
+        if any(not (0 <= u <= 1 and 0 <= v <= 1) for u, v in body.image_points):
+            raise HTTPException(422, "image_points 는 0~1 정규화")
+        try:
+            rep = homo.report(body.image_points, body.world_points)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        out = {k: v for k, v in rep.items() if k != "h"} | {"h": rep["h"], "saved": None}
+        if body.save:
+            ver = homo.H_VER_PREFIX + db.utcnow().replace(":", "").replace("-", "")[:15]
+            con.execute(
+                "INSERT INTO calib(ver, ts, h_json, reproj_err_m, note) VALUES(?,?,?,?,?)",
+                (ver, db.utcnow(), json.dumps(rep["h"]), rep["max_err_m"],
+                 body.note or f"4점 캘리브레이션 (n={len(body.image_points)})"))
+            con.commit()
+            from . import realloop as rl_mod
+            if rl_mod.CURRENT is not None:
+                rl_mod.CURRENT.set_homography(rep["h"])   # 재시작 없이 K1 활성
+            log.warning("호모그래피 저장: %s (max_err %.3fm, n=%d)",
+                        ver, rep["max_err_m"], len(body.image_points))
+            out["saved"] = ver
+        return out
 
     @api.get("/roi")
     def roi_get():

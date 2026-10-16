@@ -34,6 +34,8 @@ class Track:
     anchor_t: float = 0.0
     dwell_event_id: str | None = None
     dwell_done: bool = False                    # 정차 종료(재이동) 확정 — 중복 마감 방지
+    world_hist: list = field(default_factory=list)   # (t, X, Y) — 캘리브레이션 후 속도(K1)용
+    person_near: int | None = None              # 정차 중 보행자 근접 관측 (h2 정책·연구 기록)
 
     @property
     def foot(self) -> tuple[float, float]:

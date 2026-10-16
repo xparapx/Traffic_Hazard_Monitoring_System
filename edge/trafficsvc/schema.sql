@@ -122,3 +122,7 @@ ALTER TABLE events ADD COLUMN track_id INTEGER;
 -- 영상이 아니라 숫자 2개 — 프라이버시 조항과 무관.
 ALTER TABLE events ADD COLUMN pos_x REAL;
 ALTER TABLE events ADD COLUMN pos_y REAL;
+
+-- 정차 중 보행자 근접(YOLO 추적 관측, 0|1) (2026-10-16) — h2 규칙(위험=정차∧보행자 통행)의
+-- 오프라인 검증용. 캘리브레이션 전엔 정규화 거리 프록시, 후엔 미터 기준.
+ALTER TABLE events ADD COLUMN person_near INTEGER;

@@ -31,7 +31,17 @@ export interface BenchData { dummy: boolean; bench_runs: unknown[]; inference_su
 export interface LabelData { dummy: boolean; pending: PendingEvent[]; tags: string[] }
 export interface OutboxData { dummy: boolean; items: OutboxItem[] }
 export interface SystemData { dummy: boolean; db_rows: Record<string, number>; fake_hw: boolean }
-export interface CalibData { dummy: boolean; mode_on: boolean; remaining_s: number; current: { ver: string; ts: string } | null }
+export interface CalibData {
+  dummy: boolean; mode_on: boolean; remaining_s: number;
+  current: { ver: string; ts: string } | null;
+  homography?: { ver: string; ts: string; reproj_err_m: number | null } | null;  // R2 4점
+}
+
+export interface HomographyReport {
+  errors_m: number[]; max_err_m: number;
+  loo_err_m?: number[]; max_loo_err_m?: number;
+  h: number[][]; saved: string | null;
+}
 
 export type Fetched<T> = T & { offline: boolean };
 
@@ -84,6 +94,22 @@ export async function post(url: string, body: unknown): Promise<boolean> {
     return r.ok;
   } catch {
     return false;
+  }
+}
+
+/** 응답 본문이 필요한 POST — 실패(비 2xx·네트워크)는 null, 422 는 detail 문자열. */
+export async function postJson<T>(url: string, body: unknown): Promise<T | string | null> {
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) return (await r.json()) as T;
+    const e = await r.json().catch(() => null);
+    return typeof e?.detail === "string" ? e.detail : null;
+  } catch {
+    return null;
   }
 }
 
@@ -143,6 +169,9 @@ export const api = {
   calib: () =>
     get<CalibData>(`${ADM_BASE}/api/admin/calib`, { dummy: true, mode_on: false, remaining_s: 0, current: null }),
   calibMode: (on: boolean) => post(`${ADM_BASE}/api/admin/calib/mode`, { on }),
+  // R2 4점 캘리브레이션 — save=false 검증 / true 저장(즉시 K1 활성)
+  calibHomography: (body: { image_points: number[][]; world_points: number[][]; save: boolean; note?: string }) =>
+    postJson<HomographyReport>(`${ADM_BASE}/api/admin/calib/homography`, body),
   roi: () =>
     get<{ points: [number, number][];
       zones: { roi?: [number, number][]; no_stop?: [number, number][][] } }>(
