@@ -46,7 +46,7 @@
 - **R8** Pi 5 + AI HAT+ 2 이식 (선택, 12~14주차): ① 같은 스키마·같은 UI에 `board='pi'` 벤치 행 ② 두 보드 벤치 표 1장 ③ 바뀐 파일이 `capture/ · detect/ · vlm/ · scripts/` 밖에 없음을 `git diff --stat`으로 확인
 
 ## 확인된 함정
-- **전원 어댑터 여유 부족(2026-10-17 실측)**: 25W 모드 + 현 어댑터에서 llama-server 모델 GPU 적재 순간 보드 리셋. 금 22:39·토 07:05 급단 재부팅도 동일 원인 추정. **정격(45W급 배럴잭) 어댑터 확인·교체 전 VLM 기동 금지.** 임시 우회는 nvpmodel 15W(단 fps 기준선 재측정 필요).
+- **PCIe Wi-Fi(rtl88x2ce) × CUDA 부하 = 워치독 리셋(2026-10-18 판정, 전원설 기각)**: 리셋 사유 레지스터 BCCPLEXWDT(CPU 행→워치독) 확인. 기전: CUDA 부하 중 Wi-Fi 링크가 끊기면 CPU 가 죽은 PCIe 레지스터 읽기에 행 — NVIDIA 포럼 동일 사례(Orin Nano Super+rtl88x2ce, 미해결). 금·토 재부팅들도 동일 기전 추정(realloop 상시 CUDA). **근본 대책: 유선 이더넷 전환(1순위) 또는 USB Wi-Fi 교체 — 그 전 VLM(llama-server) 기동 금지.** 리셋 사유는 재부팅 직후 /sys/devices/platform/c360000.pmc/reset_reason 에서 1회만 읽힘.
 - JetPack 7.2.1 휠 호환성 — 설치 전 검증.
 - Camera Module 3를 Jetson에 붙이는 시도는 **1일 한도** (JetPack 7.2.1 검증 자료 없음). 실패 기록을 여기에 남기고 UVC(ELP AR0234)로 진행.
 - TensorRT 엔진은 보드 간 이식 불가 — 각 보드에서 빌드.
