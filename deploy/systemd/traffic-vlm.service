@@ -2,9 +2,16 @@
 # 모델 교체형 벤치 설계: 이 유닛의 --model/--mmproj 와 기기 env 의 TRAFFIC_VLM_NAME 만
 # 바꿔 재시작하면 후보가 스왑된다 (코드 수정 0). 앱쪽은 TRAFFIC_VLM=llama 로 전환.
 #
-# 후보 쌍 (2026-10 기준 — 설치 시점에 최신 릴리스 재확인):
-#   A) Qwen3-VL-4B-Instruct   GGUF Q4_K_M + mmproj   → TRAFFIC_VLM_NAME=qwen3-vl-4b-q4
-#   B) Gemma-3-4B-it          GGUF Q4_K_M + mmproj   → TRAFFIC_VLM_NAME=gemma-3-4b-q4
+# 후보 (2026-10-17 벤치 웹 확인 — 벤더 보고치, MMMU-Pro 기준):
+#   A) Qwen3.5-4B    MMMU-Pro 66.3 · OCRBench 85.0 · Q4 ≈5GB — 체급 내 최강(벤더표에서
+#      GPT-5-Nano·Gemini-2.5-Flash-Lite 상회). Apache-2.0, GGUF 양자화 존재.
+#                                        → TRAFFIC_VLM_NAME=qwen3.5-4b-q4
+#   B) Qwen3.5-9B    MMMU-Pro 70.1 · OCRBench 89.2 — 성능 2위 후보이나 Q4 ≈6GB+KV 로
+#      8GB 보드에서 TRT 동거 시 스왑 0 게이트 통과가 관건. 미달 시 ↓로 교체.
+#   B') Gemma-4-E4B-it  MMMU-Pro 52.6(thinking) · Q4 ≈4.9GB — 벤더 교차 비교용 대체 후보.
+#                                        → TRAFFIC_VLM_NAME=gemma-4-e4b-q4
+# (Gemma 4 소형은 비전 지표에서 Qwen3.5 동급에 뚜렷이 밀림 — '성능 상위 2' 원칙에 따라
+#  기본 쌍은 A+B, 메모리 게이트 실패 시에만 A+B'. llama.cpp GGUF 지원은 양쪽 모두 확인.)
 # 가중치는 ~/traffic/models/ (git 제외) — 보드에서 직접 다운로드.
 #
 # 필수 플래그:
