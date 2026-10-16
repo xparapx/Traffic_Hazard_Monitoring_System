@@ -25,10 +25,26 @@ prev_sha=$cur
 rm -rf web/dist.prev
 [ -d web/dist ] && cp -r web/dist web/dist.prev
 
-git pull --ff-only >/dev/null 2>&1 || { echo "[autoupdate] pull 실패 — 작업트리 오염 의심"; exit 1; }
+# 급전원 차단이 git 쓰기를 덮치면 0바이트 객체·lock 잔재가 남는다 (10-12·10-17 실측,
+# 두 번 모두 사람이 수동 복구). 같은 절차를 자가 복구로 내장 — 빈 객체/lock 정리 후
+# 재수급·재정렬. 기기에 로컬 커밋이 없는 구조(CLAUDE.md)라 reset --hard 는 안전하다.
+git_repair() {
+  echo "[autoupdate] git 자가 복구 — 빈 객체/lock 정리 후 fetch·reset"
+  find .git -maxdepth 2 -name "*.lock" -delete 2>/dev/null
+  find .git/objects -type f -empty -delete 2>/dev/null
+  git fetch origin >/dev/null 2>&1 || return 1
+  git reset --hard origin/main >/dev/null 2>&1 || return 1
+  echo "[autoupdate] git 복구 완료 -> $(git rev-parse --short HEAD)"
+}
+git pull --ff-only >/dev/null 2>&1 || git_repair \
+  || { echo "[autoupdate] pull·자가 복구 모두 실패 — 수동 점검 필요"; exit 1; }
 if [ "$(git rev-parse HEAD)" != "$sha" ]; then
-  echo "[autoupdate] main 이 릴리스 sha 보다 앞서감 — 다음 릴리스 대기"
-  exit 0
+  if [ -s web/dist/index.html ]; then
+    echo "[autoupdate] main 이 릴리스 sha 보다 앞서감 — 다음 릴리스 대기"
+    exit 0
+  fi
+  # dist 가 깨진 채로는 기다리지 않는다 — 최신 릴리스 dist 로 응급 복구하고 계속
+  echo "[autoupdate] HEAD($(git rev-parse --short HEAD))≠릴리스지만 dist 손상 — 응급 설치 진행"
 fi
 
 curl -fsSL -o /tmp/web-dist.tgz "$url" || { echo "[autoupdate] dist 다운로드 실패"; exit 1; }
