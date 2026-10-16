@@ -3,9 +3,10 @@
 # 캘리브레이션 모드를 창 길이만큼 연장하고 클립 녹화를 시작한다(창 끝에 자동 종료).
 # 등교일에만 수집: 주말은 코드가 제외, 공휴일·재량휴업일은 school_cal(school_day=0)로 —
 # school_cal 에 행이 있으면 그 값이 최우선(주말 행사일 school_day=1 로 수집도 가능).
-# 라벨 TARGET 도달 시 스스로 OFF — 재가동은 버튼으로. 모든 자동 동작은 로그.
-# TARGET=150 (2026-10-14 사용자 결정): 60은 GATE 2 하한일 뿐 정밀도 측정 오차가
-# ±0.12 라 경계선 판정 불능 위험 — n=150 이면 ±0.07. 대표성(날씨·요일)도 확보.
+# 라벨 TARGET 은 진행률 표시용 이정표 — 자동 OFF 하지 않는다(2026-10-18 사용자 결정:
+# 라벨은 상한 없이 계속, n 클수록 채점 오차 감소. 종전 자동 종료는 목표 초과 상태에서
+# 켤 때마다 30초 내 재차 꺼지는 문제를 만들었음). 수집 중단은 수동 토글만. 동작은 로그.
+# TARGET=150: 60은 GATE 2 하한(오차 ±0.12), 150이면 ±0.07.
 from __future__ import annotations
 
 import json
@@ -70,6 +71,7 @@ class AutoCollector(threading.Thread):
         self._state_path = settings.data_dir() / "autocollect.json"
         self._enabled = self._load()
         self._last_fail = 0.0
+        self._target_logged = False
 
     # ---- 상태 (재부팅 생존) ----
     def _load(self) -> bool:
@@ -134,9 +136,10 @@ class AutoCollector(threading.Thread):
         if not self._enabled:
             return
         self._prune_empty_clips()
-        if self.labels_n() >= TARGET_LABELS:
-            self.set_enabled(False, f"목표 {TARGET_LABELS}건 달성 — 자동 종료")
-            return
+        n = self.labels_n()
+        if n >= TARGET_LABELS and not self._target_logged:
+            self._target_logged = True   # 이정표 1회 기록 — 수집은 계속 (수동 OFF 까지)
+            log.warning("라벨 목표 %d건 달성 (현재 %d) — 수집은 계속", TARGET_LABELS, n)
         now = datetime.now(KST)
         if not is_school_day(self._con, now):
             return   # 주말·공휴일(school_cal) — 창이 와도 수집하지 않음

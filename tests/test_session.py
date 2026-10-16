@@ -44,3 +44,32 @@ def test_session_delete_all(con, monkeypatch, tmp_path):
     assert r == {"ok": True, "deleted": 2}
     left = sorted(p.name for p in sess.iterdir())
     assert left == ["session_20261012T073000Z.json"]   # ready 2개는 사이드카까지 전부 삭제
+
+
+def test_validation_manual_count(con, monkeypatch, tmp_path):
+    """R4 수동 대조 — 클립 창과 겹치는 버킷을 안분해 auto_n 산출, validation 기록."""
+    import json as _json
+
+    monkeypatch.setenv("TRAFFIC_FAKE_HW", "1")
+    monkeypatch.setenv("TRAFFIC_DATA_DIR", str(tmp_path))
+    sess = tmp_path / "sessions"
+    sess.mkdir()
+    # 클립: 07:32:30 ~ 07:37:30 (버킷 07:30 의 절반 + 07:35 의 절반)
+    base = sess / "session_20261020T073230Z"
+    base.with_suffix(".json").write_text(_json.dumps(
+        {"start_utc": "2026-10-20T07:32:30+00:00", "duration_s": 300.0,
+         "fps": 8, "frames": 2400, "auto": True}), encoding="utf-8")
+    base.with_suffix(".mp4").write_bytes(b"x")
+    con.execute("INSERT OR REPLACE INTO counts_5min(bucket_utc,cls,dir,n) VALUES"
+                "('2026-10-20T07:30:00+00:00','veh4','all',40),"
+                "('2026-10-20T07:35:00+00:00','veh4','all',20)")
+    con.commit()
+    adm = TestClient(create_admin_app(con))
+    r = adm.post("/api/admin/validation",
+                 json={"clip": "session_20261020T073230Z", "manual_n": 28}).json()
+    assert r["auto_n"] == 30                       # 40×0.5 + 20×0.5
+    assert abs(r["err_pct"] - 7.1) < 0.11          # (30-28)/28 ≈ +7.1% — 합격권
+    lst = adm.get("/api/admin/validation").json()
+    assert lst["n"] == 1 and lst["mean_abs_err_pct"] == abs(r["err_pct"])
+    assert adm.post("/api/admin/validation",
+                    json={"clip": "없는클립", "manual_n": 5}).status_code == 404

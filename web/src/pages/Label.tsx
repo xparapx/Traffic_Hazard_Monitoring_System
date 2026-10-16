@@ -29,6 +29,28 @@ export default function Label() {
   const [boxes, setBoxes] = useState<number[][][] | null>(null);  // 클립 사이드카 (프레임별 track 박스)
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fsRef = useRef<HTMLDivElement>(null);     // 전체화면 래퍼 — 캔버스 오버레이 동반
+  // R4(GATE 1) 수동 대조 — 클립을 보며 차량을 직접 세서 자동 카운트와 비교
+  const [tally, setTally] = useState<{ clip: string; n: number } | null>(null);
+  const [tallyMsg, setTallyMsg] = useState("");
+
+  useEffect(() => {   // 대조 중 스페이스바 = +1 (버튼과 동일)
+    if (!tally) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.code === "Space") { e.preventDefault(); setTally((t) => t && { ...t, n: t.n + 1 }); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [tally]);
+
+  async function finishTally() {
+    if (!tally) return;
+    const r = await api.validationAdd(tally.clip, tally.n);
+    if (r && typeof r !== "string") {
+      setTallyMsg(`기록됨 — 사람 ${r.manual_n} vs 자동 ${r.auto_n}` +
+        (r.err_pct != null ? ` · 오차 ${r.err_pct}% (합격선 ±10%)` : ""));
+    } else setTallyMsg("기록 실패 — 백엔드 확인");
+    setTally(null);
+  }
   const [msg, setMsg] = useState("");
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
@@ -284,6 +306,28 @@ export default function Label() {
             </div>
           )}
 
+          {/* R4 수동 대조 패널 — 사람 눈 = 기준값. 시스템 카운트의 누락/중복을 검증(GATE 1) */}
+          {tally && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-otan bg-otan/10 px-3 py-2 text-[12.5px]">
+              <b className="text-otan">수동 대조 중</b>
+              <span>영상에서 도로를 지나는 <b>차량(4륜)</b>마다 누르세요</span>
+              <button onClick={() => setTally({ ...tally, n: tally.n + 1 })}
+                className="rounded-full bg-otan px-4 py-1.5 font-bold text-cobble">+1 차량 (Space)</button>
+              <span className="num text-[22px] font-bold text-white">{tally.n}</span>
+              <button onClick={finishTally}
+                className="rounded border border-otan px-2.5 py-1 font-bold text-otan">끝 — 기록</button>
+              <button onClick={() => setTally(null)}
+                className="rounded border border-cobble px-2.5 py-1">취소</button>
+              <span className="w-full text-[11px] text-dim-dark">
+                목적: 시스템이 차량을 빠짐없이·중복 없이 세는지 사람 눈으로 검증 (GATE 1 — 오차 ≤10% 합격).
+                이륜차·보행자는 세지 않습니다. 재생 속도를 올려도 됩니다.
+              </span>
+            </div>
+          )}
+          {tallyMsg && (
+            <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{tallyMsg}</div>
+          )}
+
           {/* 클립 목록 헤더 — 개수·용량 요약 + 일괄 삭제 (ready 2개 이상일 때만 노출) */}
           {sess.sessions.filter((s) => s.status === "ready").length >= 2 && (
             <div className="mt-3 flex items-center justify-between px-3 text-[11.5px] text-dim-dark">
@@ -327,6 +371,11 @@ export default function Label() {
                     {s.status !== "ready" && ` · ${s.status === "converting" ? "변환 중…" : s.status}`}
                   </span>
                 </button>
+                {s.status === "ready" && !tally && (
+                  <button title="R4 수동 대조 — 이 클립을 보며 차량 수 세기"
+                    onClick={() => { setPlaying(s.name); setTally({ clip: s.name, n: 0 }); setTallyMsg(""); }}
+                    className="text-[11px] text-dim-dark hover:text-otan">대조</button>
+                )}
                 {s.status === "ready" && (
                   <button onClick={async () => {
                     if (confirm(`${s.name} 영상을 삭제할까요? (복구 불가)`)) {
@@ -347,7 +396,7 @@ export default function Label() {
             </button>
             <span className="text-[11px] text-dim-dark">
               매일 {auto?.windows?.join(" · ") || "07:30-08:30 · 16:30-17:30"} 자동 녹화 ·
-              라벨 <b className="num text-white">{auto?.labels_n ?? 0}</b>/{auto?.target ?? 150}건 달성 시 자동 종료 (재가동 가능)
+              라벨 <b className="num text-white">{auto?.labels_n ?? 0}</b> / 목표 {auto?.target ?? 150} (이정표 — 수집은 수동 종료까지 계속)
             </span>
           </div>
           <div className="mt-2 text-[9.5px] text-dim-dark">

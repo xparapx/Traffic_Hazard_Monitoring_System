@@ -197,6 +197,14 @@ export const api = {
   sessionStop: () => post(`${ADM_BASE}/api/admin/session/stop`, {}),
   sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
   sessionDeleteAll: () => del(`${ADM_BASE}/api/admin/session`),   // ready 클립 일괄 삭제
+  // R4(GATE 1) 수동 대조 — 사람 계수 vs 자동 카운트
+  validationAdd: (clip: string, manual_n: number) =>
+    postJson<{ ok: boolean; manual_n: number; auto_n: number; err_pct: number | null }>(
+      `${ADM_BASE}/api/admin/validation`, { clip, manual_n }),
+  validationList: () =>
+    get<{ rows: { ts: string; manual_n: number; auto_n: number; err_pct: number | null }[];
+          mean_abs_err_pct: number | null; n: number }>(
+      `${ADM_BASE}/api/admin/validation`, { rows: [], mean_abs_err_pct: null, n: 0 }),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)
   sessionBoxesUrl: (name: string) => `${ADM_BASE}/session-video/${name}.boxes.jsonl`,

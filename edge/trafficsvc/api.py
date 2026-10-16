@@ -475,6 +475,12 @@ class RoiIn(BaseModel):
     zone: Literal["roi", "no_stop"] = "roi"
 
 
+class ValidationIn(BaseModel):
+    """R4 수동 대조 — clip: 세션 이름, manual_n: 사람이 그 클립에서 센 차량(veh4) 수."""
+    clip: str
+    manual_n: int = Field(ge=0, le=2000)
+
+
 class SessionRecordIn(BaseModel):
     minutes: int = Field(default=5, ge=1, le=90)   # 창 상한 90분 — 5분 클립 자동 분할
 
@@ -625,6 +631,47 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     def autocollect_set(body: CalibModeIn):
         collector.set_enabled(body.on)
         return collector.status()
+
+    @api.post("/validation")
+    def validation_add(body: ValidationIn):
+        """R4(GATE 1) 수동 대조 — 클립을 보며 사람이 센 차량 수 vs 같은 시간창의 자동
+        카운트(counts_5min veh4, 버킷 경계는 겹침 비율로 안분). validation 표에 기록."""
+        from datetime import datetime, timedelta
+        s = next((x for x in recorder.list() if x["name"] == body.clip), None)
+        if not s:
+            raise HTTPException(404, "클립 없음")
+        t0 = datetime.fromisoformat(s["start_utc"])
+        t1 = t0 + timedelta(seconds=float(s["duration_s"]))
+        auto = 0.0
+        b = t0.replace(minute=t0.minute - t0.minute % 5, second=0, microsecond=0)
+        while b < t1:
+            be = b + timedelta(minutes=5)
+            row = con.execute(
+                "SELECT n FROM counts_5min WHERE bucket_utc=? AND cls='veh4'",
+                (b.isoformat(timespec="seconds"),)).fetchone()
+            if row and row["n"] is not None:
+                ov = (min(t1, be) - max(t0, b)).total_seconds() / 300.0
+                auto += row["n"] * ov
+            b = be
+        auto_n = round(auto)
+        err = round((auto_n - body.manual_n) / body.manual_n * 100, 1) if body.manual_n else None
+        con.execute(
+            "INSERT INTO validation(ts, kind, manual_n, auto_n, err_pct, note) VALUES(?,?,?,?,?,?)",
+            (db.utcnow(), "veh4_count", body.manual_n, auto_n, err,
+             f"clip={body.clip} ({s['duration_s']:.0f}s, 버킷 안분)"))
+        con.commit()
+        log.warning("수동 대조 기록: clip=%s manual=%d auto=%d err=%s%%",
+                    body.clip, body.manual_n, auto_n, err)
+        return {"ok": True, "manual_n": body.manual_n, "auto_n": auto_n, "err_pct": err}
+
+    @api.get("/validation")
+    def validation_list():
+        rows = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
+                          " WHERE kind='veh4_count' ORDER BY id DESC LIMIT 20")
+        errs = [abs(r["err_pct"]) for r in rows if r["err_pct"] is not None]
+        return {"rows": rows,
+                "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
+                "n": len(rows)}
 
     @api.delete("/session")
     def session_delete_all():
