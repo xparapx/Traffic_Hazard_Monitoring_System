@@ -289,11 +289,14 @@ export default function Metrics() {
         )}
       </Card>
 
-      {/* ---- K3 정차 ---- */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      {/* ---- K3 정차 — 섹션 제목 + 시간/공간 1:1 분할 ---- */}
+      <div className="mb-2 mt-1 text-[15px] font-bold">
+        정차 이벤트 <span className="meta">K2 · 공간 히트맵·K3(근접)은 캘리브레이션(R2) 후</span>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="mb-2 text-[14px] font-bold">
-            정차 이벤트 <span className="meta">K2 · 시간대 strip plot — 띠의 농도=빈도 · 점 크기=지속시간</span>
+            시간 분포 <span className="meta">strip plot — 띠의 농도=빈도 · 점 크기=지속시간 · 5분 격자</span>
           </div>
           {dwellPts.all.length === 0 ? <Empty note="정차 이벤트가 아직 없습니다." /> : (
             <>
@@ -346,7 +349,9 @@ export default function Metrics() {
         <Card>
           {/* 공간 분포 top-view 약도 — 랜드마크는 지금, 이벤트 투영은 R2 호모그래피 후.
               좌표(pos_x·y)는 이미 기록 중이라 캘리브레이션 즉시 과거 이벤트까지 표시된다. */}
-          <div className="meta font-bold">공간 분포 · 교문 앞 (top-view)</div>
+          <div className="mb-2 text-[14px] font-bold">
+            공간 분포 <span className="meta">교문 앞 top-view 약도</span>
+          </div>
           {/* 도로 축 정렬 약도 (2026-10-16 실사 영상·지도 대조 재구현) —
               공주고담길 수평, 교문 x=150 원점. 실제 지형은 교문 정면으로 북쪽 길이
               뻗는 삼거리: 서측=공용주차장, 동측 모퉁이=GS25 상가.
