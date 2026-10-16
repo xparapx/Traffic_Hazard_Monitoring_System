@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+### 2026-10-17 (25) — fps 기준 통과·VLM 교체형 백엔드·후보 벤치 확정 · 전원사고 2차 복구
+- **fps ≥ 15 충족(R1①·R2①)**: TRAFFIC_LOOP_FPS=30 으로 상한 해제 → 실측 **fps_med 16.7 · p05 16.4 · drop 0**(카메라 33fps 의 2프레임 간격). 자원 여유 큼 — RAM 1.3/7.5GB·GPU 대부분 유휴·53°C·6.7W → VLM 동거 헤드룸 확보. track 10대 유지는 월요일 등교 피크에서 확인.
+- **VLM 교체형 백엔드(9d2676d)**: vlm/llama_cpp.py(OpenAI 호환·객관식 JSON 강제·enum 밖→unknown·실패→unknown 행), 태거 신원(model_ver·prompt_ver·backend) 스탬프로 후보별 성적 자동 분리, make_tagger(TRAFFIC_VLM=fake|llama), realloop crop(메모리 15% 여유) 전달, traffic-vlm.service 템플릿(--log-disable 필수). pytest 54.
+- **후보 벤치 확정(웹 검증 98089cd)**: Qwen3.5(2026-02, 전 체급 네이티브 멀티모달)·Gemma 4(2026-06) 비교 — **Qwen3.5-4B**(MMMU-Pro 66.3·OCRBench 85.0, GPT-5-Nano 상회) + **Qwen3.5-9B**(70.1/89.2, 스왑 0 게이트 조건부), Gemma-4-E4B(52.6)는 대체 후보. 모두 Apache-2.0·GGUF 확인.
+- **전원사고 2차(금 22:39·토 07:05 급단전)**: dist 0바이트+git 객체 손상 재발 → 수동 복구 후 **autoupdate git 자가 복구 내장(cb58b8b)** + 기기 fileMode=false(chmod 노이즈 면역). 콘센트 전원 계통 확인·UPS 권고(사람 몫).
+- R4 수동 대조 방침: 라벨이 아니라 **클립 재생 수동 계수**로 수행(카운트 오차·P1-P2 구간 통과시간 속도 대조) — 전용 도구는 다음 작업.
+
 ### 2026-10-16 (24) — 리허설 채점·h2 정책 결정·R2 캘리브레이션 파이프라인 완비
 - **리허설 채점(라벨 153, 10-12 기준선)**: 조인 153/153 — 파이프라인 무결. YOLO_ONLY 정밀도 **0.092**·FPR 1.0·재현율 1.0, 위험 기저율 9.2%, 정상 태그의 84%가 waiting. **발견: h1(boarding 만 완화)로는 GATE 2 구조적 불가.**
 - **h2 정책(사용자 결정)**: 위험 = 금지구역 정차 ∧ **보행자 통행(person_near)** — 태그는 부차. rules_ver=h2 배포, events.person_near(YOLO 추적 관측) 기록 시작, 가짜 태거가 관측치를 사용해 실 VLM 전에도 HYBRID 실동작.
