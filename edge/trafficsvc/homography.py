@@ -108,6 +108,51 @@ def report(img_pts, world_pts) -> dict:
     return out
 
 
+def solve_points_from_distances(n: int, dists: list[tuple[int, int, float]]) -> dict:
+    """쌍별 실측 거리(m) → 평면 좌표 복원 (삼변측량).
+    좌표계는 P1=(0,0), P2=(d12,0) 인 임의 평면 프레임 — 호모그래피에는 어떤 평면
+    프레임이든 동등하다(속도·거리 불변). 각 점은 P1·P2 까지의 거리로 위치를 정하고,
+    부호(±y)는 세 번째 거리로 고른다. 남는 거리들은 검산 잔차로 보고한다."""
+    dm: dict[tuple[int, int], float] = {}
+    for i, j, m in dists:
+        if i == j or m <= 0:
+            raise ValueError(f"잘못된 거리: P{i+1}-P{j+1}={m}")
+        dm[(min(i, j), max(i, j))] = float(m)
+
+    def d(a, b):
+        return dm.get((min(a, b), max(a, b)))
+
+    if n < 3 or d(0, 1) is None:
+        raise ValueError("최소 P1-P2 거리와 3점 이상 필요")
+    pts: list[tuple[float, float] | None] = [None] * n
+    pts[0] = (0.0, 0.0)
+    pts[1] = (d(0, 1), 0.0)
+    for k in range(2, n):
+        if d(0, k) is None or d(1, k) is None:
+            raise ValueError(f"P{k+1} 은 P1·P2 까지의 거리가 모두 필요합니다")
+        d12 = d(0, 1)
+        x = (d(0, k) ** 2 - d(1, k) ** 2 + d12 ** 2) / (2 * d12)
+        y2 = d(0, k) ** 2 - x ** 2
+        if y2 < -0.05:
+            raise ValueError(f"P{k+1} 거리들이 삼각형이 안 됩니다 — 측정 재확인")
+        y = math.sqrt(max(0.0, y2))
+        # 부호 결정 — 이미 배치된 다른 점까지의 거리와 더 잘 맞는 쪽
+        best = y
+        ref = next((r for r in range(2, k) if pts[r] and d(r, k) is not None), None)
+        if ref is not None:
+            e_pos = abs(math.dist((x, y), pts[ref]) - d(ref, k))
+            e_neg = abs(math.dist((x, -y), pts[ref]) - d(ref, k))
+            best = y if e_pos <= e_neg else -y
+        pts[k] = (round(x, 3), round(best, 3))
+    residuals = [
+        {"pair": f"P{i+1}-P{j+1}",
+         "err_m": round(abs(math.dist(pts[i], pts[j]) - m), 3)}
+        for (i, j), m in dm.items()]
+    return {"points": [list(p) for p in pts],
+            "residuals": residuals,
+            "max_residual_m": max(r["err_m"] for r in residuals)}
+
+
 def load(con: sqlite3.Connection) -> list[list[float]] | None:
     """calib 표에서 최신 호모그래피 — 없으면 None (K1·히트맵은 그때까지 null)."""
     row = con.execute(

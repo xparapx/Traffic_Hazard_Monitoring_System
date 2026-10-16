@@ -15,6 +15,27 @@ export default function SystemPage() {
   const [homoPts, setHomoPts] = useState<{ u: number; v: number; X: string; Y: string }[]>([]);
   const [homoRep, setHomoRep] = useState<HomographyReport | null>(null);
   const [homoMsg, setHomoMsg] = useState("");
+  const [distText, setDistText] = useState("");   // "P1-P2 = 412cm" 줄 단위 붙여넣기
+
+  /** 거리 텍스트 파싱 → 좌표 풀이 → 각 점의 X,Y 자동 채움 */
+  async function solveFromDistances() {
+    const dists: [number, number, number][] = [];
+    for (const line of distText.split("\n")) {
+      const m = line.match(/P\s*(\d+)\s*[-~]\s*P\s*(\d+)\s*[=:]?\s*([\d.]+)\s*(cm|m)?/i);
+      if (!m) continue;
+      const val = Number(m[3]) * ((m[4] ?? "cm").toLowerCase() === "m" ? 1 : 0.01);
+      dists.push([Number(m[1]) - 1, Number(m[2]) - 1, val]);
+    }
+    if (dists.length < 3) { setHomoMsg("거리 줄을 3개 이상 인식하지 못했습니다 — 'P1-P2 = 412' 형식"); return; }
+    const r = await api.calibSolve({ n: homoPts.length, distances: dists });
+    if (!r || typeof r === "string") { setHomoMsg(typeof r === "string" ? r : "풀이 실패"); return; }
+    setHomoPts(homoPts.map((p, i) => ({
+      ...p, X: String(r.points[i]?.[0] ?? ""), Y: String(r.points[i]?.[1] ?? ""),
+    })));
+    setHomoRep(null);
+    setHomoMsg(`좌표 채움 — 검산 잔차 최대 ${r.max_residual_m}m${
+      r.max_residual_m > 0.1 ? " (0.1m 초과: 측정 재확인 권장)" : ""}`);
+  }
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
@@ -259,6 +280,17 @@ export default function SystemPage() {
                       onClick={() => { setHomoPts(homoPts.filter((_, j) => j !== i)); setHomoRep(null); }}>✕</button>
                   </div>
                 ))}
+              </div>
+              {/* 실측 거리 붙여넣기 → 좌표 자동 산출 (P1=(0,0)·P1→P2 가 X축인 평면 프레임) */}
+              <div className="mt-2 flex flex-wrap items-start gap-2">
+                <textarea value={distText} onChange={(e) => setDistText(e.target.value)}
+                  placeholder={"P1-P2 = 412\nP2-P3 = 310\nP3-P4 = ... (cm, 한 줄에 하나 — m 단위는 'm' 표기)"}
+                  rows={3}
+                  className="min-w-[260px] flex-1 rounded border border-cobble bg-transparent px-2 py-1 text-[12px]" />
+                <button onClick={solveFromDistances} disabled={homoPts.length < 3}
+                  className="rounded border border-cobble px-3 py-1 text-[12px] font-bold disabled:opacity-40">
+                  거리로 좌표 채우기
+                </button>
               </div>
               <div className="mt-2 flex items-center gap-2 text-[12px]">
                 <button disabled={homoPts.length < 4 || homoPts.some((p) => p.X.trim() === "" || p.Y.trim() === "")}

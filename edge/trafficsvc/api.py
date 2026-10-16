@@ -455,6 +455,12 @@ class RecipientIn(BaseModel):
     label: str | None = None
 
 
+class SolveIn(BaseModel):
+    """실측 거리 → 좌표 풀이 — distances: [i, j, 미터] (i,j 는 0-기반 점 번호)."""
+    n: int = Field(ge=3, le=8)
+    distances: list[tuple[int, int, float]] = Field(min_length=3)
+
+
 class HomographyIn(BaseModel):
     """R2 4점 캘리브레이션 — image: 정규화(0~1) 클릭 좌표, world: 실측 미터 좌표."""
     image_points: list[tuple[float, float]] = Field(min_length=4, max_length=8)
@@ -507,6 +513,16 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     def calib_mode_set(body: CalibModeIn):
         calib_mode.set(body.on)
         return {"ok": True, "mode_on": calib_mode.on, "remaining_s": calib_mode.remaining_s()}
+
+    @api.post("/calib/solve")
+    def calib_solve(body: SolveIn):
+        """실측 거리(m) → 평면 좌표 — UI 의 '거리로 좌표 채우기'. 검산 잔차 포함."""
+        from . import homography as homo
+        try:
+            return homo.solve_points_from_distances(
+                body.n, [(i, j, m) for i, j, m in body.distances])
+        except ValueError as e:
+            raise HTTPException(422, str(e))
 
     @api.post("/calib/homography")
     def calib_homography(body: HomographyIn):

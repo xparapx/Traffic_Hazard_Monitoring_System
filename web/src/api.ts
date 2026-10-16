@@ -172,6 +172,10 @@ export const api = {
   // R2 4점 캘리브레이션 — save=false 검증 / true 저장(즉시 K1 활성)
   calibHomography: (body: { image_points: number[][]; world_points: number[][]; save: boolean; note?: string }) =>
     postJson<HomographyReport>(`${ADM_BASE}/api/admin/calib/homography`, body),
+  // 실측 거리(m) → 평면 좌표 풀이 (삼변측량 + 검산 잔차)
+  calibSolve: (body: { n: number; distances: [number, number, number][] }) =>
+    postJson<{ points: number[][]; residuals: { pair: string; err_m: number }[]; max_residual_m: number }>(
+      `${ADM_BASE}/api/admin/calib/solve`, body),
   roi: () =>
     get<{ points: [number, number][];
       zones: { roi?: [number, number][]; no_stop?: [number, number][][] } }>(

@@ -78,3 +78,24 @@ def test_h2_person_near_is_decisive():
     assert combine("DANGER", _vlm("waiting", near=0, conf=0.3), duration_s=60) == "DANGER"
     # WARNING 은 승격하지 않는다
     assert combine("WARNING", _vlm("waiting", near=1), duration_s=60) == "WARNING"
+
+
+def test_solve_points_from_distances():
+    """실측 거리 → 좌표 복원 — 알려진 직사각형(6×20m) + 대각 검산."""
+    from trafficsvc.homography import solve_points_from_distances
+    import math as _m
+    diag = _m.sqrt(6**2 + 20**2)
+    r = solve_points_from_distances(4, [
+        (0, 1, 6.0), (1, 2, 20.0), (2, 3, 6.0), (3, 0, 20.0),
+        (0, 2, diag), (1, 3, diag),
+    ])
+    P = r["points"]
+    assert P[0] == [0.0, 0.0] and P[1] == [6.0, 0.0]
+    assert abs(abs(P[2][1]) - 20.0) < 0.01 and abs(P[2][0] - 6.0) < 0.01
+    assert abs(P[3][0]) < 0.01 and abs(abs(P[3][1]) - 20.0) < 0.01
+    assert P[2][1] * P[3][1] > 0          # 부호 일관(같은 쪽) — 대각 검산으로 결정
+    assert r["max_residual_m"] < 0.01
+    # P1·P2 까지 거리 누락 시 명확한 오류
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        solve_points_from_distances(4, [(0, 1, 6.0), (0, 2, 5.0), (2, 3, 4.0)])
