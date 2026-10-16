@@ -7,7 +7,7 @@
     "viewBox": [1080, 760],
     "views": [
       { "id": "hot-path", "label": "실시간 경로", "focus": ["cam", "fast", "db", "web"], "note": "프레임은 저장되지 않고 숫자만 남는다 — 5분 버킷과 이벤트." },
-      { "id": "shadow", "label": "3중 판정", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트당 inferences 3행 — 8GB 엣지 보드의 득실을 실측하는 연구 데이터." },
+      { "id": "shadow", "label": "3중 판정 (Slow Loop)", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트당 inferences 3행 — 8GB 엣지 보드의 득실을 실측하는 기록." },
       { "id": "report", "label": "리포트 경로", "focus": ["db", "anl", "out", "rpt"], "note": "검증기 통과 초안만 outbox 에, 사람 승인 후에만 발송." }
     ]
   },
@@ -44,7 +44,7 @@
   ],
   "cards": [
     { "dot": "emerald", "title": "실시간 경로", "items": ["프레임은 파일로 저장되지 않는다 — 숫자·enum 만 DB 에", "표본 부족 버킷은 null 로 정직하게 기록", "FAST 는 SLOW 가 죽어도 멈추지 않는다"] },
-    { "dot": "violet", "title": "연구 데이터", "items": ["같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행", "crop 은 태깅 직후 참조 삭제 — 저장 코드 0", "사람 라벨(labels)은 관리 페이지에서만 들어온다"] },
+    { "dot": "violet", "title": "3중 기록 (Slow Loop)", "items": ["같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행", "crop 은 태깅 직후 참조 삭제 — 저장 코드 0", "사람 라벨(labels)은 관리 페이지에서만 들어온다"] },
     { "dot": "rose", "title": "리포트 게이트", "items": ["검증기(금지 주어·숫자 대조) 통과 초안만 outbox draft", "draft 상태 발송 0건 — 승인은 사람이 관리 화면에서", "발송 채널은 R6 에서 — 지금은 sent 마킹 계약만"] }
   ]
 }

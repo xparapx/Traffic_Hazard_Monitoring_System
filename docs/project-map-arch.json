@@ -5,8 +5,8 @@
     "title": "Traffic Hazard Monitoring — 설계 맵",
     "quality_profile": "showcase",
     "views": [
-      { "id": "ops-track", "label": "운영 트랙 (Fast Loop)", "focus": ["cam", "fast", "db", "pub", "web"], "note": "VLM 이 죽어도 살아 있어야 하는 경로 — 계수에서 공개 페이지까지." },
-      { "id": "research-track", "label": "연구 트랙 (Slow Loop)", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트 순간에만 도는 3중 판정 섀도 로깅." },
+      { "id": "ops-track", "label": "Fast Loop", "focus": ["cam", "fast", "db", "pub", "web"], "note": "VLM 이 죽어도 살아 있어야 하는 경로 — 계수에서 공개 페이지까지." },
+      { "id": "research-track", "label": "Slow Loop", "focus": ["fast", "slow", "vlm", "db"], "note": "이벤트 순간에만 도는 3중 판정 섀도 로깅." },
       { "id": "cd-track", "label": "배포 (pull형 CD)", "focus": ["ci", "upd", "pub"], "note": "CI 를 통과한 커밋만 기기가 5분 주기로 수거한다." }
     ]
   },
@@ -42,8 +42,8 @@
     { "id": "install", "from": "upd", "to": "pub", "label": "install · rollback", "variant": "dashed", "fromSide": "top", "toSide": "bottom" }
   ],
   "cards": [
-    { "dot": "emerald", "title": "코드명 — 운영 트랙", "items": ["CAM 카메라/합성 궤적 · FAST 상시 계수 루프(fastloop)", "DB 유일한 저장소 traffic.db · PUB 공개 API :8600", "WEB React 8페이지 — VLM 이 죽어도 이 줄은 산다"] },
-    { "dot": "violet", "title": "코드명 — 연구·배치", "items": ["SLOW 이벤트 큐 소비(slowloop) · VLM enum 태거", "ANL 일간 배치(analysis) — K1~K3·안전지수·주간 초안", "같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행"] },
+    { "dot": "emerald", "title": "코드명 — Fast Loop", "items": ["CAM 카메라/합성 궤적 · FAST 상시 계수 루프(fastloop)", "DB 유일한 저장소 traffic.db · PUB 공개 API :8600", "WEB React 8페이지 — VLM 이 죽어도 이 줄은 산다"] },
+    { "dot": "violet", "title": "코드명 — Slow Loop · 배치", "items": ["SLOW 이벤트 큐 소비(slowloop) · VLM enum 태거", "ANL 일간 배치(analysis) — K1~K3·안전지수·주간 초안", "같은 event_id 에 YOLO_ONLY·VLM_ONLY·HYBRID 3행"] },
     { "dot": "rose", "title": "코드명 — 관리·배포", "items": ["ADM 관리 API :8601 — 테일넷 인터페이스에만 바인딩", "CI GitHub Actions — 통과 커밋만 latest 릴리스", "UPD autoupdate 5분 수거 · 헬스 실패 시 롤백"] }
   ]
 }
