@@ -160,6 +160,7 @@ class RealLoop:
             on_speed=self._on_speed, world_fn=wf)
         self._speeds: dict[str, list[float]] = {}
         self._stop = False
+        self._cur_frame = None        # step() 직전 프레임 — dwell crop 용, 파일로 쓰지 않음
         self._cond = threading.Condition()
         self._seq = 0
         self._frame = None            # (ts, BGR, kept, excluded)
@@ -223,8 +224,18 @@ class RealLoop:
             risk_level="DANGER" if zone == "no_stop" else "WARNING",
             model_ver=self.model_ver, rules_ver=None, backend="trt")
         self.con.commit()
-        # 크롭은 R5(실 VLM)에서 — 지금은 메타만 넘겨 연구 경로(3중 기록)를 살려 둔다
-        self.slow.submit(event_id, None, {
+        # 이벤트 순간의 차량 crop(메모리 복사본, 15% 여유) — 실 VLM 입력. 파일로 쓰지 않는다.
+        crop = None
+        f = self._cur_frame
+        if f is not None and hasattr(f, "shape"):
+            h, w = f.shape[:2]
+            x1, y1, x2, y2 = tr.box
+            mx, my = (x2 - x1) * 0.15, (y2 - y1) * 0.15
+            px1, py1 = max(0, int((x1 - mx) * w)), max(0, int((y1 - my) * h))
+            px2, py2 = min(w, int((x2 + mx) * w)), min(h, int((y2 + my) * h))
+            if px2 - px1 > 8 and py2 - py1 > 8:
+                crop = f[py1:py2, px1:px2].copy()
+        self.slow.submit(event_id, crop, {
             "zone": zone, "duration_s": dur, "ts": db.utcnow(),
             "person_near": tr.person_near,   # YOLO 관측 — 가짜 태거가 h2 입력으로 사용
             "yolo_risk": "DANGER" if zone == "no_stop" else "WARNING"})
@@ -294,6 +305,7 @@ class RealLoop:
                     last = ts
                     now = time.time()
                     dets = detector.detect(frame)
+                    self._cur_frame = frame      # dwell 확정 콜백의 crop 소스 (메모리만)
                     kept, excl = self.pipeline.step(ts, dets)
                     if prev is not None:
                         self._frame_dts.append(ts - prev)

@@ -8,7 +8,7 @@ import sqlite3
 import time
 
 from . import db, settings
-from .vlm import UNKNOWN, FakeVlmTagger, VlmResult, VlmTagger
+from .vlm import UNKNOWN, VlmResult, VlmTagger, make_tagger
 from .vlm.hybrid_rules import RULES_VER, combine
 
 QUEUE_MAX = 8
@@ -17,7 +17,7 @@ QUEUE_MAX = 8
 class SlowLoop:
     def __init__(self, con: sqlite3.Connection, tagger: VlmTagger | None = None):
         self.con = con
-        self.tagger = tagger or FakeVlmTagger()
+        self.tagger = tagger or make_tagger()   # TRAFFIC_VLM=fake(기본)|llama — R5 모델 스왑 지점
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_MAX)
         self.dropped = 0
         self.processed = 0
@@ -59,13 +59,13 @@ class SlowLoop:
             self.con, event_id=event_id, ts=ts, model_type="VLM_ONLY",
             risk_level=vlm_risk, tag=res.tag, door_open=res.door_open,
             person_near=res.person_near, conf=res.conf, latency_ms=res.latency_ms,
-            model_ver=settings.MODEL_VER_FAKE, prompt_ver=settings.PROMPT_VER,
-            rules_ver=None, backend=settings.BACKEND_FAKE)
+            model_ver=self.tagger.model_ver, prompt_ver=self.tagger.prompt_ver,
+            rules_ver=None, backend=self.tagger.backend)
         hybrid = combine(yolo_risk, res, duration_s=float(meta.get("duration_s") or 0))
         db.insert_inference(
             self.con, event_id=event_id, ts=ts, model_type="HYBRID",
             risk_level=hybrid, tag=res.tag, conf=res.conf, latency_ms=res.latency_ms,
-            model_ver=settings.MODEL_VER_FAKE, prompt_ver=settings.PROMPT_VER,
-            rules_ver=RULES_VER, backend=settings.BACKEND_FAKE)
+            model_ver=self.tagger.model_ver, prompt_ver=self.tagger.prompt_ver,
+            rules_ver=RULES_VER, backend=self.tagger.backend)
         db.cache_event_risk(self.con, event_id, hybrid)
         self.processed += 1

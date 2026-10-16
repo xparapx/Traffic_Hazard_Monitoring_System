@@ -1,0 +1,28 @@
+# llama-server 상주 VLM (R5) — user 유닛 (~/.config/systemd/user/)
+# 모델 교체형 벤치 설계: 이 유닛의 --model/--mmproj 와 기기 env 의 TRAFFIC_VLM_NAME 만
+# 바꿔 재시작하면 후보가 스왑된다 (코드 수정 0). 앱쪽은 TRAFFIC_VLM=llama 로 전환.
+#
+# 후보 쌍 (2026-10 기준 — 설치 시점에 최신 릴리스 재확인):
+#   A) Qwen3-VL-4B-Instruct   GGUF Q4_K_M + mmproj   → TRAFFIC_VLM_NAME=qwen3-vl-4b-q4
+#   B) Gemma-3-4B-it          GGUF Q4_K_M + mmproj   → TRAFFIC_VLM_NAME=gemma-3-4b-q4
+# 가중치는 ~/traffic/models/ (git 제외) — 보드에서 직접 다운로드.
+#
+# 필수 플래그:
+#   --log-disable : 요청 로그에 base64 이미지가 남는 함정 차단 (CLAUDE.md 프라이버시)
+#   -ngl 99       : 전층 GPU — 8GB 에서 TRT(YOLO)와 동거하므로 벤치에서 스왑 0 확인 필수
+[Unit]
+Description=traffic VLM server (llama.cpp, swappable model)
+After=network.target
+
+[Service]
+WorkingDirectory=%h/traffic
+ExecStart=%h/llama.cpp/build/bin/llama-server \
+  --host 127.0.0.1 --port 8090 \
+  --model %h/traffic/models/CURRENT.gguf \
+  --mmproj %h/traffic/models/CURRENT-mmproj.gguf \
+  -ngl 99 --ctx-size 4096 --log-disable
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

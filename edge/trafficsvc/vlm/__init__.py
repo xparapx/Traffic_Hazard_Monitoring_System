@@ -22,11 +22,33 @@ class VlmResult:
 
 
 class VlmTagger(Protocol):
+    """태거는 자기 신원 3종(model_ver·prompt_ver·backend)을 속성으로 갖는다 —
+    slowloop 이 판정 행마다 그대로 도장 찍는다 (재현성 규약)."""
+    model_ver: str
+    prompt_ver: str
+    backend: str
+
     def tag(self, crop: object, meta: dict) -> VlmResult: ...
+
+
+def make_tagger():
+    """환경변수 TRAFFIC_VLM 로 백엔드 선택 — fake(기본) | llama.
+    모델 교체는 코드 수정 없이: llama-server 의 모델 파일 + TRAFFIC_VLM_NAME 만 바꾼다
+    (R5 벤치: Qwen·Gemma 최신 소형 2종을 같은 자리에서 스왑 비교)."""
+    import os
+    kind = os.environ.get("TRAFFIC_VLM", "fake").lower()
+    if kind == "llama":
+        from .llama_cpp import LlamaVlmTagger
+        return LlamaVlmTagger()
+    return FakeVlmTagger()
 
 
 class FakeVlmTagger:
     """TRAFFIC_FAKE_HW=1 규칙 기반 가짜 태거 — 구역·지속시간으로 그럴듯한 enum 을 낸다."""
+
+    model_ver = "fake-synth-0.1"
+    prompt_ver = "p1"
+    backend = "fake"
 
     def __init__(self, seed: int | None = None):
         self._rng = random.Random(seed)
