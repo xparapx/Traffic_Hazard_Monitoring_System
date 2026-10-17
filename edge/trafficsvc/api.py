@@ -674,8 +674,11 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         errs = [abs(r["err_pct"]) for r in rows if r["err_pct"] is not None]
         # GATE 1 판정은 클립별이 아니라 누적 합산(Σ자동 vs Σ수동) — 분모가 작은 클립의
         # 경계 넘김(±1~2대)이 상쇄되도록. 표본 ~100대 누적 후 ±10% 로 판정.
+        # 자동값은 '녹화 당시' 버킷 수치이므로, 제외 기준은 대조 시각이 아니라
+        # 클립 촬영 시각(이름의 타임스탬프) — 옛 클립을 나중에 대조해도 누적에 안 섞인다
+        cut = "clip=session_" + COUNT_RULE_V2_UTC.replace("-", "").replace(":", "")  # ...T1304
         cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
-                         " WHERE kind='veh4_count' AND ts >= ?", (COUNT_RULE_V2_UTC,))
+                         " WHERE kind='veh4_count' AND substr(note,1,?) >= ?", (len(cut), cut))
         sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
         return {"rows": rows,
                 "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
