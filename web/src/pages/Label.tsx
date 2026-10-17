@@ -46,8 +46,14 @@ export default function Label() {
     if (!tally) return;
     const r = await api.validationAdd(tally.clip, tally.n);
     if (r && typeof r !== "string") {
-      setTallyMsg(`기록됨 — 사람 ${r.manual_n} vs 자동 ${r.auto_n}` +
-        (r.err_pct != null ? ` · 오차 ${r.err_pct}% (합격선 ±10%)` : ""));
+      let msg = `기록됨 — 사람 ${r.manual_n} vs 자동 ${r.auto_n}` +
+        (r.err_pct != null ? ` · 이 클립 ${r.err_pct}%` : "");
+      // GATE 1 판정은 누적 합산 — 분모 작은 클립의 경계 넘김(±1~2대)이 상쇄된다
+      const v = await api.validationList();
+      if (v.cum && v.cum.manual > 0)
+        msg += ` · 누적(${v.cum.n_clips}클립) 사람 ${v.cum.manual} vs 자동 ${v.cum.auto}` +
+          (v.cum.err_pct != null ? ` = ${v.cum.err_pct}% (판정은 누적 ±10%, 표본 ~100대 목표)` : "");
+      setTallyMsg(msg);
     } else setTallyMsg("기록 실패 — 백엔드 확인");
     setTally(null);
   }

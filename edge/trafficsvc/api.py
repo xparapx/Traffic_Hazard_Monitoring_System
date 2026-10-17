@@ -664,14 +664,24 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
                     body.clip, body.manual_n, auto_n, err)
         return {"ok": True, "manual_n": body.manual_n, "auto_n": auto_n, "err_pct": err}
 
+    # 카운트 규칙 v2(이동 게이트) 배포 시각 — 이전 대조 기록은 구 규칙이라 누적에서 제외
+    COUNT_RULE_V2_UTC = "2026-10-17T13:04"
+
     @api.get("/validation")
     def validation_list():
         rows = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
                           " WHERE kind='veh4_count' ORDER BY id DESC LIMIT 20")
         errs = [abs(r["err_pct"]) for r in rows if r["err_pct"] is not None]
+        # GATE 1 판정은 클립별이 아니라 누적 합산(Σ자동 vs Σ수동) — 분모가 작은 클립의
+        # 경계 넘김(±1~2대)이 상쇄되도록. 표본 ~100대 누적 후 ±10% 로 판정.
+        cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
+                         " WHERE kind='veh4_count' AND ts >= ?", (COUNT_RULE_V2_UTC,))
+        sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
         return {"rows": rows,
                 "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
-                "n": len(rows)}
+                "n": len(rows),
+                "cum": {"n_clips": len(cur), "manual": sm, "auto": sa,
+                        "err_pct": round((sa - sm) / sm * 100, 1) if sm else None}}
 
     @api.delete("/session")
     def session_delete_all():

@@ -203,7 +203,8 @@ export const api = {
       `${ADM_BASE}/api/admin/validation`, { clip, manual_n }),
   validationList: () =>
     get<{ rows: { ts: string; manual_n: number; auto_n: number; err_pct: number | null }[];
-          mean_abs_err_pct: number | null; n: number }>(
+          mean_abs_err_pct: number | null; n: number;
+          cum?: { n_clips: number; manual: number; auto: number; err_pct: number | null } }>(
       `${ADM_BASE}/api/admin/validation`, { rows: [], mean_abs_err_pct: null, n: 0 }),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)
