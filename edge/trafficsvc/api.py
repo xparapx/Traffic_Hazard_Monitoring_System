@@ -664,8 +664,9 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
                     body.clip, body.manual_n, auto_n, err)
         return {"ok": True, "manual_n": body.manual_n, "auto_n": auto_n, "err_pct": err}
 
-    # 카운트 규칙 v2(이동 게이트) 배포 시각 — 이전 대조 기록은 구 규칙이라 누적에서 제외
-    COUNT_RULE_V2_UTC = "2026-10-17T13:04"
+    # 현행 카운트 규칙 배포 시각(UTC) — 이전 규칙으로 집계된 클립의 대조 기록은 누적에서 제외.
+    # v2(이동 게이트) 13:04 → v3(분신 승계) 14:45, 2026-10-17. 규칙이 바뀌면 여기를 올린다.
+    COUNT_RULE_V2_UTC = "2026-10-17T14:45"
 
     @api.get("/validation")
     def validation_list():

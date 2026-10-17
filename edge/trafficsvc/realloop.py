@@ -51,6 +51,7 @@ class Pipeline:
         self.dwell_s = dwell_s
         self.move_eps = move_eps
         self._persons: list[tuple[float, float]] = []   # 이번 프레임 보행자 발점들
+        self._counted_graveyard: list[tuple[float, str, tuple[float, float]]] = []  # (last_t, cls, center)
 
     def set_zones(self, zones: dict) -> None:
         self.zones = zones or {}
@@ -75,12 +76,17 @@ class Pipeline:
         excluded = [d for d in dets if d not in kept]
         self.tracker.update(kept, t)
         self._persons = [tr.foot for tr in self.tracker.confirmed() if tr.cls == "person"]
+        for tr in self.tracker.ended():
+            if tr.counted:
+                self._counted_graveyard.append((tr.last_t, tr.cls, tr.center))
+        self._counted_graveyard = [g for g in self._counted_graveyard if t - g[0] < 4.0]
         for tr in self.tracker.confirmed():
             # 통행 카운트 = 이동이 확인된 track 만 (2026-10-17 R4 대조로 판정:
             # 주차·정차 차량의 탐지 깜빡임이 track 재생성 → 수십 배 과다 카운트).
             if not tr.counted and tr.moved_body_length():
-                tr.counted = True
-                self.on_count(tr.cls)
+                tr.counted = True                     # 승계 여부와 무관하게 재검사 중단
+                if not self._is_duplicate(tr):
+                    self.on_count(tr.cls)
             if tr.cls in VEH_CLASSES:
                 if self.world_fn is not None and tr.last_t == t:
                     tr.world_hist.append((t, *self.world_fn(*tr.foot)))
@@ -94,6 +100,19 @@ class Pipeline:
                 if kmh is not None:
                     self.on_speed(tr.cls, kmh)
         return kept, excluded
+
+    def _is_duplicate(self, tr: Track) -> bool:
+        """카운트 직전 중복 검사 — 이미 카운트된 같은 클래스 track(생존 또는 최근 4s 내
+        종료)이 이 track 의 시작점에서 몸길이 1.0배 안에 있으면 같은 물체의 분신으로
+        보고 카운트를 승계한다 (2026-10-17 대조 5클립 보정: 미적용 +8% → 적용 +2%).
+        한 차에 박스 2개(NMS 누락)·제자리 기동 차량의 track 분열이 주 대상."""
+        w, h = tr.box[2] - tr.box[0], tr.box[3] - tr.box[1]
+        r = max(w, h)
+        for o in self.tracker.tracks:
+            if o is not tr and o.counted and o.cls == tr.cls and math.dist(o.center, tr.origin) < r:
+                return True
+        return any(cls == tr.cls and math.dist(c, tr.origin) < r
+                   for _, cls, c in self._counted_graveyard)
 
     def _person_near(self, foot) -> bool:
         return any(math.dist(foot, p) < PERSON_NEAR_EPS for p in self._persons)
