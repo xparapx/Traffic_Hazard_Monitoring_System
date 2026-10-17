@@ -76,7 +76,9 @@ class Pipeline:
         self.tracker.update(kept, t)
         self._persons = [tr.foot for tr in self.tracker.confirmed() if tr.cls == "person"]
         for tr in self.tracker.confirmed():
-            if not tr.counted:
+            # 통행 카운트 = 이동이 확인된 track 만 (2026-10-17 R4 대조로 판정:
+            # 주차·정차 차량의 탐지 깜빡임이 track 재생성 → 수십 배 과다 카운트).
+            if not tr.counted and tr.moved_body_length():
                 tr.counted = True
                 self.on_count(tr.cls)
             if tr.cls in VEH_CLASSES:

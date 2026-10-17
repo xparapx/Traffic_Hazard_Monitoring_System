@@ -36,10 +36,30 @@ class Track:
     dwell_done: bool = False                    # 정차 종료(재이동) 확정 — 중복 마감 방지
     world_hist: list = field(default_factory=list)   # (t, X, Y) — 캘리브레이션 후 속도(K1)용
     person_near: int | None = None              # 정차 중 보행자 근접 관측 (h2 정책·연구 기록)
+    origin: tuple[float, float] | None = None   # 최초 등장 중심 — 통행(이동) 판정 기준
+
+    def __post_init__(self):
+        if self.origin is None:
+            self.origin = self.center
+
+    @property
+    def center(self) -> tuple[float, float]:
+        return ((self.box[0] + self.box[2]) / 2, (self.box[1] + self.box[3]) / 2)
 
     @property
     def foot(self) -> tuple[float, float]:
         return ((self.box[0] + self.box[2]) / 2, self.box[3])
+
+    def moved_body_length(self) -> bool:
+        """최초 등장 지점에서 몸길이(박스 장변)의 1.5배 이상 이동했는가 —
+        통행 카운트 조건. 주차·정차 차량의 탐지 깜빡임 track 은 영원히 False.
+        계수 1.5는 2026-10-17 수동 대조 2클립(16·36대)으로 보정: 1.0배 +6/+17%,
+        1.5배 +6/+3%, 2.0배 -6/-22% — 유일하게 둘 다 ±10% 이내."""
+        ox, oy = self.origin
+        cx, cy = self.center
+        dist = ((cx - ox) ** 2 + (cy - oy) ** 2) ** 0.5
+        w, h = self.box[2] - self.box[0], self.box[3] - self.box[1]
+        return dist >= 1.5 * max(w, h)
 
 
 class IoUTracker:
@@ -48,7 +68,7 @@ class IoUTracker:
     MIN_HITS 프레임 이상 이어진 track 만 confirmed(카운트 대상)로 본다 —
     한 프레임짜리 오탐이 통행량에 섞이지 않게."""
 
-    def __init__(self, iou_thr: float = 0.3, max_missed: int = 10, min_hits: int = 3):
+    def __init__(self, iou_thr: float = 0.3, max_missed: int = 25, min_hits: int = 3):
         self.iou_thr = iou_thr
         self.max_missed = max_missed
         self.min_hits = min_hits
