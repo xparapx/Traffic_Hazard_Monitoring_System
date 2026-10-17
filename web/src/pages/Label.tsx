@@ -318,9 +318,10 @@ export default function Label() {
                 className="rounded border border-otan px-2.5 py-1 font-bold text-otan">끝 — 기록</button>
               <button onClick={() => setTally(null)}
                 className="rounded border border-cobble px-2.5 py-1">취소</button>
-              <span className="w-full text-[11px] text-dim-dark">
+              <span className="w-full text-[11px] leading-relaxed text-dim-dark">
                 목적: 시스템이 차량을 빠짐없이·중복 없이 세는지 사람 눈으로 검증 (GATE 1 — 오차 ≤10% 합격).
-                이륜차·보행자는 세지 않습니다. 재생 속도를 올려도 됩니다.
+                규칙: 이 클립에 <b>새로 등장한 차량만 1대당 1회</b> — 지나가는 차 1 · 섰다 가는 차도 1 ·
+                처음부터 끝까지 서 있는 주차 차량은 0. 이륜차·보행자 제외, 배속 재생 가능.
               </span>
             </div>
           )}
