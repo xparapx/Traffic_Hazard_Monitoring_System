@@ -68,8 +68,46 @@ export default function Metrics() {
     const gridY: number[] = [];
     for (let g = Math.ceil(y0 / 5) * 5; g <= y1; g += 5) gridY.push(g);
     const inside = pos.filter((p) => p.X >= x0 && p.X <= x1 && p.Y >= y0 && p.Y <= y1);
-    return { sx, sy, grid, gridY, W, H, inside, outN: pos.length - inside.length };
+    // 헥사곤 클러스터 (한 변 ≈ 1.5 m, pointy-top axial 격자) — 셀별로
+    // 일반 정차 / 보행자 통행 동반 정차를 따로 집계해 2색 그라데이션으로 칠한다
+    const a = 1.5;
+    const bins = new Map<string, { cx: number; cy: number; n: number; danger: number }>();
+    for (const p of inside) {
+      const qf = ((Math.sqrt(3) / 3) * p.X - p.Y / 3) / a, rf = (2 / 3) * p.Y / a;
+      // axial 반올림 (cube 좌표 경유)
+      let q = Math.round(qf), r = Math.round(rf);
+      const sC = -qf - rf, sR = Math.round(sC);
+      const dq = Math.abs(q - qf), dr = Math.abs(r - rf), ds = Math.abs(sR - sC);
+      if (dq > dr && dq > ds) q = -r - sR; else if (dr > ds) r = -q - sR;
+      const key = `${q},${r}`;
+      const cur = bins.get(key) ?? {
+        cx: a * Math.sqrt(3) * (q + r / 2), cy: a * (3 / 2) * r, n: 0, danger: 0 };
+      cur.n += 1;
+      if (p.person_near) cur.danger += 1;
+      bins.set(key, cur);
+    }
+    const hexes = [...bins.values()];
+    const maxN = Math.max(1, ...hexes.map((h) => h.n));
+    // 정육각형 꼭짓점 (화면 px) — sy 가 위아래를 뒤집으므로 각도만 돌리면 된다
+    const hexPts = (cx: number, cy: number) =>
+      [0, 1, 2, 3, 4, 5].map((i) => {
+        const ang = Math.PI / 180 * (60 * i - 30);
+        return `${sx(cx + a * Math.cos(ang))},${sy(cy + a * Math.sin(ang))}`;
+      }).join(" ");
+    return { sx, sy, grid, gridY, W, H, inside, outN: pos.length - inside.length,
+             hexes, maxN, hexPts };
   }, [pos, zonesW]);
+  // 2색 그라데이션 — 일반 정차(모래→주황), 보행자 동반(살구→자주)
+  const rampPlain = (t: number) => {
+    const c = [[247, 227, 200], [217, 91, 43]];
+    const m = c[0].map((v, i) => Math.round(v + (c[1][i] - v) * t));
+    return `rgb(${m.join(",")})`;
+  };
+  const rampDanger = (t: number) => {
+    const c = [[242, 182, 160], [126, 29, 94]];
+    const m = c[0].map((v, i) => Math.round(v + (c[1][i] - v) * t));
+    return `rgb(${m.join(",")})`;
+  };
   useEffect(() => {
     if (range === "7d") return;
     api.buckets(range === "today" ? hoursSinceKstMidnight() : 24)
@@ -444,7 +482,7 @@ export default function Metrics() {
           {posMap ? (
             <div className="mt-3">
               <div className="mb-1 text-[12px] font-bold">
-                정차 위치 실측 지도 <span className="meta">최근 7일 · 격자 5 m · 축척 정확(m) · 도로/금지구역 = 실제 투영</span>
+                정차 위치 실측 지도 <span className="meta">최근 7일 · 격자 5 m · 정문 기준(+Y = 정면) · 도로/금지구역 = 실제 투영</span>
               </div>
               <svg viewBox={`0 0 ${posMap.W} ${posMap.H}`} className="w-full rounded bg-[#F6F5EF]"
                 role="img" aria-label="정차 이벤트 히트맵 (세계 좌표, 미터) — 도로·정차금지구역 폴리곤 위">
@@ -473,31 +511,36 @@ export default function Metrics() {
                     fill={ACCENT} fillOpacity="0.12" stroke={ACCENT} strokeWidth="1"
                     strokeDasharray="4 3" />
                 ))}
-                {/* 히트맵 — 가우시안 블러 누적 (빨강 = 보행자 통행 동반) */}
-                <defs>
-                  <filter id="posheat" x="-80%" y="-80%" width="260%" height="260%">
-                    <feGaussianBlur stdDeviation="4" />
-                  </filter>
-                </defs>
-                <g style={{ mixBlendMode: "multiply" }}>
-                  {posMap.inside.map((p, i) => (
-                    <circle key={`h${i}`} cx={posMap.sx(p.X)} cy={posMap.sy(p.Y)}
-                      r={5 + Math.min(6, Math.sqrt(p.duration_s ?? 20) / 2)}
-                      fill={p.person_near ? DANGER : ACCENT}
-                      opacity={0.1 + Math.min(0.2, (p.duration_s ?? 20) / 600)}
-                      filter="url(#posheat)" />
-                  ))}
-                </g>
-                {/* 기준점 P1 (원점) */}
-                <g transform={`translate(${posMap.sx(0)},${posMap.sy(0)})`}>
-                  <line x1="-4" y1="0" x2="4" y2="0" stroke="#4A5A50" strokeWidth="1.2" />
-                  <line x1="0" y1="-4" x2="0" y2="4" stroke="#4A5A50" strokeWidth="1.2" />
-                  <text x="5" y="-4" fontSize="7" fill="#4A5A50" fontWeight="700">P1</text>
-                </g>
+                {/* 헥사곤 클러스터 — 셀 안에 보행자 동반 정차가 있으면 자주 계열, 없으면 주황 계열 */}
+                {posMap.hexes.map((hx, i) => {
+                  const t = Math.sqrt(hx.n / posMap.maxN);
+                  return (
+                    <polygon key={`hx${i}`} points={posMap.hexPts(hx.cx, hx.cy)}
+                      fill={hx.danger > 0 ? rampDanger(Math.sqrt(hx.danger / posMap.maxN)) : rampPlain(t)}
+                      fillOpacity="0.82" stroke="#fff" strokeWidth="0.5">
+                      <title>{`정차 ${hx.n}건${hx.danger ? ` · 보행자 동반 ${hx.danger}건` : ""}`}</title>
+                    </polygon>
+                  );
+                })}
+                {/* 학교·정문 — 원점(0,0) = 정문 앞 노면, 아래(−Y) = 학교 */}
+                <rect x="0" y={posMap.sy(-0.5)} width={posMap.W}
+                  height={Math.max(0, posMap.H - posMap.sy(-0.5))} fill="#E2E7DD" />
+                <rect x={posMap.sx(-2.5)} y={posMap.sy(-0.5)} width="5" height="7" fill="#4A5A50" />
+                <rect x={posMap.sx(2.5) - 5} y={posMap.sy(-0.5)} width="5" height="7" fill="#4A5A50" />
+                <text x={posMap.sx(0)} y={posMap.sy(-0.5) + 16} textAnchor="middle"
+                  fontSize="9" fill="#4A5A50" fontWeight="700">정문 (학교)</text>
+                <text x="6" y={posMap.sy(-0.5) - 4} fontSize="7.5" fill="#8A8578">← 공주고담길</text>
+                <text x={posMap.W - 6} y={posMap.sy(-0.5) - 4} textAnchor="end" fontSize="7.5"
+                  fill="#8A8578">GS25 쪽 →</text>
+                <text x={posMap.sx(0) + 4} y="10" fontSize="7.5" fill="#8A8578">↑ 정문에서 본 정면(+Y)</text>
               </svg>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-dim">
-                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: DANGER }} />정차+보행자 통행 (위험)</span>
-                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: ACCENT }} />정차 (진할수록 잦음·긺)</span>
+              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-dim">
+                <span className="flex items-center gap-1">정차 적음
+                  <span className="inline-block h-2.5 w-14 rounded-full"
+                    style={{ background: `linear-gradient(to right, ${rampPlain(0)}, ${rampPlain(1)})` }} />많음</span>
+                <span className="flex items-center gap-1">+보행자 통행 적음
+                  <span className="inline-block h-2.5 w-14 rounded-full"
+                    style={{ background: `linear-gradient(to right, ${rampDanger(0)}, ${rampDanger(1)})` }} />많음</span>
                 <span><span className="mr-1 inline-block h-2 w-3 border border-dashed" style={{ borderColor: ACCENT }} />정차금지구역</span>
                 {posMap.outN > 0 && (
                   <span className="text-dim-dark">범위 밖 {posMap.outN}건 제외(원거리 투영 오차)</span>

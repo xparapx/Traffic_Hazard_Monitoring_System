@@ -457,23 +457,44 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
         if not hrow:
             return {"rows": []}
         h = json.loads(hrow["h_json"])
+        # "정문 프레임" — 축을 카메라 시선 기하로 고정해 지도 방향을 확정한다:
+        # +x = 화면 아래쪽 띠의 왼→오(정문에서 본 오른쪽), +y = 정문에서 바라보는 방향,
+        # 원점 = 화면 하단 중앙(정문 앞 노면). 거울 반전이 생길 수 없다.
+        import math
+        ax, bx = homo.apply(h, 0.9, 0.85), homo.apply(h, 0.1, 0.85)
+        exv = (ax[0] - bx[0], ax[1] - bx[1])
+        L = math.hypot(*exv) or 1.0
+        exv = (exv[0] / L, exv[1] / L)
+        far, near = homo.apply(h, 0.5, 0.35), homo.apply(h, 0.5, 0.9)
+        eyd = (far[0] - near[0], far[1] - near[1])
+        eyv = (-exv[1], exv[0])
+        if eyv[0] * eyd[0] + eyv[1] * eyd[1] < 0:
+            eyv = (exv[1], -exv[0])
+        origin = homo.apply(h, 0.5, 0.95)
+
+        def gate_frame(X: float, Y: float) -> tuple[float, float]:
+            dx, dy = X - origin[0], Y - origin[1]
+            return (round(dx * exv[0] + dy * exv[1], 2),
+                    round(dx * eyv[0] + dy * eyv[1], 2))
+
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         out = []
         for r in _rows(con, "SELECT ts, zone, duration_s, pos_x, pos_y, person_near"
                             " FROM events WHERE kind='dwell' AND ts >= ?"
                             " AND pos_x IS NOT NULL ORDER BY ts", (since,)):
-            X, Y = homo.apply(h, r["pos_x"], r["pos_y"])
+            X, Y = gate_frame(*homo.apply(h, r["pos_x"], r["pos_y"]))
             out.append({"ts": r["ts"], "zone": r["zone"], "duration_s": r["duration_s"],
-                        "X": round(X, 2), "Y": round(Y, 2), "person_near": r["person_near"]})
+                        "X": X, "Y": Y, "person_near": r["person_near"]})
         # 구역 폴리곤(ROI·정차금지)도 같은 평면에 투영 — 축척 정확한 지도의 밑그림
         from .detect import roi as roi_mod
         zones = roi_mod.load_zones(con)
         zw: dict = {}
         if zones.get("roi"):
-            zw["roi"] = [[round(c, 2) for c in homo.apply(h, u, v)] for u, v in zones["roi"]]
-        zw["no_stop"] = [[[round(c, 2) for c in homo.apply(h, u, v)] for u, v in poly]
+            zw["roi"] = [list(gate_frame(*homo.apply(h, u, v))) for u, v in zones["roi"]]
+        zw["no_stop"] = [[list(gate_frame(*homo.apply(h, u, v))) for u, v in poly]
                          for poly in zones.get("no_stop", [])]
-        return {"rows": out, "zones_world": zw}
+        return {"rows": out, "zones_world": zw, "frame": "gate",
+                "p1": list(gate_frame(0.0, 0.0))}
 
     app.include_router(api)
     _mount_web(app)
