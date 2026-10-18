@@ -58,7 +58,8 @@ export default function Metrics() {
     const by = zonePts.length ? zonePts.map((p) => p[1]) : pos.map((p) => p.Y);
     const pad = 3;
     const x0 = Math.min(...bx, 0) - pad, x1 = Math.max(...bx, 0) + pad;
-    const y0 = Math.min(...by, 0) - pad, y1 = Math.max(...by, 0) + pad;
+    // 세로는 60 m 캡 — 화면 상단(원거리) ROI 꼭짓점의 외삽이 지도를 세로로 누르지 않게
+    const y0 = Math.min(...by, 0) - pad, y1 = Math.min(Math.max(...by, 0) + pad, 60);
     const W = 300, H = 200;
     const s = Math.min(W / (x1 - x0), H / (y1 - y0));
     const sx = (X: number) => (X - x0) * s + (W - (x1 - x0) * s) / 2;
