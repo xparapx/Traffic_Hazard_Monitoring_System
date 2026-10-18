@@ -68,6 +68,23 @@ def _rows(con, sql, args=()):
     return [dict(r) for r in con.execute(sql, args).fetchall()]
 
 
+# 현행 카운트 규칙 배포 시각(UTC) — 이전 규칙으로 집계된 클립의 대조 기록은 누적에서 제외.
+# v2(이동 게이트) 13:04 → v3(분신 승계) 14:45, 2026-10-17. 규칙이 바뀌면 여기를 올린다.
+COUNT_RULE_UTC = "2026-10-17T14:45"
+_CUM_CUT = "clip=session_" + COUNT_RULE_UTC.replace("-", "").replace(":", "")  # ...T1445
+
+
+def _validation_cum(con) -> dict:
+    """R4 수동 대조의 누적 합산(Σ자동 vs Σ수동) — GATE 1 판정 기준. 제외 기준은 대조
+    시각이 아니라 클립 촬영 시각(자동값이 '녹화 당시' 버킷 수치이므로)."""
+    cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
+                     " WHERE kind='veh4_count' AND substr(note,1,?) >= ?",
+                (len(_CUM_CUT), _CUM_CUT))
+    sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
+    return {"n_clips": len(cur), "manual": sm, "auto": sa,
+            "err_pct": round((sa - sm) / sm * 100, 1) if sm else None}
+
+
 # ---------- MJPEG 스트림 (관리 포트 · 캘리브레이션 모드 동안에만) ----------
 
 STREAM_MEDIA_TYPE = "multipart/x-mixed-replace; boundary=frame"
@@ -381,7 +398,9 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
             " WHERE substr(datetime(ts, '+9 hours'), 1, 10)"
             "       = substr(datetime('now', '+9 hours'), 1, 10)").fetchone()["c"]
         return _meta("today") | {"counts_5min": counts, "qc_5min": qc, "analysis": k,
-                                 "today_totals": totals, "events_today": ev_today}
+                                 "today_totals": totals, "events_today": ev_today,
+                                 # 신뢰도 카드 — R4 수동 대조 누적(표본 수·오차만, 공개 가능)
+                                 "validation": _validation_cum(con)}
 
     @api.get("/buckets")
     def buckets(hours: int = 24):
@@ -729,25 +748,15 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
                     body.clip, body.manual_n, auto_n, err)
         return {"ok": True, "manual_n": body.manual_n, "auto_n": auto_n, "err_pct": err}
 
-    # 현행 카운트 규칙 배포 시각(UTC) — 이전 규칙으로 집계된 클립의 대조 기록은 누적에서 제외.
-    # v2(이동 게이트) 13:04 → v3(분신 승계) 14:45, 2026-10-17. 규칙이 바뀌면 여기를 올린다.
-    COUNT_RULE_V2_UTC = "2026-10-17T14:45"
-
     @api.get("/validation")
     def validation_list():
         rows = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
                           " WHERE kind='veh4_count' ORDER BY id DESC LIMIT 20")
         errs = [abs(r["err_pct"]) for r in rows if r["err_pct"] is not None]
-        # GATE 1 판정은 클립별이 아니라 누적 합산(Σ자동 vs Σ수동) — 분모가 작은 클립의
-        # 경계 넘김(±1~2대)이 상쇄되도록. 표본 ~100대 누적 후 ±10% 로 판정.
-        # 자동값은 '녹화 당시' 버킷 수치이므로, 제외 기준은 대조 시각이 아니라
-        # 클립 촬영 시각(이름의 타임스탬프) — 옛 클립을 나중에 대조해도 누적에 안 섞인다
-        cut = "clip=session_" + COUNT_RULE_V2_UTC.replace("-", "").replace(":", "")  # ...T1445
+        # GATE 1 판정은 클립별이 아니라 누적 합산 — 분모가 작은 클립의 경계 넘김(±1~2대)이
+        # 상쇄되도록. 표본 ~100대 누적 후 ±10% 로 판정. 계산은 _validation_cum.
         for r in rows:
-            r["in_cum"] = r["note"][:len(cut)] >= cut   # 현행 규칙 클립인가 (UI 구분용)
-        cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
-                         " WHERE kind='veh4_count' AND substr(note,1,?) >= ?", (len(cut), cut))
-        sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
+            r["in_cum"] = r["note"][:len(_CUM_CUT)] >= _CUM_CUT   # 현행 규칙 클립인가 (UI 구분용)
         # 속도 대조(±3 km/h) — err_pct 열이 km/h 차이(기록 시 그렇게 저장)
         sp = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
                         " WHERE kind='speed_kmh' ORDER BY id DESC LIMIT 20")
@@ -755,8 +764,7 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return {"rows": rows,
                 "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
                 "n": len(rows),
-                "cum": {"n_clips": len(cur), "manual": sm, "auto": sa,
-                        "err_pct": round((sa - sm) / sm * 100, 1) if sm else None},
+                "cum": _validation_cum(con),
                 "speed": {"rows": sp, "n": len(sp), "matched": len(spd),
                           "mean_abs_diff_kmh": round(sum(spd) / len(spd), 1) if spd else None}}
 

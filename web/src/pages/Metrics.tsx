@@ -506,7 +506,7 @@ export default function Metrics() {
       </div>
 
       <div className="mt-3 text-[12px] text-dim">
-        모든 공개 숫자에는 기간·표본·오차를 함께 표기합니다 — 수동 대조 오차는 GATE 1 이후 채워집니다.
+        모든 공개 숫자에는 기간·표본·오차를 함께 표기합니다 — 수동 대조 오차는 대문의 신뢰도 카드에 표시됩니다.
       </div>
     </div>
   );

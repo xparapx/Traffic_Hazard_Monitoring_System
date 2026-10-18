@@ -80,8 +80,14 @@ export default function Today() {
               <span className="text-dim">최근 1시간 버킷</span>
             </div>
             <div className="mt-1 flex items-baseline justify-between text-[13px]">
-              <span><b className="num text-[20px]">±—%</b> 수동 대조</span>
-              <span className="text-dim">GATE 1 후</span>
+              <span><b className="num text-[20px]">
+                {d.validation?.err_pct != null ? `±${Math.abs(d.validation.err_pct)}%` : "±—%"}
+              </b> 수동 대조</span>
+              <span className="text-dim">
+                {d.validation?.err_pct != null
+                  ? `표본 ${d.validation.manual}대 · ${d.validation.n_clips}클립`
+                  : "GATE 1 후"}
+              </span>
             </div>
             <div className="mt-3 border-t border-line pt-2 text-[11px] leading-relaxed text-dim">
               자동 카운트 · 영상 무저장 · 개인 식별 없음 — 기기는 숫자만 만들고 화면·사진은 남기지 않습니다

@@ -22,6 +22,7 @@ export interface OutboxItem {
 export interface TodayData {
   dummy: boolean; counts_5min: CountRow[]; qc_5min: QcRow[]; analysis: AnalysisRow[];
   today_totals: { cls: string; n: number }[]; events_today: number;
+  validation?: { n_clips: number; manual: number; auto: number; err_pct: number | null };
 }
 export interface BucketRow { bucket_utc: string; cls: string; n: number }
 export interface DailyRow { date: string; cls: string; n: number }
