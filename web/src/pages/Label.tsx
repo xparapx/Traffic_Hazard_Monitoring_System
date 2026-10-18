@@ -74,23 +74,32 @@ export default function Label() {
     if (off) setSpeedMode(false);
   }
 
-  async function speedClick(e: React.MouseEvent<HTMLDivElement>) {
+  function speedClick(e: React.MouseEvent<HTMLDivElement>) {
+    // 경로를 따라 여러 점 클릭(회전 차량 대응 — 직선 2점은 곡선 길이를 과소측정).
+    // 클릭을 쌓기만 하고, [측정 완료] 때 꺾은선 거리 합산으로 속도를 계산한다.
     const vid = videoRef.current;
     if (!vid) return;
     const r = vid.getBoundingClientRect();
     const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
     if (u < 0 || u > 1 || v < 0 || v > 1) return;
-    const clicks = [...speedClicks, { t: vid.currentTime, u, v }];
-    setSpeedClicks(clicks);
-    if (clicks.length < 2) return;
-    const [a, b] = clicks;
-    const dt = Math.abs(b.t - a.t);
-    if (dt < 0.3) { setSpeedMsg("두 클릭의 시각 차가 너무 짧습니다 — 일시정지로 다른 순간을 잡으세요"); setSpeedClicks([]); return; }
-    const w = await api.calibProject([[a.u, a.v], [b.u, b.v]]);
+    setSpeedClicks([...speedClicks, { t: vid.currentTime, u, v }]);
+  }
+
+  async function finishSpeedMeasure() {
+    const clicks = [...speedClicks].sort((a, b) => a.t - b.t);
+    const dt = clicks.length >= 2 ? clicks[clicks.length - 1].t - clicks[0].t : 0;
+    if (clicks.length < 2 || dt < 0.3) {
+      setSpeedMsg("점이 2개 이상, 시간 간격 0.3초 이상이어야 합니다 — 일시정지로 다른 순간을 잡으세요");
+      setSpeedClicks([]); return;
+    }
+    const w = await api.calibProject(clicks.map((c) => [c.u, c.v] as [number, number]));
     if (!w || typeof w === "string") { setSpeedMsg("좌표 투영 실패 — 캘리브레이션 확인"); setSpeedClicks([]); return; }
-    const [p, q] = w.world;
-    const kmh = Math.hypot(q[0] - p[0], q[1] - p[1]) / dt * 3.6;
+    let dist = 0;
+    for (let i = 1; i < w.world.length; i++)
+      dist += Math.hypot(w.world[i][0] - w.world[i - 1][0], w.world[i][1] - w.world[i - 1][1]);
+    const kmh = dist / dt * 3.6;
     setSpeedManual(Math.round(kmh * 10) / 10);
+    const a = clicks[0], b = clicks[clicks.length - 1];
     // 같은 시간대의 시스템 속도 표본(track 종료 시 기록) 후보 조회
     const s = sess.sessions.find((x) => x.name === playing);
     if (s) {
@@ -421,10 +430,16 @@ export default function Label() {
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-sky-500 bg-sky-500/10 px-3 py-2 text-[12.5px]">
               <b className="text-sky-400">속도 대조 중</b>
               {speedManual == null ? (
-                <span>
-                  같은 차의 <b>접지점(앞바퀴 밑)</b>을 서로 다른 두 순간에 클릭
-                  (일시정지·프레임 이동 활용) — {speedClicks.length}/2
-                </span>
+                <>
+                  <span>
+                    같은 차의 <b>접지점(앞바퀴 밑)</b>을 경로를 따라 여러 순간 클릭
+                    (회전 차는 3~5점, 직진 차는 2점이면 충분 · 일시정지 활용) — {speedClicks.length}점
+                  </span>
+                  {speedClicks.length >= 2 && (
+                    <button onClick={finishSpeedMeasure}
+                      className="rounded-full bg-sky-500 px-3 py-1 font-bold text-white">측정 완료</button>
+                  )}
+                </>
               ) : (
                 <>
                   <span>수동 측정 <b className="num text-[16px] text-white">{speedManual} km/h</b> —
