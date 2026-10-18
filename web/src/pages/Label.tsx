@@ -64,7 +64,9 @@ export default function Label() {
   const [speedMode, setSpeedMode] = useState(false);
   const [speedClicks, setSpeedClicks] = useState<{ t: number; u: number; v: number }[]>([]);
   const [speedManual, setSpeedManual] = useState<number | null>(null);
-  const [speedCands, setSpeedCands] = useState<{ ts: string; cls: string; kmh: number }[] | null>(null);
+  // 후보는 클립 경과시간(tRel)·클릭 시점과의 차(dMark)로 표시 — 절대시각은 못 맞춘다
+  const [speedCands, setSpeedCands] =
+    useState<{ kmh: number; tRel: number; dMark: number }[] | null>(null);
   const [speedMsg, setSpeedMsg] = useState("");
 
   function resetSpeed(off = false) {
@@ -93,10 +95,17 @@ export default function Label() {
     const s = sess.sessions.find((x) => x.name === playing);
     if (s) {
       const t0 = Date.parse(s.start_utc);
-      const from = new Date(t0 + Math.min(a.t, b.t) * 1000 - 45000).toISOString();
-      const to = new Date(t0 + Math.max(a.t, b.t) * 1000 + 90000).toISOString();
+      const mark = Math.max(a.t, b.t);   // 두 번째 클릭(통과) 시점 — 기록은 이보다 몇 초 뒤
+      const from = new Date(t0 + mark * 1000 - 10000).toISOString();
+      const to = new Date(t0 + mark * 1000 + 45000).toISOString();
       const c = await api.speedsList(from, to);
-      setSpeedCands(c.rows.filter((x) => x.cls === "veh4"));
+      setSpeedCands(c.rows.filter((x) => x.cls === "veh4")
+        .map((x) => {
+          const tRel = (Date.parse(x.ts) - t0) / 1000;
+          return { kmh: x.kmh, tRel, dMark: tRel - mark };
+        })
+        .sort((x, y) => Math.abs(x.dMark) - Math.abs(y.dMark))
+        .slice(0, 6));
     } else setSpeedCands([]);
   }
 
@@ -422,8 +431,9 @@ export default function Label() {
                     같은 차의 시스템 기록을 고르세요:</span>
                   {(speedCands ?? []).map((c, i) => (
                     <button key={i} onClick={() => saveSpeed(c.kmh)}
+                      title={`클립 ${Math.floor(c.tRel / 60)}:${String(Math.round(c.tRel % 60)).padStart(2, "0")} 시점 기록`}
                       className="rounded border border-sky-500 px-2 py-0.5 font-bold text-sky-300">
-                      {c.ts.slice(11, 19)} · {c.kmh} km/h
+                      클릭 {c.dMark >= 0 ? "+" : "−"}{Math.abs(c.dMark).toFixed(0)}초 · {c.kmh} km/h
                     </button>
                   ))}
                   {speedCands?.length === 0 && <span className="text-dim-dark">후보 없음</span>}
@@ -434,8 +444,9 @@ export default function Label() {
               <button onClick={() => resetSpeed()} className="rounded border border-cobble px-2.5 py-1">다시</button>
               <button onClick={() => resetSpeed(true)} className="rounded border border-cobble px-2.5 py-1">종료</button>
               <span className="w-full text-[11px] leading-relaxed text-dim-dark">
-                목적: 시스템 속도(K1) 정확도 검증 (GATE 1 — 차이 ±3 km/h 합격). 시스템 속도는 차가
-                화면을 벗어난 '직후' 기록되므로, 통과 시각보다 조금 뒤의 후보가 같은 차입니다.
+                목적: 시스템 속도(K1) 정확도 검증 (GATE 1 — 차이 ±3 km/h 합격). 후보의
+                "클릭 +N초" = 두 번째 클릭 뒤 N초에 기록됐다는 뜻 — 시스템은 차가 화면을
+                벗어난 직후 기록하므로 보통 +2~10초가 같은 차입니다. 속도가 아니라 시점으로 고르세요.
               </span>
             </div>
           )}
