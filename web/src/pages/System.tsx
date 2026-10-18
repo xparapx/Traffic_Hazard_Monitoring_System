@@ -360,6 +360,19 @@ export default function SystemPage() {
               </span>
             </div>
           )}
+          {val?.speed && val.speed.n > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-smoke/60 px-3 py-2 text-[13px]">
+              <span>속도 대조 <b className="num">{val.speed.n}</b>건
+                (매칭 {val.speed.matched} · 누락 {val.speed.n - val.speed.matched})</span>
+              {val.speed.mean_abs_diff_kmh != null && (
+                <span className={`num text-[16px] font-bold ${
+                  val.speed.mean_abs_diff_kmh <= 3 ? "text-otan" : "text-gravy"}`}>
+                  평균 |차이| {val.speed.mean_abs_diff_kmh} km/h
+                </span>
+              )}
+              <span className="text-[11px] text-dim">합격선 ±3 km/h · 권장 표본 10~15건(속도대·방향 분산)</span>
+            </div>
+          )}
           <div className="max-h-48 overflow-y-auto text-[12px]">
             <table className="w-full">
               <thead><tr className="text-left text-dim">
