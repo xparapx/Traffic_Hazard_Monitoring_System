@@ -36,9 +36,11 @@ export default function SystemPage() {
     setHomoMsg(`좌표 채움 — 검산 잔차 최대 ${r.max_residual_m}m${
       r.max_residual_m > 0.1 ? " (0.1m 초과: 측정 재확인 권장)" : ""}`);
   }
+  const [val, setVal] = useState<Awaited<ReturnType<typeof api.validationList>> | null>(null);
   const refresh = () => {
     api.system().then(setD);
     api.calib().then(setCalib);
+    api.validationList().then(setVal);
   };
   useEffect(() => {
     refresh();
@@ -334,6 +336,47 @@ export default function SystemPage() {
               </div>
             </>
           )}
+        </Card>
+
+        {/* R4 수동 대조 결과 — GATE 1 veh4 카운트 정확도. 판정은 클립별이 아닌 누적 합산 */}
+        <Card className="md:col-span-2">
+          <div className="mb-2 text-[14px] font-bold">
+            R4 수동 대조 · veh4 카운트 <span className="meta">GATE 1 — 누적 Σ자동 vs Σ수동 · 합격 ±10% · 표본 100대</span>
+          </div>
+          {val?.cum && val.cum.manual > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-smoke/60 px-3 py-2 text-[13px]">
+              <span>누적 <b className="num">{val.cum.n_clips}</b>클립 —
+                사람 <b className="num">{val.cum.manual}</b> vs 자동 <b className="num">{val.cum.auto}</b></span>
+              <span className={`num text-[16px] font-bold ${
+                val.cum.err_pct != null && Math.abs(val.cum.err_pct) <= 10 ? "text-otan" : "text-gravy"}`}>
+                {val.cum.err_pct != null && val.cum.err_pct > 0 ? "+" : ""}{val.cum.err_pct}%
+              </span>
+              <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${
+                val.cum.manual < 100 ? "bg-smoke text-dim"
+                : val.cum.err_pct != null && Math.abs(val.cum.err_pct) <= 10
+                  ? "bg-otan/20 text-otan" : "bg-gravy/20 text-gravy"}`}>
+                {val.cum.manual < 100 ? `표본 수집 중 ${val.cum.manual}/100대`
+                 : val.cum.err_pct != null && Math.abs(val.cum.err_pct) <= 10 ? "GATE 1 (veh4) 합격" : "미달 — 원인 분석 필요"}
+              </span>
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto text-[12px]">
+            <table className="w-full">
+              <thead><tr className="text-left text-dim">
+                <th className="py-1 font-normal">클립 (UTC)</th><th className="font-normal">사람</th>
+                <th className="font-normal">자동</th><th className="font-normal">오차</th></tr></thead>
+              <tbody>
+                {(val?.rows ?? []).map((r, i) => (
+                  <tr key={i} className={`border-t border-line ${r.in_cum ? "" : "text-dim-dark line-through"}`}
+                      title={r.in_cum ? undefined : "구 카운트 규칙 시기의 클립 — 누적에서 제외"}>
+                    <td className="py-1">{(r.note?.match(/session_(\S+?)Z/)?.[1] ?? r.ts).replace("T", " ")}</td>
+                    <td className="num">{r.manual_n}</td><td className="num">{r.auto_n}</td>
+                    <td className="num">{r.err_pct != null ? `${r.err_pct > 0 ? "+" : ""}${r.err_pct}%` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
         <Card className="md:col-span-2">

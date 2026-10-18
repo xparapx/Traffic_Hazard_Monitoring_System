@@ -202,7 +202,8 @@ export const api = {
     postJson<{ ok: boolean; manual_n: number; auto_n: number; err_pct: number | null }>(
       `${ADM_BASE}/api/admin/validation`, { clip, manual_n }),
   validationList: () =>
-    get<{ rows: { ts: string; manual_n: number; auto_n: number; err_pct: number | null }[];
+    get<{ rows: { ts: string; manual_n: number; auto_n: number; err_pct: number | null;
+                  note?: string; in_cum?: boolean }[];
           mean_abs_err_pct: number | null; n: number;
           cum?: { n_clips: number; manual: number; auto: number; err_pct: number | null } }>(
       `${ADM_BASE}/api/admin/validation`, { rows: [], mean_abs_err_pct: null, n: 0 }),
