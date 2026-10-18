@@ -36,12 +36,32 @@ export default function Metrics() {
   const [bucketRows, setBucketRows] = useState<BucketRow[]>([]);
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [cmp, setCmp] = useState<CmpMode>("weekday");
+  const [pos, setPos] = useState<Awaited<ReturnType<typeof api.eventsPositions>>["rows"]>([]);
   useEffect(() => {
     api.today().then(setToday);
     api.speed().then(setSpeed);
     api.dwell().then(setDwell);
     api.history(182).then((r) => setDaily(r.daily));
+    api.eventsPositions(168).then((r) => setPos(r.rows));   // 최근 7일 — 캘리브레이션 후 자동 표시
   }, []);
+
+  // 공간 분포 — 세계 좌표(m) 산점도의 스케일 (P1=(0,0) 기준, 축 비율 1:1 유지)
+  const posMap = useMemo(() => {
+    if (!pos.length) return null;
+    const xs = pos.map((p) => p.X), ys = pos.map((p) => p.Y);
+    const pad = 2;
+    const x0 = Math.min(...xs, 0) - pad, x1 = Math.max(...xs, 0) + pad;
+    const y0 = Math.min(...ys, 0) - pad, y1 = Math.max(...ys, 0) + pad;
+    const W = 300, H = 200;
+    const s = Math.min(W / (x1 - x0), H / (y1 - y0));
+    const sx = (X: number) => (X - x0) * s + (W - (x1 - x0) * s) / 2;
+    const sy = (Y: number) => H - ((Y - y0) * s + (H - (y1 - y0) * s) / 2);  // 위 = +Y
+    const grid: number[] = [];
+    for (let g = Math.ceil(x0 / 5) * 5; g <= x1; g += 5) grid.push(g);
+    const gridY: number[] = [];
+    for (let g = Math.ceil(y0 / 5) * 5; g <= y1; g += 5) gridY.push(g);
+    return { sx, sy, grid, gridY, W, H };
+  }, [pos]);
   useEffect(() => {
     if (range === "7d") return;
     api.buckets(range === "today" ? hoursSinceKstMidnight() : 24)
@@ -411,11 +431,57 @@ export default function Metrics() {
               <text x="0" y="-11" textAnchor="middle" fontSize="7.5" fill="#8A8578">N</text>
             </g>
           </svg>
-          <div className="mt-2 text-[11.5px] leading-relaxed text-dim">
-            위치 히트맵은 <b>캘리브레이션(R2)</b> 후 이 약도 위에 표시됩니다 — 정차 좌표는
-            지금부터 기록 중(<span className="num">{dwellPts.posN}</span>건 축적,
-            캘리브레이션 즉시 소급 표시).
-          </div>
+          {/* 실측 좌표 산점도 (R2 캘리브레이션 후) — 정차 위치를 미터 평면에 표시.
+              좌표계: P1(정문 서측 기준점)=(0,0) · 축 비율 1:1 · 격자 5 m */}
+          {posMap ? (
+            <div className="mt-3">
+              <div className="mb-1 text-[12px] font-bold">
+                정차 위치 실측 분포 <span className="meta">최근 7일 · 격자 5 m · P1 기준(m)</span>
+              </div>
+              <svg viewBox={`0 0 ${posMap.W} ${posMap.H}`} className="w-full rounded bg-[#F6F5EF]"
+                role="img" aria-label="정차 이벤트 위치 산점도 (세계 좌표, 미터)">
+                {posMap.grid.map((g) => (
+                  <g key={`x${g}`}>
+                    <line x1={posMap.sx(g)} y1="0" x2={posMap.sx(g)} y2={posMap.H}
+                      stroke="#E3E0D4" strokeWidth="0.8" />
+                    <text x={posMap.sx(g) + 2} y={posMap.H - 3} fontSize="6.5" fill="#A9A491">{g}</text>
+                  </g>
+                ))}
+                {posMap.gridY.map((g) => (
+                  <g key={`y${g}`}>
+                    <line x1="0" y1={posMap.sy(g)} x2={posMap.W} y2={posMap.sy(g)}
+                      stroke="#E3E0D4" strokeWidth="0.8" />
+                    <text x="3" y={posMap.sy(g) - 2} fontSize="6.5" fill="#A9A491">{g}</text>
+                  </g>
+                ))}
+                {/* 기준점 P1 (원점) */}
+                <g transform={`translate(${posMap.sx(0)},${posMap.sy(0)})`}>
+                  <line x1="-4" y1="0" x2="4" y2="0" stroke="#4A5A50" strokeWidth="1.2" />
+                  <line x1="0" y1="-4" x2="0" y2="4" stroke="#4A5A50" strokeWidth="1.2" />
+                  <text x="5" y="-4" fontSize="7" fill="#4A5A50" fontWeight="700">P1</text>
+                </g>
+                {pos.map((p, i) => (
+                  <circle key={i} cx={posMap.sx(p.X)} cy={posMap.sy(p.Y)}
+                    r={Math.min(8, 2.5 + Math.sqrt(p.duration_s ?? 20) / 3)}
+                    fill={p.person_near ? DANGER : p.zone === "no_stop" ? ACCENT : "#A9A491"}
+                    fillOpacity="0.55" stroke="#fff" strokeWidth="0.5">
+                    <title>{`${p.ts.slice(5, 16).replace("T", " ")} UTC · ${Math.round(p.duration_s ?? 0)}s` +
+                      `${p.person_near ? " · 보행자 근접" : ""}`}</title>
+                  </circle>
+                ))}
+              </svg>
+              <div className="mt-1 flex gap-4 text-[11px] text-dim">
+                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: DANGER }} />정차+보행자 통행 (위험)</span>
+                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: ACCENT }} />금지구역 정차</span>
+                <span><span className="mr-1 inline-block size-2 rounded-full bg-[#A9A491]" />기타 정차</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 text-[11.5px] leading-relaxed text-dim">
+              위치 분포는 <b>캘리브레이션(R2)</b> 후 표시됩니다 — 정차 좌표는
+              기록 중(<span className="num">{dwellPts.posN}</span>건 축적, 캘리브레이션 즉시 소급 표시).
+            </div>
+          )}
         </Card>
 
         <Card>

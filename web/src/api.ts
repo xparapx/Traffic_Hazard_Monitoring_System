@@ -205,8 +205,25 @@ export const api = {
     get<{ rows: { ts: string; manual_n: number; auto_n: number; err_pct: number | null;
                   note?: string; in_cum?: boolean }[];
           mean_abs_err_pct: number | null; n: number;
-          cum?: { n_clips: number; manual: number; auto: number; err_pct: number | null } }>(
+          cum?: { n_clips: number; manual: number; auto: number; err_pct: number | null };
+          speed?: { rows: { ts: string; manual_n: number; auto_n: number | null;
+                            err_pct: number | null; note?: string | null }[];
+                    n: number; matched: number; mean_abs_diff_kmh: number | null } }>(
       `${ADM_BASE}/api/admin/validation`, { rows: [], mean_abs_err_pct: null, n: 0 }),
+  // R4 속도 대조 — 클립 두 클릭(정규화 좌표+시각) → 호모그래피로 수동 속도 산출
+  calibProject: (points: [number, number][]) =>
+    postJson<{ world: [number, number][] }>(`${ADM_BASE}/api/admin/calib/project`, { points }),
+  speedsList: (from_ts: string, to_ts: string) =>
+    get<{ rows: { ts: string; cls: string; kmh: number }[] }>(
+      `${ADM_BASE}/api/admin/speeds?from_ts=${encodeURIComponent(from_ts)}&to_ts=${encodeURIComponent(to_ts)}`,
+      { rows: [] }),
+  validationSpeedAdd: (b: { manual_kmh: number; auto_kmh: number | null; note?: string }) =>
+    postJson<{ ok: boolean; diff_kmh: number | null }>(`${ADM_BASE}/api/admin/validation/speed`, b),
+  // 공간 분포 — 정차 이벤트의 세계 좌표(m), 캘리브레이션 전이면 빈 목록 (공개 포트)
+  eventsPositions: (hours = 168) =>
+    get<{ rows: { ts: string; zone: string; duration_s: number | null; X: number; Y: number;
+                  person_near: number | null }[] }>(
+      `${PUB_BASE}/api/public/events/positions?hours=${hours}`, { rows: [] }),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)
   sessionBoxesUrl: (name: string) => `${ADM_BASE}/session-video/${name}.boxes.jsonl`,

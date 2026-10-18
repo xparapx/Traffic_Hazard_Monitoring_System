@@ -30,6 +30,10 @@ MIGRATIONS = [
     " fps REAL, lat_ms INTEGER, mem_mb INTEGER, swap_mb INTEGER,"
     " power_w REAL, gpu_pct INTEGER, temp_c REAL)",
     "CREATE INDEX IF NOT EXISTS ix_bs_run ON bench_samples(run_id)",
+    # track 종료 시 속도 표본(K1) — 버킷 집계와 별도로 건별 보존 (R4 속도 대조·공간 분석용)
+    "CREATE TABLE IF NOT EXISTS speed_samples("
+    " id INTEGER PRIMARY KEY, ts TEXT NOT NULL, cls TEXT NOT NULL, kmh REAL NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS ix_ss_ts ON speed_samples(ts)",
     # 주간 리포트 이메일 수신처 (사람이 관리 UI 에서 등록)
     "CREATE TABLE IF NOT EXISTS recipients("
     " id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE,"

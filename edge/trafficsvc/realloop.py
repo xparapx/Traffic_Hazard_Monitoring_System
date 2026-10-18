@@ -231,6 +231,10 @@ class RealLoop:
 
     def _on_speed(self, cls: str, kmh: float) -> None:
         self._speeds.setdefault(cls, []).append(kmh)
+        # 건별 보존 — R4 속도 대조(±3 km/h)에서 수동 측정과 1:1 로 맞춰 보기 위함
+        self.con.execute("INSERT INTO speed_samples(ts, cls, kmh) VALUES(?,?,?)",
+                         (db.utcnow(), cls, round(kmh, 1)))
+        self.con.commit()
 
     def _on_dwell_start(self, tr: Track, zone: str, dur: float) -> str:
         event_id = str(uuid.uuid4())

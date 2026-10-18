@@ -57,6 +57,59 @@ export default function Label() {
     } else setTallyMsg("기록 실패 — 백엔드 확인");
     setTally(null);
   }
+  // R4 속도 대조 — 클립에서 같은 차의 접지점을 두 순간 클릭 → 호모그래피로 수동 속도
+  const [speedMode, setSpeedMode] = useState(false);
+  const [speedClicks, setSpeedClicks] = useState<{ t: number; u: number; v: number }[]>([]);
+  const [speedManual, setSpeedManual] = useState<number | null>(null);
+  const [speedCands, setSpeedCands] = useState<{ ts: string; cls: string; kmh: number }[] | null>(null);
+  const [speedMsg, setSpeedMsg] = useState("");
+
+  function resetSpeed(off = false) {
+    setSpeedClicks([]); setSpeedManual(null); setSpeedCands(null);
+    if (off) setSpeedMode(false);
+  }
+
+  async function speedClick(e: React.MouseEvent<HTMLDivElement>) {
+    const vid = videoRef.current;
+    if (!vid) return;
+    const r = vid.getBoundingClientRect();
+    const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return;
+    const clicks = [...speedClicks, { t: vid.currentTime, u, v }];
+    setSpeedClicks(clicks);
+    if (clicks.length < 2) return;
+    const [a, b] = clicks;
+    const dt = Math.abs(b.t - a.t);
+    if (dt < 0.3) { setSpeedMsg("두 클릭의 시각 차가 너무 짧습니다 — 일시정지로 다른 순간을 잡으세요"); setSpeedClicks([]); return; }
+    const w = await api.calibProject([[a.u, a.v], [b.u, b.v]]);
+    if (!w || typeof w === "string") { setSpeedMsg("좌표 투영 실패 — 캘리브레이션 확인"); setSpeedClicks([]); return; }
+    const [p, q] = w.world;
+    const kmh = Math.hypot(q[0] - p[0], q[1] - p[1]) / dt * 3.6;
+    setSpeedManual(Math.round(kmh * 10) / 10);
+    // 같은 시간대의 시스템 속도 표본(track 종료 시 기록) 후보 조회
+    const s = sess.sessions.find((x) => x.name === playing);
+    if (s) {
+      const t0 = Date.parse(s.start_utc);
+      const from = new Date(t0 + Math.min(a.t, b.t) * 1000 - 45000).toISOString();
+      const to = new Date(t0 + Math.max(a.t, b.t) * 1000 + 90000).toISOString();
+      const c = await api.speedsList(from, to);
+      setSpeedCands(c.rows.filter((x) => x.cls === "veh4"));
+    } else setSpeedCands([]);
+  }
+
+  async function saveSpeed(auto_kmh: number | null) {
+    if (speedManual == null) return;
+    const r = await api.validationSpeedAdd({
+      manual_kmh: speedManual, auto_kmh,
+      note: `clip=${playing} t=${speedClicks.map((c) => c.t.toFixed(1)).join("~")}s`,
+    });
+    if (r && typeof r !== "string")
+      setSpeedMsg(`기록됨 — 수동 ${speedManual} km/h vs 자동 ${auto_kmh ?? "누락"}` +
+        (r.diff_kmh != null ? ` · 차이 ${r.diff_kmh > 0 ? "+" : ""}${r.diff_kmh} km/h (합격선 ±3)` : ""));
+    else setSpeedMsg("기록 실패 — 백엔드 확인");
+    resetSpeed();
+  }
+
   const [msg, setMsg] = useState("");
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
@@ -301,6 +354,12 @@ export default function Label() {
             {/* 이벤트 차량 강조 — 사이드카 track 박스를 비디오 위에 그림 (저장 없음) */}
             <canvas ref={canvasRef}
               className="pointer-events-none absolute inset-0 size-full" />
+            {/* 속도 대조 클릭 레이어 — 컨트롤 띠(하단)는 남겨 일시정지 가능 */}
+            {speedMode && (
+              <div onClick={speedClick}
+                className="absolute inset-x-0 bottom-12 top-0 cursor-crosshair"
+                title="차량 접지점(앞바퀴 밑)을 클릭" />
+            )}
             </div>
             <button title="전체화면 (강조 표시 유지)"
               onClick={() => {
@@ -340,6 +399,42 @@ export default function Label() {
           )}
           {tallyMsg && (
             <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{tallyMsg}</div>
+          )}
+
+          {/* R4 속도 대조 패널 — 두 클릭(접지점) → 호모그래피 거리/시간차 = 수동 속도 */}
+          {speedMode && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-sky-500 bg-sky-500/10 px-3 py-2 text-[12.5px]">
+              <b className="text-sky-400">속도 대조 중</b>
+              {speedManual == null ? (
+                <span>
+                  같은 차의 <b>접지점(앞바퀴 밑)</b>을 서로 다른 두 순간에 클릭
+                  (일시정지·프레임 이동 활용) — {speedClicks.length}/2
+                </span>
+              ) : (
+                <>
+                  <span>수동 측정 <b className="num text-[16px] text-white">{speedManual} km/h</b> —
+                    같은 차의 시스템 기록을 고르세요:</span>
+                  {(speedCands ?? []).map((c, i) => (
+                    <button key={i} onClick={() => saveSpeed(c.kmh)}
+                      className="rounded border border-sky-500 px-2 py-0.5 font-bold text-sky-300">
+                      {c.ts.slice(11, 19)} · {c.kmh} km/h
+                    </button>
+                  ))}
+                  {speedCands?.length === 0 && <span className="text-dim-dark">후보 없음</span>}
+                  <button onClick={() => saveSpeed(null)}
+                    className="rounded border border-gravy px-2 py-0.5 text-gravy">시스템 누락으로 기록</button>
+                </>
+              )}
+              <button onClick={() => resetSpeed()} className="rounded border border-cobble px-2.5 py-1">다시</button>
+              <button onClick={() => resetSpeed(true)} className="rounded border border-cobble px-2.5 py-1">종료</button>
+              <span className="w-full text-[11px] leading-relaxed text-dim-dark">
+                목적: 시스템 속도(K1) 정확도 검증 (GATE 1 — 차이 ±3 km/h 합격). 시스템 속도는 차가
+                화면을 벗어난 '직후' 기록되므로, 통과 시각보다 조금 뒤의 후보가 같은 차입니다.
+              </span>
+            </div>
+          )}
+          {speedMsg && (
+            <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{speedMsg}</div>
           )}
 
           {/* 클립 목록 헤더 — 개수·용량 요약 + 일괄 삭제 (ready 2개 이상일 때만 노출) */}
@@ -389,6 +484,11 @@ export default function Label() {
                   <button title="R4 수동 대조 — 이 클립을 보며 차량 수 세기"
                     onClick={() => { setPlaying(s.name); setTally({ clip: s.name, n: 0 }); setTallyMsg(""); }}
                     className="text-[11px] text-dim-dark hover:text-otan">대조</button>
+                )}
+                {s.status === "ready" && !speedMode && (
+                  <button title="R4 속도 대조 — 차량 접지점을 두 순간 클릭해 수동 속도 측정"
+                    onClick={() => { setPlaying(s.name); resetSpeed(); setSpeedMode(true); setSpeedMsg(""); }}
+                    className="text-[11px] text-dim-dark hover:text-sky-400">속도</button>
                 )}
                 {s.status === "ready" && (
                   <button onClick={async () => {

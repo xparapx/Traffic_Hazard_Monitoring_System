@@ -425,6 +425,29 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
         # C1(태그 분포)은 GATE 2 통과 전에는 공개 화면에 내지 않는다 (CLAUDE.md)
         return _meta("dwell") | {"events": events, "c1_visible": False}
 
+    @api.get("/events/positions")
+    def events_positions(hours: int = 168):
+        """정차(dwell) 이벤트 위치의 세계 좌표(m) — 공간 분포 지도용. 저장된 pos 는
+        정규화 발점이므로 현행 호모그래피로 투영해 돌려준다(캘리브레이션 전이면 빈 목록).
+        차량 위치·시각·지속시간만 — 개인 식별 정보 없음(공개 가능)."""
+        from datetime import datetime, timedelta, timezone
+
+        from . import homography as homo
+        hrow = con.execute("SELECT h_json FROM calib WHERE h_json IS NOT NULL"
+                           " ORDER BY ts DESC LIMIT 1").fetchone()
+        if not hrow:
+            return {"rows": []}
+        h = json.loads(hrow["h_json"])
+        since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        out = []
+        for r in _rows(con, "SELECT ts, zone, duration_s, pos_x, pos_y, person_near"
+                            " FROM events WHERE kind='dwell' AND ts >= ?"
+                            " AND pos_x IS NOT NULL ORDER BY ts", (since,)):
+            X, Y = homo.apply(h, r["pos_x"], r["pos_y"])
+            out.append({"ts": r["ts"], "zone": r["zone"], "duration_s": r["duration_s"],
+                        "X": round(X, 2), "Y": round(Y, 2), "person_near": r["person_near"]})
+        return {"rows": out}
+
     app.include_router(api)
     _mount_web(app)
     return app
@@ -479,6 +502,18 @@ class ValidationIn(BaseModel):
     """R4 수동 대조 — clip: 세션 이름, manual_n: 사람이 그 클립에서 센 차량(veh4) 수."""
     clip: str
     manual_n: int = Field(ge=0, le=2000)
+
+
+class ProjectIn(BaseModel):
+    """정규화 화면 좌표 → 실측 평면 좌표(m) — 현행 호모그래피 적용."""
+    points: list[tuple[float, float]] = Field(min_length=1, max_length=16)
+
+
+class SpeedValidationIn(BaseModel):
+    """R4 속도 대조 — 클립 두 클릭으로 잰 수동 속도 vs 시스템 speed_samples 한 건."""
+    manual_kmh: float = Field(ge=0, le=200)
+    auto_kmh: float | None = Field(default=None, ge=0, le=200)   # None = 시스템 기록 누락
+    note: str | None = None
 
 
 class SessionRecordIn(BaseModel):
@@ -556,6 +591,36 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
                         ver, rep["max_err_m"], len(body.image_points))
             out["saved"] = ver
         return out
+
+    @api.post("/calib/project")
+    def calib_project(body: ProjectIn):
+        """정규화 좌표 → 세계 좌표(m) — R4 속도 대조(클립 두 클릭)·공간 분포용."""
+        from . import homography as homo
+        hrow = con.execute("SELECT h_json FROM calib WHERE h_json IS NOT NULL"
+                           " ORDER BY ts DESC LIMIT 1").fetchone()
+        if not hrow:
+            raise HTTPException(409, "호모그래피 없음 — R2 4점 캘리브레이션 먼저")
+        h = json.loads(hrow["h_json"])
+        return {"world": [list(homo.apply(h, u, v)) for u, v in body.points]}
+
+    @api.get("/speeds")
+    def speeds_list(from_ts: str, to_ts: str):
+        """speed_samples 구간 조회 — 속도 대조에서 '같은 차' 후보 고르기용."""
+        return {"rows": _rows(con, "SELECT ts, cls, kmh FROM speed_samples"
+                                   " WHERE ts >= ? AND ts <= ? ORDER BY ts", (from_ts, to_ts))}
+
+    @api.post("/validation/speed")
+    def validation_speed_add(body: SpeedValidationIn):
+        """R4 속도 대조 기록 — err_pct 열에는 (자동-수동) km/h 차이를 담는다(kind 로 구분)."""
+        diff = round(body.auto_kmh - body.manual_kmh, 1) if body.auto_kmh is not None else None
+        con.execute(
+            "INSERT INTO validation(ts, kind, manual_n, auto_n, err_pct, note) VALUES(?,?,?,?,?,?)",
+            (db.utcnow(), "speed_kmh", body.manual_kmh, body.auto_kmh, diff, body.note))
+        con.commit()
+        log.warning("속도 대조 기록: manual=%.1f auto=%s diff=%s", body.manual_kmh,
+                    body.auto_kmh, diff)
+        return {"ok": True, "manual_kmh": body.manual_kmh, "auto_kmh": body.auto_kmh,
+                "diff_kmh": diff}
 
     @api.get("/roi")
     def roi_get():
@@ -683,11 +748,17 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
                          " WHERE kind='veh4_count' AND substr(note,1,?) >= ?", (len(cut), cut))
         sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
+        # 속도 대조(±3 km/h) — err_pct 열이 km/h 차이(기록 시 그렇게 저장)
+        sp = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
+                        " WHERE kind='speed_kmh' ORDER BY id DESC LIMIT 20")
+        spd = [abs(r["err_pct"]) for r in sp if r["err_pct"] is not None]
         return {"rows": rows,
                 "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
                 "n": len(rows),
                 "cum": {"n_clips": len(cur), "manual": sm, "auto": sa,
-                        "err_pct": round((sa - sm) / sm * 100, 1) if sm else None}}
+                        "err_pct": round((sa - sm) / sm * 100, 1) if sm else None},
+                "speed": {"rows": sp, "n": len(sp), "matched": len(spd),
+                          "mean_abs_diff_kmh": round(sum(spd) / len(spd), 1) if spd else None}}
 
     @api.delete("/session")
     def session_delete_all():
