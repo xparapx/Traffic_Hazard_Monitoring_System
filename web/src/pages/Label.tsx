@@ -95,10 +95,22 @@ export default function Label() {
     const w = await api.calibProject(clicks.map((c) => [c.u, c.v] as [number, number]));
     if (!w || typeof w === "string") { setSpeedMsg("좌표 투영 실패 — 캘리브레이션 확인"); setSpeedClicks([]); return; }
     let dist = 0;
-    for (let i = 1; i < w.world.length; i++)
-      dist += Math.hypot(w.world[i][0] - w.world[i - 1][0], w.world[i][1] - w.world[i - 1][1]);
+    let segMax = 0;   // 구간별 순간 속도 최대 — 한 구간만 튀면 그 클릭이 접지점을 벗어난 것
+    for (let i = 1; i < w.world.length; i++) {
+      const d = Math.hypot(w.world[i][0] - w.world[i - 1][0], w.world[i][1] - w.world[i - 1][1]);
+      dist += d;
+      const sdt = clicks[i].t - clicks[i - 1].t;
+      if (sdt > 0.05) segMax = Math.max(segMax, d / sdt * 3.6);
+    }
     const kmh = dist / dt * 3.6;
     setSpeedManual(Math.round(kmh * 10) / 10);
+    // 근거·경고 — 접지점 아닌 차체 위 클릭은 노면 투영이 멀어져 속도가 크게 부푼다
+    let diag = `근거: 경로 ${dist.toFixed(1)}m / ${dt.toFixed(1)}s (${clicks.length}점)`;
+    if (kmh > 70 || segMax > kmh * 1.8 + 15)
+      diag += " ⚠ 비정상적으로 큼 — 접지점(바퀴 밑)이 아닌 차체 위를 클릭했거나 점 간격이 너무 짧았을 수 있습니다. [다시]를 권장";
+    else if (dt < 1.2)
+      diag += " ⚠ 시간 간격이 짧아 오차가 큽니다 — 점 사이를 1.5초 이상 벌리세요";
+    setSpeedMsg(diag);
     const a = clicks[0], b = clicks[clicks.length - 1];
     // 같은 시간대의 시스템 속도 표본(track 종료 시 기록) 후보 조회
     const s = sess.sessions.find((x) => x.name === playing);
