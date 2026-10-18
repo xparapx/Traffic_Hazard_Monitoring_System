@@ -223,7 +223,8 @@ export const api = {
   // 공간 분포 — 정차 이벤트의 세계 좌표(m), 캘리브레이션 전이면 빈 목록 (공개 포트)
   eventsPositions: (hours = 168) =>
     get<{ rows: { ts: string; zone: string; duration_s: number | null; X: number; Y: number;
-                  person_near: number | null }[] }>(
+                  person_near: number | null }[];
+          zones_world?: { roi?: number[][]; no_stop?: number[][][] } }>(
       `${PUB_BASE}/api/public/events/positions?hours=${hours}`, { rows: [] }),
   sessionVideoUrl: (name: string) => `${ADM_BASE}/session-video/${name}.mp4`,
   // 프레임별 track 박스 사이드카 (JSONL) — 이벤트 차량 강조용, 구 클립엔 없음(404 허용)

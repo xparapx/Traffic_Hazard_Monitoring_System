@@ -465,7 +465,15 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
             X, Y = homo.apply(h, r["pos_x"], r["pos_y"])
             out.append({"ts": r["ts"], "zone": r["zone"], "duration_s": r["duration_s"],
                         "X": round(X, 2), "Y": round(Y, 2), "person_near": r["person_near"]})
-        return {"rows": out}
+        # 구역 폴리곤(ROI·정차금지)도 같은 평면에 투영 — 축척 정확한 지도의 밑그림
+        from .detect import roi as roi_mod
+        zones = roi_mod.load_zones(con)
+        zw: dict = {}
+        if zones.get("roi"):
+            zw["roi"] = [[round(c, 2) for c in homo.apply(h, u, v)] for u, v in zones["roi"]]
+        zw["no_stop"] = [[[round(c, 2) for c in homo.apply(h, u, v)] for u, v in poly]
+                         for poly in zones.get("no_stop", [])]
+        return {"rows": out, "zones_world": zw}
 
     app.include_router(api)
     _mount_web(app)

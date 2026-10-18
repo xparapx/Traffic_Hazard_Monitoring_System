@@ -37,21 +37,28 @@ export default function Metrics() {
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [cmp, setCmp] = useState<CmpMode>("weekday");
   const [pos, setPos] = useState<Awaited<ReturnType<typeof api.eventsPositions>>["rows"]>([]);
+  const [zonesW, setZonesW] = useState<{ roi?: number[][]; no_stop?: number[][][] }>({});
   useEffect(() => {
     api.today().then(setToday);
     api.speed().then(setSpeed);
     api.dwell().then(setDwell);
     api.history(182).then((r) => setDaily(r.daily));
-    api.eventsPositions(168).then((r) => setPos(r.rows));   // 최근 7일 — 캘리브레이션 후 자동 표시
+    api.eventsPositions(168).then((r) => {   // 최근 7일 — 캘리브레이션 후 자동 표시
+      setPos(r.rows); setZonesW(r.zones_world ?? {});
+    });
   }, []);
 
   // 공간 분포 — 세계 좌표(m) 산점도의 스케일 (P1=(0,0) 기준, 축 비율 1:1 유지)
   const posMap = useMemo(() => {
     if (!pos.length) return null;
-    const xs = pos.map((p) => p.X), ys = pos.map((p) => p.Y);
-    const pad = 2;
-    const x0 = Math.min(...xs, 0) - pad, x1 = Math.max(...xs, 0) + pad;
-    const y0 = Math.min(...ys, 0) - pad, y1 = Math.max(...ys, 0) + pad;
+    // 범위는 ROI(도로) 폴리곤 기준 — 호모그래피 외삽 오차로 먼 곳에 찍힌 점이 축척을
+    // 망치지 않게. ROI 가 없으면 점 범위로 폴백.
+    const zonePts = [...(zonesW.roi ?? []), ...(zonesW.no_stop ?? []).flat()];
+    const bx = zonePts.length ? zonePts.map((p) => p[0]) : pos.map((p) => p.X);
+    const by = zonePts.length ? zonePts.map((p) => p[1]) : pos.map((p) => p.Y);
+    const pad = 3;
+    const x0 = Math.min(...bx, 0) - pad, x1 = Math.max(...bx, 0) + pad;
+    const y0 = Math.min(...by, 0) - pad, y1 = Math.max(...by, 0) + pad;
     const W = 300, H = 200;
     const s = Math.min(W / (x1 - x0), H / (y1 - y0));
     const sx = (X: number) => (X - x0) * s + (W - (x1 - x0) * s) / 2;
@@ -60,8 +67,9 @@ export default function Metrics() {
     for (let g = Math.ceil(x0 / 5) * 5; g <= x1; g += 5) grid.push(g);
     const gridY: number[] = [];
     for (let g = Math.ceil(y0 / 5) * 5; g <= y1; g += 5) gridY.push(g);
-    return { sx, sy, grid, gridY, W, H };
-  }, [pos]);
+    const inside = pos.filter((p) => p.X >= x0 && p.X <= x1 && p.Y >= y0 && p.Y <= y1);
+    return { sx, sy, grid, gridY, W, H, inside, outN: pos.length - inside.length };
+  }, [pos, zonesW]);
   useEffect(() => {
     if (range === "7d") return;
     api.buckets(range === "today" ? hoursSinceKstMidnight() : 24)
@@ -436,10 +444,10 @@ export default function Metrics() {
           {posMap ? (
             <div className="mt-3">
               <div className="mb-1 text-[12px] font-bold">
-                정차 위치 실측 분포 <span className="meta">최근 7일 · 격자 5 m · P1 기준(m)</span>
+                정차 위치 실측 지도 <span className="meta">최근 7일 · 격자 5 m · 축척 정확(m) · 도로/금지구역 = 실제 투영</span>
               </div>
               <svg viewBox={`0 0 ${posMap.W} ${posMap.H}`} className="w-full rounded bg-[#F6F5EF]"
-                role="img" aria-label="정차 이벤트 위치 산점도 (세계 좌표, 미터)">
+                role="img" aria-label="정차 이벤트 히트맵 (세계 좌표, 미터) — 도로·정차금지구역 폴리곤 위">
                 {posMap.grid.map((g) => (
                   <g key={`x${g}`}>
                     <line x1={posMap.sx(g)} y1="0" x2={posMap.sx(g)} y2={posMap.H}
@@ -454,26 +462,46 @@ export default function Metrics() {
                     <text x="3" y={posMap.sy(g) - 2} fontSize="6.5" fill="#A9A491">{g}</text>
                   </g>
                 ))}
+                {/* 도로(ROI)·정차금지 구역 — 카메라 화면에 그린 폴리곤의 실측 투영 */}
+                {zonesW.roi && zonesW.roi.length >= 3 && (
+                  <polygon points={zonesW.roi.map((p) => `${posMap.sx(p[0])},${posMap.sy(p[1])}`).join(" ")}
+                    fill="#D8D5C9" fillOpacity="0.55" stroke="#BDB9AA" strokeWidth="1" />
+                )}
+                {(zonesW.no_stop ?? []).map((poly, i) => poly.length >= 3 && (
+                  <polygon key={i}
+                    points={poly.map((p) => `${posMap.sx(p[0])},${posMap.sy(p[1])}`).join(" ")}
+                    fill={ACCENT} fillOpacity="0.12" stroke={ACCENT} strokeWidth="1"
+                    strokeDasharray="4 3" />
+                ))}
+                {/* 히트맵 — 가우시안 블러 누적 (빨강 = 보행자 통행 동반) */}
+                <defs>
+                  <filter id="posheat" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="4" />
+                  </filter>
+                </defs>
+                <g style={{ mixBlendMode: "multiply" }}>
+                  {posMap.inside.map((p, i) => (
+                    <circle key={`h${i}`} cx={posMap.sx(p.X)} cy={posMap.sy(p.Y)}
+                      r={5 + Math.min(6, Math.sqrt(p.duration_s ?? 20) / 2)}
+                      fill={p.person_near ? DANGER : ACCENT}
+                      opacity={0.1 + Math.min(0.2, (p.duration_s ?? 20) / 600)}
+                      filter="url(#posheat)" />
+                  ))}
+                </g>
                 {/* 기준점 P1 (원점) */}
                 <g transform={`translate(${posMap.sx(0)},${posMap.sy(0)})`}>
                   <line x1="-4" y1="0" x2="4" y2="0" stroke="#4A5A50" strokeWidth="1.2" />
                   <line x1="0" y1="-4" x2="0" y2="4" stroke="#4A5A50" strokeWidth="1.2" />
                   <text x="5" y="-4" fontSize="7" fill="#4A5A50" fontWeight="700">P1</text>
                 </g>
-                {pos.map((p, i) => (
-                  <circle key={i} cx={posMap.sx(p.X)} cy={posMap.sy(p.Y)}
-                    r={Math.min(8, 2.5 + Math.sqrt(p.duration_s ?? 20) / 3)}
-                    fill={p.person_near ? DANGER : p.zone === "no_stop" ? ACCENT : "#A9A491"}
-                    fillOpacity="0.55" stroke="#fff" strokeWidth="0.5">
-                    <title>{`${p.ts.slice(5, 16).replace("T", " ")} UTC · ${Math.round(p.duration_s ?? 0)}s` +
-                      `${p.person_near ? " · 보행자 근접" : ""}`}</title>
-                  </circle>
-                ))}
               </svg>
-              <div className="mt-1 flex gap-4 text-[11px] text-dim">
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-dim">
                 <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: DANGER }} />정차+보행자 통행 (위험)</span>
-                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: ACCENT }} />금지구역 정차</span>
-                <span><span className="mr-1 inline-block size-2 rounded-full bg-[#A9A491]" />기타 정차</span>
+                <span><span className="mr-1 inline-block size-2 rounded-full" style={{ background: ACCENT }} />정차 (진할수록 잦음·긺)</span>
+                <span><span className="mr-1 inline-block h-2 w-3 border border-dashed" style={{ borderColor: ACCENT }} />정차금지구역</span>
+                {posMap.outN > 0 && (
+                  <span className="text-dim-dark">범위 밖 {posMap.outN}건 제외(원거리 투영 오차)</span>
+                )}
               </div>
             </div>
           ) : (
