@@ -37,6 +37,9 @@ export default function Label() {
     if (!tally) return;
     const h = (e: KeyboardEvent) => {
       if (e.code === "Space") { e.preventDefault(); setTally((t) => t && { ...t, n: t.n + 1 }); }
+      if (e.code === "Backspace") {   // 잘못 센 경우 보정
+        e.preventDefault(); setTally((t) => t && { ...t, n: Math.max(0, t.n - 1) });
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -385,6 +388,9 @@ export default function Label() {
               <span>영상에서 도로를 지나는 <b>차량(4륜)</b>마다 누르세요</span>
               <button onClick={() => setTally({ ...tally, n: tally.n + 1 })}
                 className="rounded-full bg-otan px-4 py-1.5 font-bold text-cobble">+1 차량 (Space)</button>
+              <button onClick={() => setTally({ ...tally, n: Math.max(0, tally.n - 1) })}
+                title="잘못 센 경우 보정 (Backspace)"
+                className="rounded-full border border-otan px-3 py-1.5 font-bold text-otan">−1</button>
               <span className="num text-[22px] font-bold text-white">{tally.n}</span>
               <button onClick={finishTally}
                 className="rounded border border-otan px-2.5 py-1 font-bold text-otan">끝 — 기록</button>
