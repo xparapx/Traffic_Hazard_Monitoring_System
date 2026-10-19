@@ -37,6 +37,7 @@ class Track:
     world_hist: list = field(default_factory=list)   # (t, X, Y) — 캘리브레이션 후 속도(K1)용
     person_near: int | None = None              # 정차 중 보행자 근접 관측 (h2 정책·연구 기록)
     origin: tuple[float, float] | None = None   # 최초 등장 중심 — 통행(이동) 판정 기준
+    conflict_logged: bool = False               # K3(횡단 중 2m 접근) — track 당 1회 보증
 
     def __post_init__(self):
         if self.origin is None:

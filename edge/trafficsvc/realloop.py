@@ -26,8 +26,10 @@ CURRENT: "RealLoop | None" = None   # 프리뷰(SharedCamera)가 참조하는 �
 DWELL_S = 20.0          # 정차 확정 임계 (개요: 구역 밖 20초+)
 MOVE_EPS = 0.015        # 발점이 이만큼(정규화) 안에서 머물면 '정지'로 본다
 VEH_CLASSES = ("veh4", "two_wheel")
-PERSON_NEAR_EPS = 0.09  # 보행자 근접(정규화 프록시) — 캘리브레이션 후 2m 기준으로 전환 예정
+PERSON_NEAR_EPS = 0.09  # 보행자 근접(정규화 프록시) — 정차(h2) 기록용, K3 와 별개
 SPEED_MIN_SEGS = 3      # 속도 산출 최소 구간 수 (짧은 track 의 잡음 속도 배제)
+CONFLICT_DIST_M = 2.0   # K3 — 횡단 중 차량 접근 판정 거리(실측 m, 캘리브레이션 후에만)
+CONFLICT_MIN_MS = 1.0   # K3 는 '이동 중' 차량만 — 주차·정차 차량 옆 통행은 K2/h2 몫
 
 
 class Pipeline:
@@ -39,6 +41,7 @@ class Pipeline:
                  on_dwell_start=lambda tr, zone, dur: None,
                  on_dwell_end=lambda tr, dur: None,
                  on_speed=lambda cls, kmh: None,
+                 on_conflict=lambda tr, dist_m: None,
                  world_fn=None,
                  dwell_s: float = DWELL_S, move_eps: float = MOVE_EPS):
         self.zones = zones or {}
@@ -47,6 +50,7 @@ class Pipeline:
         self.on_dwell_start = on_dwell_start
         self.on_dwell_end = on_dwell_end
         self.on_speed = on_speed            # track 종료 시 (cls, km/h) — K1 집계용
+        self.on_conflict = on_conflict      # 횡단 중 2m 접근 (K3) — track 당 1회
         self.world_fn = world_fn            # (u,v)→(X,Y)[m] — 캘리브레이션 전 None
         self.dwell_s = dwell_s
         self.move_eps = move_eps
@@ -91,6 +95,7 @@ class Pipeline:
                 if self.world_fn is not None and tr.last_t == t:
                     tr.world_hist.append((t, *self.world_fn(*tr.foot)))
                 self._dwell_step(tr, t)
+                self._conflict_step(tr)
         for tr in self.tracker.ended():
             if tr.dwell_event_id and not tr.dwell_done:
                 tr.dwell_done = True               # 화면 밖으로 사라지며 종료
@@ -116,6 +121,26 @@ class Pipeline:
 
     def _person_near(self, foot) -> bool:
         return any(math.dist(foot, p) < PERSON_NEAR_EPS for p in self._persons)
+
+    def _conflict_step(self, tr: Track) -> None:
+        """K3 — '이동 중' 차량이 도로(ROI) 안 보행자 발점의 실측 2m 안에 들어오면
+        track 당 1회 conflict. 캘리브레이션(world_fn) 전에는 판정하지 않는다(null 유지)."""
+        if (tr.conflict_logged or self.world_fn is None or not self._persons
+                or len(tr.world_hist) < 2):
+            return
+        t1, x1, y1 = tr.world_hist[-1]
+        speed = 0.0
+        for t0, x0, y0 in reversed(tr.world_hist[:-1]):
+            if t1 - t0 >= 0.3:
+                speed = math.hypot(x1 - x0, y1 - y0) / (t1 - t0)
+                break
+        if speed < CONFLICT_MIN_MS:     # 정지·서행 차량 옆 통행은 K2(정차)·h2 의 영역
+            return
+        dmin = min(math.hypot(x1 - px, y1 - py)
+                   for px, py in (self.world_fn(*p) for p in self._persons))
+        if dmin < CONFLICT_DIST_M:
+            tr.conflict_logged = True
+            self.on_conflict(tr, round(dmin, 2))
 
     def _dwell_step(self, tr: Track, t: float) -> None:
         foot = tr.foot
@@ -178,7 +203,7 @@ class RealLoop:
         self.pipeline = Pipeline(
             zones, on_count=self._on_count,
             on_dwell_start=self._on_dwell_start, on_dwell_end=self._on_dwell_end,
-            on_speed=self._on_speed, world_fn=wf)
+            on_speed=self._on_speed, on_conflict=self._on_conflict, world_fn=wf)
         self._speeds: dict[str, list[float]] = {}
         self._stop = False
         self._cur_frame = None        # step() 직전 프레임 — dwell crop 용, 파일로 쓰지 않음
@@ -235,6 +260,14 @@ class RealLoop:
         self.con.execute("INSERT INTO speed_samples(ts, cls, kmh) VALUES(?,?,?)",
                          (db.utcnow(), cls, round(kmh, 1)))
         self.con.commit()
+
+    def _on_conflict(self, tr: Track, dist_m: float) -> None:
+        """K3 — 횡단 중 2m 접근. 이벤트 행만 남긴다(영상·crop 없음, VLM 미개입)."""
+        foot = tr.foot
+        db.insert_event(self.con, ts=db.utcnow(), kind="conflict", zone="roi",
+                        track_cls=tr.cls, track_id=tr.track_id, dist_m=dist_m,
+                        pos_x=round(foot[0], 4), pos_y=round(foot[1], 4), person_near=1)
+        log.warning("conflict: %s %.2fm (track %d)", tr.cls, dist_m, tr.track_id)
 
     def _on_dwell_start(self, tr: Track, zone: str, dur: float) -> str:
         event_id = str(uuid.uuid4())

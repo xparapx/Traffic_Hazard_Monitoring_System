@@ -93,6 +93,29 @@ def test_roi_filter_excludes_parking_lot():
     assert counts == ["veh4"]       # 주차장(왼쪽) 차는 카운트 안 됨
 
 
+def test_conflict_fires_once_when_moving_vehicle_passes_near_person():
+    """K3 — 이동 중 차량이 보행자 실측 2m 안을 지나면 track 당 1회 conflict."""
+    confl = []
+    p = Pipeline({}, on_conflict=lambda tr, d: confl.append((tr.cls, d)),
+                 world_fn=lambda u, v: (u * 50, v * 50))   # 화면 전체 = 50m 평면
+    n = int(3 * FPS)
+    for i in range(n):   # 차량이 보행자(정지) 옆 1.5m 를 통과
+        x = 0.1 + 0.8 * i / (n - 1)
+        p.step(i * DT, [det(x, 0.6), det(0.5, 0.62, w=0.03, h=0.1, cls="person")])
+    assert len(confl) == 1
+    assert confl[0][0] == "veh4" and confl[0][1] < 2.0
+
+
+def test_conflict_not_fired_for_stationary_vehicle():
+    """정지 차량 옆 통행은 K3 가 아니다 — K2(정차)·h2 의 영역."""
+    confl = []
+    p = Pipeline({}, on_conflict=lambda tr, d: confl.append(d),
+                 world_fn=lambda u, v: (u * 50, v * 50))
+    for i in range(int(3 * FPS)):
+        p.step(i * DT, [det(0.5, 0.6), det(0.52, 0.62, w=0.03, h=0.1, cls="person")])
+    assert confl == []
+
+
 def test_iou_basic():
     assert iou((0, 0, 1, 1), (0, 0, 1, 1)) > 0.99
     assert iou((0, 0, 0.5, 0.5), (0.5, 0.5, 1, 1)) == 0.0
