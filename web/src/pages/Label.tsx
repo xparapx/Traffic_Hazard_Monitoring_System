@@ -17,6 +17,24 @@ function findSession(sessions: SessionItem[], ts: string): SessionItem | null {
   return null;
 }
 
+/** 대조 결과 카드용 수치 칩 — "라벨 + 큰 숫자" */
+function StatChip({ label, v, unit }: { label: string; v: number | string; unit?: string }) {
+  return (
+    <span className="flex items-baseline gap-1.5 rounded-lg bg-cobble/80 px-2.5 py-1.5">
+      <span className="text-[10.5px] text-dim-dark">{label}</span>
+      <span className="num text-[17px] font-bold text-white">{v}</span>
+      {unit && <span className="text-[10.5px] text-dim-dark">{unit}</span>}
+    </span>
+  );
+}
+
+/** 합격선 대비 판정 배지 — pass 녹색 / 초과 적색 / 참고용 회색(limit 없음) */
+function PassBadge({ text, pass }: { text: string; pass: boolean | null }) {
+  const cls = pass == null ? "bg-smoke text-dim"
+    : pass ? "bg-otan/25 text-otan" : "bg-gravy/25 text-gravy";
+  return <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${cls}`}>{text}</span>;
+}
+
 export default function Label() {
   const [d, setD] = useState<Fetched<LabelData> | null>(null);
   const [idx, setIdx] = useState(0);
@@ -45,19 +63,22 @@ export default function Label() {
     return () => window.removeEventListener("keydown", h);
   }, [tally]);
 
+  // 기록 결과 — 텍스트가 아니라 수치 칩·판정 배지 카드로 보여준다
+  const [tallyRes, setTallyRes] = useState<{
+    manual: number; auto: number; err: number | null;
+    cum?: { n_clips: number; manual: number; auto: number; err_pct: number | null };
+  } | null>(null);
+
   async function finishTally() {
     if (!tally) return;
     const r = await api.validationAdd(tally.clip, tally.n);
     if (r && typeof r !== "string") {
-      let msg = `기록됨 — 사람 ${r.manual_n} vs 자동 ${r.auto_n}` +
-        (r.err_pct != null ? ` · 이 클립 ${r.err_pct}%` : "");
       // GATE 1 판정은 누적 합산 — 분모 작은 클립의 경계 넘김(±1~2대)이 상쇄된다
       const v = await api.validationList();
-      if (v.cum && v.cum.manual > 0)
-        msg += ` · 누적(${v.cum.n_clips}클립) 사람 ${v.cum.manual} vs 자동 ${v.cum.auto}` +
-          (v.cum.err_pct != null ? ` = ${v.cum.err_pct}% (판정은 누적 ±10%, 표본 ~100대 목표)` : "");
-      setTallyMsg(msg);
-    } else setTallyMsg("기록 실패 — 백엔드 확인");
+      setTallyRes({ manual: r.manual_n, auto: r.auto_n, err: r.err_pct,
+        cum: v.cum && v.cum.manual > 0 ? v.cum : undefined });
+      setTallyMsg("");
+    } else { setTallyRes(null); setTallyMsg("기록 실패 — 백엔드 확인"); }
     setTally(null);
   }
   // R4 속도 대조 — 클립에서 같은 차의 접지점을 두 순간 클릭 → 호모그래피로 수동 속도
@@ -130,16 +151,19 @@ export default function Label() {
     } else setSpeedCands([]);
   }
 
+  const [speedRes, setSpeedRes] =
+    useState<{ manual: number; auto: number | null; diff: number | null } | null>(null);
+
   async function saveSpeed(auto_kmh: number | null) {
     if (speedManual == null) return;
     const r = await api.validationSpeedAdd({
       manual_kmh: speedManual, auto_kmh,
       note: `clip=${playing} t=${speedClicks.map((c) => c.t.toFixed(1)).join("~")}s`,
     });
-    if (r && typeof r !== "string")
-      setSpeedMsg(`기록됨 — 수동 ${speedManual} km/h vs 자동 ${auto_kmh ?? "누락"}` +
-        (r.diff_kmh != null ? ` · 차이 ${r.diff_kmh > 0 ? "+" : ""}${r.diff_kmh} km/h (합격선 ±3)` : ""));
-    else setSpeedMsg("기록 실패 — 백엔드 확인");
+    if (r && typeof r !== "string") {
+      setSpeedRes({ manual: speedManual, auto: auto_kmh, diff: r.diff_kmh });
+      setSpeedMsg("");
+    } else { setSpeedRes(null); setSpeedMsg("기록 실패 — 백엔드 확인"); }
     resetSpeed();
   }
 
@@ -414,7 +438,7 @@ export default function Label() {
           {/* R4 수동 대조 패널 — 사람 눈 = 기준값. 시스템 카운트의 누락/중복을 검증(GATE 1) */}
           {tally && (
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-otan bg-otan/10 px-3 py-2 text-[12.5px]">
-              <b className="text-otan">수동 대조 중</b>
+              <b className="text-otan">차량수 대조 중</b>
               <span>영상에서 도로를 지나는 <b>차량(4륜)</b>마다 누르세요</span>
               <button onClick={() => setTally({ ...tally, n: tally.n + 1 })}
                 className="rounded-full bg-otan px-4 py-1.5 font-bold text-cobble">+1 차량 (Space)</button>
@@ -435,6 +459,33 @@ export default function Label() {
           )}
           {tallyMsg && (
             <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{tallyMsg}</div>
+          )}
+          {/* 차량수 대조 기록 결과 — 수치 칩 + 누적 판정 배지 */}
+          {tallyRes && (
+            <div className="mt-2 rounded-lg border border-otan/60 bg-otan/10 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12.5px] font-bold text-otan">✓ 차량수 대조 기록됨</span>
+                <button onClick={() => setTallyRes(null)}
+                  className="text-[11px] text-dim-dark hover:text-white">닫기</button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatChip label="이 클립 · 사람" v={tallyRes.manual} unit="대" />
+                <StatChip label="자동" v={tallyRes.auto} unit="대" />
+                <PassBadge pass={null}
+                  text={tallyRes.err != null ? `이 클립 ${tallyRes.err > 0 ? "+" : ""}${tallyRes.err}% (참고)` : "—"} />
+              </div>
+              {tallyRes.cum && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-otan/20 pt-2">
+                  <StatChip label={`누적 ${tallyRes.cum.n_clips}클립 · 사람`} v={tallyRes.cum.manual} unit="대" />
+                  <StatChip label="자동" v={tallyRes.cum.auto} unit="대" />
+                  {tallyRes.cum.err_pct != null && (
+                    <PassBadge pass={Math.abs(tallyRes.cum.err_pct) <= 10}
+                      text={`누적 ${tallyRes.cum.err_pct > 0 ? "+" : ""}${tallyRes.cum.err_pct}% · 합격선 ±10%`} />
+                  )}
+                  <span className="text-[10.5px] text-dim-dark">판정은 누적 기준 — 클립별 수치는 참고용</span>
+                </div>
+              )}
+            </div>
           )}
 
           {/* R4 속도 대조 패널 — 두 클릭(접지점) → 호모그래피 거리/시간차 = 수동 속도 */}
@@ -479,6 +530,26 @@ export default function Label() {
           )}
           {speedMsg && (
             <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{speedMsg}</div>
+          )}
+          {/* 속도 대조 기록 결과 */}
+          {speedRes && (
+            <div className="mt-2 rounded-lg border border-sky-500/60 bg-sky-500/10 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12.5px] font-bold text-sky-400">✓ 속도 대조 기록됨</span>
+                <button onClick={() => setSpeedRes(null)}
+                  className="text-[11px] text-dim-dark hover:text-white">닫기</button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatChip label="수동" v={speedRes.manual} unit="km/h" />
+                <StatChip label="자동" v={speedRes.auto ?? "누락"} unit={speedRes.auto != null ? "km/h" : ""} />
+                {speedRes.diff != null ? (
+                  <PassBadge pass={Math.abs(speedRes.diff) <= 3}
+                    text={`차이 ${speedRes.diff > 0 ? "+" : ""}${speedRes.diff} km/h · 합격선 ±3`} />
+                ) : (
+                  <PassBadge pass={false} text="시스템 누락으로 기록" />
+                )}
+              </div>
+            </div>
           )}
 
           {/* 클립 목록 헤더 — 개수·용량 요약 + 일괄 삭제 (ready 2개 이상일 때만 노출) */}
@@ -525,14 +596,14 @@ export default function Label() {
                   </span>
                 </button>
                 {s.status === "ready" && !tally && (
-                  <button title="R4 수동 대조 — 이 클립을 보며 차량 수 세기"
-                    onClick={() => { setPlaying(s.name); setTally({ clip: s.name, n: 0 }); setTallyMsg(""); }}
-                    className="text-[11px] text-dim-dark hover:text-otan">대조</button>
+                  <button title="R4 — 이 클립을 보며 차량 수를 직접 세서 자동 카운트와 비교"
+                    onClick={() => { setPlaying(s.name); setTally({ clip: s.name, n: 0 }); setTallyMsg(""); setTallyRes(null); }}
+                    className="text-[11px] text-dim-dark hover:text-otan">차량수 대조</button>
                 )}
                 {s.status === "ready" && !speedMode && (
-                  <button title="R4 속도 대조 — 차량 접지점을 두 순간 클릭해 수동 속도 측정"
-                    onClick={() => { setPlaying(s.name); resetSpeed(); setSpeedMode(true); setSpeedMsg(""); }}
-                    className="text-[11px] text-dim-dark hover:text-sky-400">속도</button>
+                  <button title="R4 — 차량 접지점을 경로 따라 클릭해 수동 속도를 재고 시스템 기록과 비교"
+                    onClick={() => { setPlaying(s.name); resetSpeed(); setSpeedMode(true); setSpeedMsg(""); setSpeedRes(null); }}
+                    className="text-[11px] text-dim-dark hover:text-sky-400">속도 대조</button>
                 )}
                 {s.status === "ready" && (
                   <button onClick={async () => {
