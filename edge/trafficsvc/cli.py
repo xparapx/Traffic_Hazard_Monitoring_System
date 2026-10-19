@@ -136,17 +136,30 @@ def _serve() -> int:
             tasks += [asyncio.create_task(slow.run())]
             print("[trafficsvc] 실데이터 운영 루프 가동 — 카운트·정차(K2) 실측,"
                   " K1·K3 는 캘리브레이션(R2) 후")
-        cfgs = [
-            uvicorn.Config(public, host=settings.BIND_HOST, port=settings.PUBLIC_PORT,
-                           log_level="warning"),
-            # 관리 포트는 테일넷 인터페이스에만 (TRAFFIC_ADMIN_BIND) — CLAUDE.md 프라이버시 조항
-            uvicorn.Config(admin, host=settings.ADMIN_BIND, port=settings.ADMIN_PORT,
-                           log_level="warning"),
-        ]
-        servers = [uvicorn.Server(c) for c in cfgs]
+        pub_cfg = uvicorn.Config(public, host=settings.BIND_HOST, port=settings.PUBLIC_PORT,
+                                 log_level="warning")
+        # 관리 포트는 테일넷 인터페이스에만 (TRAFFIC_ADMIN_BIND) — CLAUDE.md 프라이버시 조항
+        adm_cfg = uvicorn.Config(admin, host=settings.ADMIN_BIND, port=settings.ADMIN_PORT,
+                                 log_level="warning")
+
+        async def serve_admin_with_retry():
+            """부팅 직후 테일스케일 인터페이스가 아직 없으면 바인딩이 실패한다(2026-10-19
+            실측 — 워치독 재부팅 후 레이스). 관리 포트는 재시도하되, 실패가 공개 포트를
+            끌어내리면 안 된다 — '관리가 죽어도 K1~K3(공개)는 나온다'."""
+            for i in range(60):                     # 최대 ~5분 대기
+                try:
+                    await uvicorn.Server(adm_cfg).serve()
+                    return
+                except (OSError, SystemExit):
+                    print(f"[trafficsvc] 관리 포트 바인딩 실패({settings.ADMIN_BIND}) —"
+                          f" 테일넷 대기 재시도 {i + 1}")
+                    await asyncio.sleep(5)
+            print("[trafficsvc] 관리 포트 기동 포기 — 공개 포트는 계속 서비스")
+
         print(f"[trafficsvc] public http://{settings.BIND_HOST}:{settings.PUBLIC_PORT}"
               f" · admin http://{settings.ADMIN_BIND}:{settings.ADMIN_PORT} (테일넷 전용)")
-        tasks += [asyncio.create_task(s.serve()) for s in servers]
+        tasks += [asyncio.create_task(uvicorn.Server(pub_cfg).serve()),
+                  asyncio.create_task(serve_admin_with_retry())]
         await asyncio.gather(*tasks)
 
     try:
