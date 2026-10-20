@@ -241,6 +241,9 @@ export const api = {
     post(`${ADM_BASE}/api/admin/recipients`, { email, label }),
   delRecipient: (id: number) => del(`${ADM_BASE}/api/admin/recipients/${id}`),
   outboxPreviewUrl: (id: number) => `${ADM_BASE}/api/admin/outbox/${id}/preview`,
+  // draft 본문 수정 — LLM 당부 '제안'을 사람이 다듬는 경로 (금칙 주어는 서버가 거부)
+  outboxEditBody: (id: number, body: string) =>
+    post(`${ADM_BASE}/api/admin/outbox/${id}/body`, { body }),
   outboxAct: (id: number, action: "approve" | "reject", by: string) =>
     post(`${ADM_BASE}/api/admin/outbox/${id}`, { action, by }),
 };

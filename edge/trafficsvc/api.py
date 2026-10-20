@@ -68,21 +68,9 @@ def _rows(con, sql, args=()):
     return [dict(r) for r in con.execute(sql, args).fetchall()]
 
 
-# 현행 카운트 규칙 배포 시각(UTC) — 이전 규칙으로 집계된 클립의 대조 기록은 누적에서 제외.
-# v2(이동 게이트) 13:04 → v3(분신 승계) 14:45, 2026-10-17. 규칙이 바뀌면 여기를 올린다.
-COUNT_RULE_UTC = "2026-10-17T14:45"
-_CUM_CUT = "clip=session_" + COUNT_RULE_UTC.replace("-", "").replace(":", "")  # ...T1445
-
-
-def _validation_cum(con) -> dict:
-    """R4 수동 대조의 누적 합산(Σ자동 vs Σ수동) — GATE 1 판정 기준. 제외 기준은 대조
-    시각이 아니라 클립 촬영 시각(자동값이 '녹화 당시' 버킷 수치이므로)."""
-    cur = _rows(con, "SELECT manual_n, auto_n FROM validation"
-                     " WHERE kind='veh4_count' AND substr(note,1,?) >= ?",
-                (len(_CUM_CUT), _CUM_CUT))
-    sm, sa = sum(r["manual_n"] for r in cur), sum(r["auto_n"] for r in cur)
-    return {"n_clips": len(cur), "manual": sm, "auto": sa,
-            "err_pct": round((sa - sm) / sm * 100, 1) if sm else None}
+# R4 누적 계산은 db.validation_cum 공용 (리포트 facts 도 같은 걸 씀)
+_CUM_CUT = db._CUM_CUT               # UI 의 행 구분(in_cum)용
+_validation_cum = db.validation_cum
 
 
 # ---------- MJPEG 스트림 (관리 포트 · 캘리브레이션 모드 동안에만) ----------
@@ -517,6 +505,10 @@ class OutboxAction(BaseModel):
     by: str
 
 
+class OutboxBodyIn(BaseModel):
+    body: str = Field(min_length=10, max_length=4000)
+
+
 class CalibModeIn(BaseModel):
     on: bool
 
@@ -896,6 +888,25 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
     def outbox():
         return _meta("outbox") | {"items": _rows(con,
             "SELECT * FROM outbox ORDER BY id DESC LIMIT 50")}
+
+    @api.post("/outbox/{item_id}/body")
+    def outbox_edit(item_id: int, body: OutboxBodyIn):
+        """draft 본문 수정 — LLM '당부 제안'을 사람이 고치는 경로. 검증기(금칙 주어)를
+        다시 통과해야 저장된다. draft 상태에서만 허용."""
+        from . import analysis
+        row = con.execute("SELECT status FROM outbox WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "no such outbox item")
+        if row["status"] != "draft":
+            raise HTTPException(409, "draft 상태에서만 수정 가능")
+        for w in analysis.FORBIDDEN_SUBJECTS:
+            if w in body.body:
+                raise HTTPException(422, f"금칙 주어 포함: {w}")
+        con.execute("UPDATE outbox SET body=?, validator=validator||'·edited' WHERE id=?",
+                    (body.body, item_id))
+        con.commit()
+        log.warning("outbox 본문 수정: id=%d (%d자)", item_id, len(body.body))
+        return {"ok": True}
 
     @api.post("/outbox/{item_id}")
     def outbox_act(item_id: int, body: OutboxAction):

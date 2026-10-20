@@ -14,6 +14,10 @@ export default function Outbox() {
   const [sel, setSel] = useState<OutboxItem | null>(null);
   const [recips, setRecips] = useState<{ id: number; email: string; label: string | null }[]>([]);
   const [newMail, setNewMail] = useState("");
+  // draft 본문 편집 — LLM '당부 제안'을 승인 전에 사람이 다듬는 경로
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState("");
+  const [editMsg, setEditMsg] = useState("");
   const load = () => {
     api.outbox().then((r) => { setD(r); setSel(r.items[0] ?? null); });
     api.recipients().then((r) => setRecips(r.recipients));
@@ -61,9 +65,34 @@ export default function Outbox() {
                 <span className="text-[14px] font-bold">{sel.kind} · #{sel.id}</span>
                 <span className="text-[10px] text-dim">{sel.approved_by ? `승인: ${sel.approved_by}` : "미승인"}</span>
               </div>
-              <div className="rounded-[10px] bg-sandstone p-4 text-[13px] leading-relaxed whitespace-pre-wrap">
-                {sel.body}
-              </div>
+              {editing ? (
+                <>
+                  <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)}
+                    rows={10}
+                    className="w-full rounded-[10px] border border-otan/50 bg-white p-4 text-[13px] leading-relaxed outline-none" />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button onClick={async () => {
+                      if (!sel) return;
+                      const r = await api.outboxEditBody(sel.id, editBody);
+                      if (r) { setEditing(false); setEditMsg("저장됨"); load(); }
+                      else setEditMsg("저장 실패 — 금칙 주어(어린이·학생·학부모) 포함 여부 확인");
+                    }} className="rounded-full bg-otan px-4 py-1.5 text-[12px] font-bold text-white">저장</button>
+                    <button onClick={() => setEditing(false)}
+                      className="rounded-full border border-cobble/40 px-4 py-1.5 text-[12px]">취소</button>
+                    <span className="text-[11px] text-dim">{editMsg}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[10px] bg-sandstone p-4 text-[13px] leading-relaxed whitespace-pre-wrap">
+                  {sel.body}
+                </div>
+              )}
+              {sel.status === "draft" && !editing && (
+                <button onClick={() => { setEditBody(sel.body); setEditing(true); setEditMsg(""); }}
+                  className="mt-2 mr-2 inline-block rounded-lg border border-otan/60 px-3 py-1.5 text-[12px] font-bold text-otan">
+                  본문 수정 (당부 제안 다듬기)
+                </button>
+              )}
               <a href={api.outboxPreviewUrl(sel.id)} target="_blank" rel="noreferrer"
                 className="mt-2 inline-block rounded-lg border border-cobble/40 px-3 py-1.5 text-[12px] font-bold">
                 HTML 리포트 미리보기 (이메일 발송 포맷)

@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import datetime, timedelta, timezone
+
+from . import db, settings
 
 KST = timezone(timedelta(hours=9))
 WEIGHTS = {"k1": 0.4, "k2": 0.3, "k3": 0.3}
@@ -136,27 +139,122 @@ def run_daily(con: sqlite3.Connection, date: str | None = None) -> dict:
 
 # ---------- 주간 초안 + 검증기 ----------
 
+_WD_KO = "월화수목금토일"
+
+
+def _week_avg(con, kind: str, span: tuple[str, str]) -> tuple[float | None, dict]:
+    """주간 평균값 + 날짜별 값(요일 패턴용)."""
+    rows = con.execute(
+        "SELECT date, payload FROM analysis WHERE kind=? AND date BETWEEN ? AND ?",
+        (kind, *span)).fetchall()
+    by_date = {}
+    for date, p in rows:
+        v = json.loads(p).get("value")
+        if v is not None:
+            by_date[date] = float(v)
+    avg = round(sum(by_date.values()) / len(by_date), 1) if by_date else None
+    return avg, by_date
+
+
+def _trend_word(cur: float | None, prev: float | None) -> str | None:
+    """전주 대비 추세 — LLM 은 숫자를 못 쓰므로 정성어로 변환해 넘긴다."""
+    if cur is None or prev is None or prev == 0:
+        return None
+    rel = (cur - prev) / prev
+    if rel >= 0.4: return "크게 증가"
+    if rel >= 0.15: return "증가"
+    if rel <= -0.4: return "크게 감소"
+    if rel <= -0.15: return "감소"
+    return "비슷"
+
+
 def weekly_facts(con: sqlite3.Connection, end_date: str | None = None) -> dict:
     d_end = datetime.strptime(end_date or kst_today(), "%Y-%m-%d")
     d_start = d_end - timedelta(days=6)
     span = (d_start.strftime("%Y-%m-%d"), d_end.strftime("%Y-%m-%d"))
+    prev_span = ((d_start - timedelta(days=7)).strftime("%Y-%m-%d"),
+                 (d_end - timedelta(days=7)).strftime("%Y-%m-%d"))
     facts: dict = {"start": span[0][5:].replace("-", "/"), "end": span[1][5:].replace("-", "/")}
+    daily_k2: dict = {}
     for k in ("k1", "k2", "k3"):
-        rows = con.execute(
-            "SELECT payload FROM analysis WHERE kind=? AND date BETWEEN ? AND ?", (k, *span)).fetchall()
-        vals = [json.loads(p).get("value") for (p,) in rows]
-        vals = [float(v) for v in vals if v is not None]
-        if not vals:
-            facts[k] = None
-        elif k == "k1":
-            facts[k] = round(sum(vals) / len(vals), 1)   # 평균 %
-        else:
-            facts[k] = round(sum(vals) / len(vals), 1)   # 하루 평균 건수
+        facts[k], by_date = _week_avg(con, k, span)
+        prev, _ = _week_avg(con, k, prev_span)
+        facts[f"{k}_trend"] = _trend_word(facts[k], prev)
+        if k == "k2":
+            daily_k2 = by_date
+    # 요일 패턴 — K2 가 가장 잦았던 요일 (표본 3일 이상일 때만)
+    if len(daily_k2) >= 3:
+        worst = max(daily_k2, key=lambda d: daily_k2[d])
+        facts["k2_worst_day"] = _WD_KO[datetime.strptime(worst, "%Y-%m-%d").weekday()] + "요일"
+    else:
+        facts["k2_worst_day"] = None
+    # 신뢰 정보 — R4 수동 대조 누적 (리포트의 '이 숫자를 믿어도 되는 근거')
+    facts["validation"] = db.validation_cum(con)
     return facts
 
 
+# ---- 로컬 LLM 맥락 생성 (R7 — 2026-10-20 사용자 결정: 교사용/공지용 2종 · 당부는 제안만) ----
+# 규약: LLM 은 숫자를 절대 쓰지 않는다(숫자·표는 템플릿이 DB 에서 직접) · 금칙 주어 금지 ·
+# 입력은 정성어로 변환된 facts 뿐(이미지·개별 이벤트 없음) · 실패/규약 위반 시 규칙 기반 폴백.
+
+LLM_SYSTEM = (
+    "너는 학교 앞 교통 모니터링 주간 리포트의 '맥락 문장' 작성자다. 규칙: "
+    "① 아라비아 숫자·퍼센트를 절대 쓰지 마라(숫자는 표가 담당) "
+    "② '어린이', '학생', '학부모' 단어 금지 — 주어는 '차량', '통행', '보행자', '교문 앞' 등 "
+    "③ 과장·추측 금지, 준 사실만 서술 ④ 정중하고 간결한 한국어. "
+    "JSON 만 출력: {\"summary\": 주간 요약 2문장, \"pattern\": 요일·추세 패턴 1문장, "
+    "\"suggestion\": 개선 당부 제안 1문장}")
+
+
+def _llm_facts_view(facts: dict) -> dict:
+    """LLM 입력 — 숫자를 빼고 정성어만 남긴 facts."""
+    return {
+        "기간": f"{facts['start']}~{facts['end']}",
+        "과속_추세": facts.get("k1_trend") or "자료 부족",
+        "금지구역_정차_추세": facts.get("k2_trend") or "자료 부족",
+        "횡단_근접_추세": facts.get("k3_trend") or "자료 부족",
+        "정차_최다_요일": facts.get("k2_worst_day") or "불명",
+        "과속_수준": ("높음" if (facts.get("k1") or 0) >= 50 else "관리 범위")
+                     if facts.get("k1") is not None else "자료 부족",
+    }
+
+
+def llm_comment(facts: dict) -> dict | None:
+    """llama-server(상주 VLM 과 동일 모델)로 요약/패턴/당부 생성 — 실패·규약 위반은 None."""
+    import urllib.request
+    url = settings._env("TRAFFIC_VLM_URL", "http://127.0.0.1:8090/v1/chat/completions")
+    payload = {
+        "temperature": 0.3, "max_tokens": 400,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "messages": [
+            {"role": "system", "content": LLM_SYSTEM},
+            {"role": "user", "content": "/no_think 이번 주 관측(정성 요약): "
+                                        + json.dumps(_llm_facts_view(facts), ensure_ascii=False)},
+        ],
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(payload).encode(),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=90) as r:
+            out = json.loads(r.read().decode())
+        text = out["choices"][0]["message"]["content"]
+        m = re.search(r"\{.*\}", text, re.S)
+        obj = json.loads(m.group(0)) if m else None
+        if not obj:
+            return None
+        parts = {k: str(obj.get(k, "")).strip() for k in ("summary", "pattern", "suggestion")}
+        joined = " ".join(parts.values())
+        # 규약 검사 — 숫자·금칙 주어가 섞이면 통째로 버리고 폴백 (부분 채용 안 함)
+        if re.search(r"\d", joined) or any(w in joined for w in FORBIDDEN_SUBJECTS) \
+                or not all(parts.values()):
+            return None
+        return parts
+    except Exception:
+        return None
+
+
 def write_comment(facts: dict) -> str:
-    """리포트의 '맥락 한 줄' 슬롯 — 지금은 규칙 기반, R7 에 같은 인터페이스로 로컬 LLM 교체.
+    """규칙 기반 맥락 한 줄 — LLM 실패 시 폴백.
     규약: 숫자를 쓰지 않는다(숫자는 템플릿·검증기 몫) · 금칙 주어 금지 · 한 문장."""
     k1, k2, k3 = facts.get("k1"), facts.get("k2"), facts.get("k3")
     if k1 is None and k2 is None and k3 is None:
@@ -171,25 +269,65 @@ def write_comment(facts: dict) -> str:
     return "이번 주 요약: " + ", ".join(parts) + "." if parts else "이번 주 특이 사항 없음."
 
 
-def build_weekly_draft(facts: dict) -> str:
-    def fmt(v, unit):
-        return f"{v}{unit}" if v is not None else "집계 없음"
-    return (
-        f"[교문 앞 통행 · 이번 주] {facts['start']}–{facts['end']} 통학 시간(07:30–08:30·16:30–17:30)\n"
-        f"· 30 km/h 초과 비율(K1): 주 평균 {fmt(facts['k1'], '%')}\n"
-        f"· 정차 구역 밖 20초 이상 정차(K2): 하루 평균 {fmt(facts['k2'], '건')}\n"
-        f"· 횡단 중 차량 2 m 이내 접근(K3): 하루 평균 {fmt(facts['k3'], '건')}\n"
-        f"· {write_comment(facts)}\n"
-        f"(자동 카운트 · 등교일 기준 · 수동 대조 오차는 GATE 1 후 병기)"
-    )
+def _fmt(v, unit):
+    return f"{v}{unit}" if v is not None else "집계 없음"
 
 
-def validate_draft(body: str, facts: dict) -> tuple[bool, str]:
-    """검증기 — ① 금칙 주어 없음 ② 사실 숫자가 본문에 그대로 존재(변조 방지)."""
+def _trust_line(facts: dict) -> str:
+    v = facts.get("validation") or {}
+    if v.get("err_pct") is not None and v.get("manual"):
+        return (f"(자동 카운트 — 사람 눈 대조 표본 {v['manual']}대 기준"
+                f" 오차 {v['err_pct']}% · 통학 창 집계)")
+    return "(자동 카운트 · 통학 창 집계 · 수동 대조 오차는 GATE 1 후 병기)"
+
+
+def build_weekly_draft(facts: dict, llm: dict | None = None) -> str:
+    """교사용(운영) 상세 초안 — 숫자는 전부 템플릿, LLM 은 서사·패턴·당부 '제안'만."""
+    comment = llm["summary"] if llm else write_comment(facts)
+    pattern = llm["pattern"] if llm else (
+        f"{facts['k2_worst_day']}에 정차가 가장 잦았습니다." if facts.get("k2_worst_day") else "")
+    suggestion = llm["suggestion"] if llm else "이번 주 당부는 검토 화면에서 작성해 주세요."
+    lines = [
+        f"[교문 앞 통행 · 주간 운영 리포트] {facts['start']}–{facts['end']}"
+        f" 통학 시간(07:30–08:30·16:30–17:30)",
+        f"· 30 km/h 초과 비율(K1): 주 평균 {_fmt(facts['k1'], '%')}"
+        + (f" — 전주 대비 {facts['k1_trend']}" if facts.get("k1_trend") else ""),
+        f"· 금지 구역 20초+ 정차(K2): 하루 평균 {_fmt(facts['k2'], '건')}"
+        + (f" — 전주 대비 {facts['k2_trend']}" if facts.get("k2_trend") else ""),
+        f"· 횡단 중 2 m 이내 접근(K3): 하루 평균 {_fmt(facts['k3'], '건')}"
+        + (f" — 전주 대비 {facts['k3_trend']}" if facts.get("k3_trend") else ""),
+        f"· 요약: {comment}",
+    ]
+    if pattern:
+        lines.append(f"· 패턴: {pattern}")
+    lines.append(f"· [당부 제안 — 발송 전 검토·수정] {suggestion}")
+    lines.append(_trust_line(facts))
+    return "\n".join(lines)
+
+
+def build_weekly_public(facts: dict, llm: dict | None = None) -> str:
+    """공지용(대상자) 요약 초안 — 숫자는 핵심 2개만, 서사 중심."""
+    comment = llm["summary"] if llm else write_comment(facts)
+    suggestion = llm["suggestion"] if llm else "통행이 잦은 시간대에는 교문 앞 정차를 줄여 주시기 바랍니다."
+    return "\n".join([
+        f"[교문 앞 통행 소식] {facts['start']}–{facts['end']}",
+        comment,
+        f"· 금지 구역 정차: 하루 평균 {_fmt(facts['k2'], '건')}"
+        + (f" ({facts['k2_trend']})" if facts.get("k2_trend") else ""),
+        f"· 횡단 중 차량 근접: 하루 평균 {_fmt(facts['k3'], '건')}",
+        f"· [당부 제안 — 발송 전 검토·수정] {suggestion}",
+        "(기계 자동 집계 · 영상은 저장하지 않습니다)",
+    ])
+
+
+def validate_draft(body: str, facts: dict,
+                   required: tuple[str, ...] = ("k1", "k2", "k3")) -> tuple[bool, str]:
+    """검증기 — ① 금칙 주어 없음 ② 사실 숫자가 본문에 그대로 존재(변조 방지).
+    required: 그 초안이 숫자로 담아야 하는 지표(공지용은 k2·k3 만)."""
     for w in FORBIDDEN_SUBJECTS:
         if w in body:
             return False, f"금칙 주어 포함: {w}"
-    for k in ("k1", "k2", "k3"):
+    for k in required:
         v = facts.get(k)
         if v is not None and str(v) not in body:
             return False, f"사실 불일치: {k}={v} 가 본문에 없음"
@@ -197,12 +335,20 @@ def validate_draft(body: str, facts: dict) -> tuple[bool, str]:
 
 
 def run_weekly(con: sqlite3.Connection, end_date: str | None = None) -> tuple[bool, str]:
+    """교사용(weekly)·공지용(weekly_public) 초안 2종 — LLM 맥락은 성공 시에만, 실패는
+    규칙 기반 폴백(초안 발행은 LLM 가용성과 무관). 반환은 교사용 기준(기존 호출부 호환)."""
     facts = weekly_facts(con, end_date)
-    body = build_weekly_draft(facts)
-    ok, reason = validate_draft(body, facts)
-    if ok:
-        con.execute("INSERT INTO outbox(created, kind, body, status, validator)"
-                    " VALUES(?, 'weekly', ?, 'draft', 'v1:pass')",
-                    (datetime.now(timezone.utc).isoformat(timespec="seconds"), body))
-        con.commit()
-    return ok, body if ok else reason
+    llm = llm_comment(facts)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    results = []
+    for kind, body, required in (
+            ("weekly", build_weekly_draft(facts, llm), ("k1", "k2", "k3")),
+            ("weekly_public", build_weekly_public(facts, llm), ("k2", "k3"))):
+        ok, reason = validate_draft(body, facts, required)
+        if ok:
+            con.execute("INSERT INTO outbox(created, kind, body, status, validator)"
+                        " VALUES(?, ?, ?, 'draft', ?)",
+                        (now, kind, body, f"v2:pass·llm={'on' if llm else 'fallback'}"))
+        results.append((ok, body if ok else reason))
+    con.commit()
+    return results[0]

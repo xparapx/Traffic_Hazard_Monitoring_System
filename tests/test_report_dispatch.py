@@ -41,13 +41,15 @@ def test_dispatch_holds_without_smtp_and_sends_with_mock(con, monkeypatch):
 
     monkeypatch.delenv("TRAFFIC_SMTP_HOST", raising=False)
     assert dispatch.dispatch_approved(con) == []       # SMTP 미설정 → approved 보존
-    assert con.execute("SELECT COUNT(*) FROM outbox WHERE status='approved'").fetchone()[0] == 1
+    # 2026-10-20부터 초안 2종(weekly 교사용 + weekly_public 공지용)
+    assert con.execute("SELECT COUNT(*) FROM outbox WHERE status='approved'").fetchone()[0] == 2
 
     sent_mails = []
     monkeypatch.setenv("TRAFFIC_SMTP_HOST", "smtp.test")
     monkeypatch.setattr(dispatch, "send_email",
                         lambda conf, rec, subj, txt, html: sent_mails.append((rec, html)))
     ids = dispatch.dispatch_approved(con)
-    assert len(ids) == 1
-    assert sent_mails[0][0] == ["a@b.kr"] and "주간 리포트" in sent_mails[0][1]
-    assert con.execute("SELECT status FROM outbox WHERE id=?", (ids[0],)).fetchone()[0] == "sent"
+    assert len(ids) == 2
+    assert sent_mails[0][0] == ["a@b.kr"] and "주간" in sent_mails[0][1]
+    for i in ids:
+        assert con.execute("SELECT status FROM outbox WHERE id=?", (i,)).fetchone()[0] == "sent"

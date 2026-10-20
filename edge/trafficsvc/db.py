@@ -64,6 +64,22 @@ def init_db(con: sqlite3.Connection) -> None:
     con.commit()
 
 
+# 현행 카운트 규칙 배포 시각(UTC) — 이전 규칙으로 집계된 클립의 대조 기록은 누적에서 제외.
+# v2(이동 게이트) 13:04 → v3(분신 승계) 14:45, 2026-10-17. 규칙이 바뀌면 여기를 올린다.
+COUNT_RULE_UTC = "2026-10-17T14:45"
+_CUM_CUT = "clip=session_" + COUNT_RULE_UTC.replace("-", "").replace(":", "")
+
+
+def validation_cum(con) -> dict:
+    """R4 수동 대조 누적(Σ자동 vs Σ수동) — GATE 1 판정·리포트 신뢰 정보 공용."""
+    cur = con.execute("SELECT manual_n, auto_n FROM validation"
+                      " WHERE kind='veh4_count' AND substr(note,1,?) >= ?",
+                      (len(_CUM_CUT), _CUM_CUT)).fetchall()
+    sm, sa = sum(r[0] for r in cur), sum(r[1] for r in cur)
+    return {"n_clips": len(cur), "manual": sm, "auto": sa,
+            "err_pct": round((sa - sm) / sm * 100, 1) if sm else None}
+
+
 def insert_event(con, *, ts, kind, zone, duration_s=None, speed_kmh=None,
                  dist_m=None, track_cls=None, event_id=None, calib_ver=None,
                  track_id=None, pos_x=None, pos_y=None, person_near=None) -> int:
