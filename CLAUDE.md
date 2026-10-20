@@ -46,7 +46,9 @@
 - **R8** Pi 5 + AI HAT+ 2 이식 (선택, 12~14주차): ① 같은 스키마·같은 UI에 `board='pi'` 벤치 행 ② 두 보드 벤치 표 1장 ③ 바뀐 파일이 `capture/ · detect/ · vlm/ · scripts/` 밖에 없음을 `git diff --stat`으로 확인
 
 ## 확인된 함정
-- **PCIe Wi-Fi(rtl88x2ce) × CUDA 부하 = 워치독 리셋(2026-10-18 판정, 전원설 기각)**: 리셋 사유 레지스터 BCCPLEXWDT(CPU 행→워치독) 확인. 기전: CUDA 부하 중 Wi-Fi 링크가 끊기면 CPU 가 죽은 PCIe 레지스터 읽기에 행 — NVIDIA 포럼 동일 사례(Orin Nano Super+rtl88x2ce, 미해결). 금·토 재부팅들도 동일 기전 추정(realloop 상시 CUDA). **근본 대책: 유선 이더넷 전환(1순위) 또는 USB Wi-Fi 교체 — 그 전 VLM(llama-server) 기동 금지.** 리셋 사유는 재부팅 직후 /sys/devices/platform/c360000.pmc/reset_reason 에서 1회만 읽힘.
+- **PCIe Wi-Fi(모듈명 rtl8822ce — 구 문서의 "rtl88x2ce"는 오기) × CUDA 부하 = 워치독 리셋(2026-10-18 판정, 전원설 기각 → 2026-10-20 해소)**: 리셋 사유 레지스터 BCCPLEXWDT(CPU 행→워치독) 확인. 기전: CUDA 부하 중 Wi-Fi 링크가 끊기면 CPU 가 죽은 PCIe 레지스터 읽기에 행 — NVIDIA 포럼 동일 사례. **해소: USB Wi-Fi(ipTIME A3000mini, RTL88x2BU·morrownr DKMS) 전환 + /etc/modprobe.d/blacklist-rtl88x2ce.conf 에 rtl8822ce 블랙리스트(2026-10-20).** 블랙리스트 파일명과 달리 유효 줄은 rtl8822ce — 모듈명 틀리면 차단 안 됨(1회 실측). 복원은 파일 삭제 후 재부팅.
+- **부팅 레이스 — 관리 포트 바인딩**: 재부팅 직후 테일스케일 인터페이스보다 앱이 먼저 뜨면 ADMIN_BIND 바인딩 실패. cli.serve 가 관리 포트만 재시도(5s×60)하고 공개 포트는 독립 기동(2026-10-19 수정) — 이 수정 이전 버전으로 롤백 금지.
+- **Qwen3.5 thinking 모드**: 생각 토큰이 max_tokens 를 소진해 답(JSON)이 빈다 — 태거는 chat_template_kwargs.enable_thinking=false + "/no_think" 병행(pv2). 새 모델 후보 벤치 때마다 재확인.
 - JetPack 7.2.1 휠 호환성 — 설치 전 검증.
 - Camera Module 3를 Jetson에 붙이는 시도는 **1일 한도** (JetPack 7.2.1 검증 자료 없음). 실패 기록을 여기에 남기고 UVC(ELP AR0234)로 진행.
 - TensorRT 엔진은 보드 간 이식 불가 — 각 보드에서 빌드.
@@ -81,5 +83,6 @@ TRAFFIC_FAKE_HW=1 uv run trafficsvc serve
 - **운용 전환 완료(2026-10-02): TRAFFIC_FAKE_HW=0 — 실데이터 수집 중.** realloop(카메라 소유)→TRT 검출→IoU 추적→카운트·정차(K2). 더미 데이터 전량 삭제(백업 유지), 프리뷰는 realloop 프레임 공유. 속도(K1)·근접(K3)·방향은 4점 캘리브레이션(R2 본선) 후 — 그때까지 null. no_stop 구역을 UI 로 그려야 K2 가 위반만 센다.
 - **학교 이전 준비 완료(2026-10-02, → 이후 작업은 학교 전용 세션)**: `school-wifi`(wi_cne_class_S_2.4G) autoconnect 등록, 시간대 KST, 재부팅 자동 복구 검증 통과(healthz 200·서비스 3종 active·Wi-Fi 복구, 사람 손 0회). 설치 당일 절차·미해결 주의(USB 허브 분리 1회)는 WORKLOG(13) 참조. 접속: http://orin:8600 · http://orin:8601 (테일넷 MagicDNS).
 - **캡처 720p 운용(2026-10-02)**: USB 신호 한계로 1080p MJPG 손상 → 기기 env `TRAFFIC_CAM_W/H=1280/720`. 케이블·포트 개선 후 1080p 복귀 가능. 세션 녹화는 창 90분·5분 클립 자동 분할.
-- **긴급 대기(2026-10-06)**: ① 카메라 USB 케이블 손상 — 교체 필요(데이터 케이블), 꽂으면 자동 복구 ② sudoers `traffic-cam`(camreset.sh) 등록 — 비밀번호 가능한 자리에서 1회.
-- **다음 작업(연휴 후)**: ① 등교 창 녹화·라벨링 첫 실전(GATE 0 서명 선행) ② 실측 수일 축적 후 데이터 분석(카운트 정확도·패턴) ③ R2 캘리브레이션(4점 실측 → K1 속도·K3 근접·방향) ④ R5 때 VLM 후보 벤치(+Jev·META_ONLY 축 검토 — WORKLOG 16) · 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널).
+- **VLM 가동(2026-10-20)**: USB Wi-Fi 전환·PCIe 블랙리스트로 워치독 종결 직후 동결 해제 — traffic-vlm.service(llama-server, Qwen3.5-4B Q4, --log-disable, 부팅 자동시작) + 앱 TRAFFIC_VLM=llama. 첫 실전: pv2 태그 boarding·conf 0.85·지연 2.7s(≤4s 통과)·스왑 0·fps 유지. 이 시점부터 실 VLM 3중 기록 축적 — 과거 이벤트 소급 불가(crop 무저장).
+- **R4 수동 대조 가동(2026-10-17~)**: 카운트 규칙 v3(이동 게이트 1.5×몸길이 + 분신 승계, 수동 대조로 보정) — 누적 Σ판정, 라벨 페이지에 차량수/속도 대조 도구. 금지구역 재설정(2026-10-20, 신호 대기열 제외) — **K2 의미가 이날 바뀜, 전후 비교 금지.**
+- **다음 작업**: ① pv2 라벨 60건 축적 → GATE 2 채점(HYBRID 정밀도·unknown 비율) ② R4 잔여(속도 빠른 대역 표본·conflict 정밀도) ③ GATE 0 서명 ④ 빌드 트랙 잔여(llm 주간 초안 고도화, dispatch 채널) ⑤ 후보 B(Qwen3.5-9B) 스왑 벤치.
