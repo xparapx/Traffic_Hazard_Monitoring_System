@@ -11,6 +11,8 @@ def _utc_now_iso(minutes_ago: int = 0) -> str:
 
 
 def _seed_today(con):
+    # 테스트는 실행 시각이 임의라 통학 창을 전일로 넓힌다 — 창 필터 자체는 별도 테스트
+    analysis.SCHOOL_WINDOWS = (("00:00", "24:00"),)
     d = analysis.kst_today()
     # veh4: 초과(35km/h) 10대 + 이하(25km/h) 10대 → K1 = 50.0%
     con.execute("INSERT INTO counts_5min(bucket_utc,cls,dir,n,speed_p85) VALUES(?,?,?,?,?)",
@@ -36,6 +38,17 @@ def test_run_daily_kpis(con):
     # analysis 표에 실제로 기록됐는지
     row = con.execute("SELECT payload FROM analysis WHERE date=? AND kind='k2'", (d,)).fetchone()
     assert json.loads(row[0])["value"] == 2
+
+
+def test_school_window_filter_excludes_offwindow_events(con):
+    """K 지표 value 는 통학 창만, all_day 는 전일 — 24시간 수집·창 집계 분리(A안)."""
+    d = _seed_today(con)
+    # 현재 시각이 들어가지 않는 창으로 좁힌다 (00:00~00:01 — 자정 테스트 가능성은 무시 가능 수준)
+    analysis.SCHOOL_WINDOWS = (("00:00", "00:01"),)
+    out = analysis.run_daily(con, d)
+    assert out["k2"]["value"] == 0 and out["k2"]["all_day"] == 2
+    assert out["k3"]["value"] == 0 and out["k3"]["all_day"] == 1
+    assert out["k1"]["value"] is None and out["k1"]["all_day"] == 50.0
 
 
 def test_safety_index_with_baseline(con):

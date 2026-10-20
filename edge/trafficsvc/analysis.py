@@ -21,6 +21,22 @@ def _one(con, sql, args=()):
     return con.execute(sql, args).fetchone()
 
 
+# K 지표 집계 창 (KST) — 공개 지표·리포트는 통학 창만 센다 (2026-10-20 사용자 결정 A안).
+# 원시 수집(counts·events)은 24시간 그대로 — 요일·시간대 인사이트는 전일 데이터에서.
+# 자동수집 창과 동일하게 유지한다 (창을 바꾸면 지표 기준일도 갱신할 것).
+SCHOOL_WINDOWS = (("07:30", "08:30"), ("16:30", "17:30"))
+
+
+def _kst_time(col: str) -> str:
+    return f"substr(datetime({col}, '+9 hours'), 12, 5)"
+
+
+def _window_sql(col: str) -> str:
+    t = _kst_time(col)
+    return "(" + " OR ".join(f"({t} >= '{a}' AND {t} < '{b}')"
+                             for a, b in SCHOOL_WINDOWS) + ")"
+
+
 def _kst_day(col: str) -> str:
     """UTC ISO 컬럼을 KST 날짜 문자열로 — SQLite 식."""
     return f"substr(datetime({col}, '+9 hours'), 1, 10)"
@@ -39,24 +55,30 @@ def run_daily(con: sqlite3.Connection, date: str | None = None) -> dict:
     d = date or kst_today()
     out: dict = {}
 
-    # K1 — 30 km/h 초과 비율. 개별 차량 속도(R2 이후) 전에는 버킷 p85 가중 근사.
-    row = _one(con,
-        f"SELECT SUM(CASE WHEN speed_p85 > 30 THEN n ELSE 0 END) * 100.0 / SUM(n), SUM(n)"
-        f" FROM counts_5min WHERE cls='veh4' AND n IS NOT NULL AND speed_p85 IS NOT NULL"
-        f" AND {_kst_day('bucket_utc')} = ?", (d,))
-    k1 = round(row[0], 1) if row and row[0] is not None else None
-    out["k1"] = {"value": k1, "n": row[1] if row else 0,
-                 "note": "버킷 p85 가중 근사 — 개별 차량 속도는 R2 이후"}
+    # 공개 지표 value = 통학 창(SCHOOL_WINDOWS)만 · all_day = 전일 참고치(요일·추세 인사이트용)
+    # K1 — 30 km/h 초과 비율. 버킷 p85 가중 근사 (개별 차량 속도 축적 후 재검토).
+    k1_sql = (f"SELECT SUM(CASE WHEN speed_p85 > 30 THEN n ELSE 0 END) * 100.0 / SUM(n), SUM(n)"
+              f" FROM counts_5min WHERE cls='veh4' AND n IS NOT NULL AND speed_p85 IS NOT NULL"
+              f" AND {_kst_day('bucket_utc')} = ?")
+    row = _one(con, k1_sql + f" AND {_window_sql('bucket_utc')}", (d,))
+    row_all = _one(con, k1_sql, (d,))
+    out["k1"] = {"value": round(row[0], 1) if row and row[0] is not None else None,
+                 "n": row[1] if row else 0,
+                 "all_day": round(row_all[0], 1) if row_all and row_all[0] is not None else None,
+                 "note": "통학 창 기준 · 버킷 p85 가중 근사"}
 
     # K2 — 구역 밖 20초+ 정차 건수
-    row = _one(con, f"SELECT COUNT(*) FROM events WHERE kind='dwell' AND zone='no_stop'"
-                    f" AND {_kst_day('ts')} = ?", (d,))
-    out["k2"] = {"value": row[0], "n": row[0]}
+    k2_sql = (f"SELECT COUNT(*) FROM events WHERE kind='dwell' AND zone='no_stop'"
+              f" AND {_kst_day('ts')} = ?")
+    out["k2"] = {"value": _one(con, k2_sql + f" AND {_window_sql('ts')}", (d,))[0],
+                 "all_day": _one(con, k2_sql, (d,))[0]}
+    out["k2"]["n"] = out["k2"]["value"]
 
     # K3 — 횡단 중 2 m 근접 건수
-    row = _one(con, f"SELECT COUNT(*) FROM events WHERE kind='conflict'"
-                    f" AND {_kst_day('ts')} = ?", (d,))
-    out["k3"] = {"value": row[0], "n": row[0]}
+    k3_sql = f"SELECT COUNT(*) FROM events WHERE kind='conflict' AND {_kst_day('ts')} = ?"
+    out["k3"] = {"value": _one(con, k3_sql + f" AND {_window_sql('ts')}", (d,))[0],
+                 "all_day": _one(con, k3_sql, (d,))[0]}
+    out["k3"]["n"] = out["k3"]["value"]
 
     # 안전 지수 — baseline(직전 14일 중 값 있는 날 평균, 최소 5일) 대비
     base = {}
@@ -153,7 +175,7 @@ def build_weekly_draft(facts: dict) -> str:
     def fmt(v, unit):
         return f"{v}{unit}" if v is not None else "집계 없음"
     return (
-        f"[교문 앞 통행 · 이번 주] {facts['start']}–{facts['end']} 등교 시간(08:00–08:40)\n"
+        f"[교문 앞 통행 · 이번 주] {facts['start']}–{facts['end']} 통학 시간(07:30–08:30·16:30–17:30)\n"
         f"· 30 km/h 초과 비율(K1): 주 평균 {fmt(facts['k1'], '%')}\n"
         f"· 정차 구역 밖 20초 이상 정차(K2): 하루 평균 {fmt(facts['k2'], '건')}\n"
         f"· 횡단 중 차량 2 m 이내 접근(K3): 하루 평균 {fmt(facts['k3'], '건')}\n"
