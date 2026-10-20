@@ -37,12 +37,16 @@ def _gst_convert(mjpeg: Path, mp4: Path, frames: int, duration_s: float) -> bool
     # 실측시간)만큼 압축해 재생 시간 = 실제 시간이 되게 한다(합성 50프레임→10.0s 검증).
     num, den = max(1, frames), max(1, int(round(duration_s)))
     rate = num / den
-    cmd = ["gst-launch-1.0", "-q",
+    # 저우선순위 + 인코더 스레드 제한 — 변환이 캡처·VLM 의 CPU 를 쓸어가면 녹화 중인
+    # 다음 클립의 프레임이 깨진다 (2026-10-20 실측: VLM 동거 후 클립 분할 경계에서
+    # 간헐 마젠타 깨짐 — 원본·단독 변환은 정상, 동시 부하 겹침이 원인).
+    cmd = ["nice", "-n", "15", "gst-launch-1.0", "-q",
            "filesrc", f"location={mjpeg}", "!", "jpegparse", "!", "jpegdec", "!",
            "videoconvert", "!", "videorate", f"rate={rate:.4f}", "!",
            f"video/x-raw,framerate={num}/{den}", "!",
            # bitrate(kbps) 제한 — 미지정 시 1분 117MB 실측(orin). 2500k ≈ 19MB/분
-           "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30", "!",
+           "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30",
+           "threads=2", "!",
            "h264parse", "!", "mp4mux", "faststart=true", "!",
            "filesink", f"location={mp4}"]
     try:
@@ -190,11 +194,14 @@ class SessionRecorder:
         threading.Thread(target=self._convert, args=(name,), daemon=True).start()
         return {"name": name}
 
+    _convert_lock = threading.Lock()   # 변환 직렬화 — 클립 분할 시 동시 인코딩 금지
+
     def _convert(self, name: str) -> None:
         base = sessions_dir() / name
         meta = json.loads(base.with_suffix(".json").read_text(encoding="utf-8"))
-        ok = _gst_convert(base.with_suffix(".mjpeg"), base.with_suffix(".mp4"),
-                          meta["frames"], meta["duration_s"])
+        with self._convert_lock:
+            ok = _gst_convert(base.with_suffix(".mjpeg"), base.with_suffix(".mp4"),
+                              meta["frames"], meta["duration_s"])
         if ok:
             base.with_suffix(".mjpeg").unlink(missing_ok=True)
             log.warning("세션 변환 완료: %s.mp4 (임시 mjpeg 삭제)", name)
