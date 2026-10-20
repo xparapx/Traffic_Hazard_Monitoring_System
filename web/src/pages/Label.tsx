@@ -278,7 +278,9 @@ export default function Label() {
     return () => cancelAnimationFrame(raf);
   }, [playing, boxes, ev?.track_id]);
   // 정차 구간: 시작(ts-20s) ~ 시작+지속. 영상은 시작 3초 전부터 본다.
-  const stopStartMs = ev ? Date.parse(ev.ts) - DWELL_CONFIRM_S * 1000 : 0;
+  // conflict(이동 근접)는 순간 사건 — ts 2초 전으로 잡아 시킹(-3s)과 합쳐 5초 전부터.
+  const stopStartMs = ev
+    ? Date.parse(ev.ts) - (ev.kind === "conflict" ? 2 : DWELL_CONFIRM_S) * 1000 : 0;
 
   // 이벤트가 바뀌면(저장·이전/다음 포함) 해당 정차 구간을 자동 재생 —
   // "영상 보기를 안 누르고 이전 영상인 줄 알고 라벨" 하는 오류 방지.
@@ -661,10 +663,24 @@ export default function Label() {
                   {ev.zone ?? "?"}
                 </span>
               </div>
-              <div className="mt-1 text-[12.5px]">
-                <b>정차 구간</b>: 위 시각부터 <b className="num">{((ev.duration_s ?? 0) + DWELL_CONFIRM_S).toFixed(0)}초</b>간 · 차종 4륜
-              </div>
-              <div className="text-[10px] text-dim">위험 여부는 순간이 아니라 이 구간 전체를 보고 판단합니다</div>
+              {ev.kind === "conflict" ? (
+                <>
+                  <div className="mt-1 text-[12.5px]">
+                    <b>이동 근접(K3)</b>: 주행 중 차량이 보행자
+                    <b className="num"> {ev.dist_m ?? "?"} m</b> 거리까지 접근 — 순간 사건
+                  </div>
+                  <div className="text-[10px] text-dim">
+                    판정은 O/X 하나: 영상에서 "달리는 차가 보행자 바로 옆을 지났는가" — 오탐(그림자·정지 차 등)이면 아니오
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mt-1 text-[12.5px]">
+                    <b>정차 구간</b>: 위 시각부터 <b className="num">{((ev.duration_s ?? 0) + DWELL_CONFIRM_S).toFixed(0)}초</b>간 · 차종 4륜
+                  </div>
+                  <div className="text-[10px] text-dim">위험 여부는 순간이 아니라 이 구간 전체를 보고 판단합니다</div>
+                </>
+              )}
               <div className="mt-2 border-t border-dashed border-line pt-2">
                 {evSession ? (
                   <button onClick={() => {
@@ -676,7 +692,8 @@ export default function Label() {
                       transition-transform active:scale-[0.96] ${
                       playing === evSession.name && !paused ? "bg-cobble border border-otan" : "bg-otan"}`}>
                     {playing !== evSession.name
-                      ? "▶ 정차 구간 다시 보기 (시작 3초 전부터)"
+                      ? (ev.kind === "conflict" ? "▶ 근접 순간 다시 보기 (5초 전부터)"
+                         : "▶ 정차 구간 다시 보기 (시작 3초 전부터)")
                       : paused ? "▶ 재생 (일시 정지됨)" : "⏸ 일시 정지 — 자동 재생 중"}
                   </button>
                 ) : (
@@ -711,18 +728,20 @@ export default function Label() {
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="meta font-bold text-dim-dark">02 / 정차 사유</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {d.tags.map((t) => (
-                  <button key={t} onClick={() => setTag(t)}
-                    className={`rounded-xl border-2 py-3 text-[14px] font-bold ${
-                      tag === t ? "border-otan bg-cotton text-cobble" : "border-smoke bg-smoke text-white/80"}`}>
-                    {TAG_KO[t] ?? t}
-                  </button>
-                ))}
+            {ev.kind !== "conflict" && (
+              <div className="mt-4">
+                <div className="meta font-bold text-dim-dark">02 / 정차 사유</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {d.tags.map((t) => (
+                    <button key={t} onClick={() => setTag(t)}
+                      className={`rounded-xl border-2 py-3 text-[14px] font-bold ${
+                        tag === t ? "border-otan bg-cotton text-cobble" : "border-smoke bg-smoke text-white/80"}`}>
+                      {TAG_KO[t] ?? t}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <input value={labeler} onChange={(e) => setLabeler(e.target.value)}
               placeholder="라벨러 이니셜 (매번 같은 표기로 — 예: PJH)"

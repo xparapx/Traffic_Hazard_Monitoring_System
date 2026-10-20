@@ -270,9 +270,11 @@ class RealLoop:
         self.con.commit()
 
     def _on_conflict(self, tr: Track, dist_m: float) -> None:
-        """K3 — 횡단 중 2m 접근. 이벤트 행만 남긴다(영상·crop 없음, VLM 미개입)."""
+        """K3 — 횡단 중 2m 접근. 이벤트 행만 남긴다(영상·crop 없음, VLM 미개입).
+        event_id 는 라벨 큐 채점(GATE 1 conflict 정밀도)용."""
         foot = tr.foot
         db.insert_event(self.con, ts=db.utcnow(), kind="conflict", zone="roi",
+                        event_id=str(uuid.uuid4()),
                         track_cls=tr.cls, track_id=tr.track_id, dist_m=dist_m,
                         pos_x=round(foot[0], 4), pos_y=round(foot[1], 4), person_near=1)
         log.warning("conflict: %s %.2fm (track %d)", tr.cls, dist_m, tr.track_id)

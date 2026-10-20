@@ -826,10 +826,14 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # 먼저(시각 오름차순), 영상 없는 이벤트는 최신 10건만 뒤에(live 직후 입력용).
         # 최신 20건만 주던 구버전은 밤사이 이벤트가 등하교 창 이벤트를 밀어내는 결함.
         from .autocollect import event_overlaps
+        # conflict(이동 근접, K3)도 큐에 — GATE 1 의 conflict 정밀도(≥0.7) 채점용.
+        # 정차와 달리 태그 없이 '진짜 근접이었나(hazard)'만 판정한다.
         rows = _rows(con,
-            "SELECT e.event_id, e.ts, e.zone, e.duration_s, e.track_id FROM events e"
+            "SELECT e.event_id, e.ts, e.zone, e.duration_s, e.track_id, e.kind, e.dist_m"
+            " FROM events e"
             " LEFT JOIN labels l ON l.event_id = e.event_id"
-            " WHERE e.kind='dwell' AND l.id IS NULL ORDER BY e.ts DESC LIMIT 1000")
+            " WHERE e.kind IN ('dwell','conflict') AND l.id IS NULL"
+            " ORDER BY e.ts DESC LIMIT 1000")
         wins = [(s["start_utc"], s["duration_s"]) for s in recorder.list()
                 if s["status"] == "ready"]
         covered = [r for r in rows if any(

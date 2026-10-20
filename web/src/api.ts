@@ -12,6 +12,8 @@ export interface DwellEvent {
 export interface PendingEvent {
   event_id: string; ts: string; zone: string | null; duration_s: number | null;
   track_id?: number | null;   // 영상 강조용 — 구 이벤트는 null
+  kind?: string;              // 'dwell'(정차) | 'conflict'(이동 근접 K3 — O/X 만 판정)
+  dist_m?: number | null;     // conflict 의 실측 최소 거리
 }
 export interface InferenceSummary { model_type: string; n: number; lat_avg: number | null }
 export interface OutboxItem {
