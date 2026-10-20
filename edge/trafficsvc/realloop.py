@@ -120,6 +120,14 @@ class Pipeline:
                    for _, cls, c in self._counted_graveyard)
 
     def _person_near(self, foot) -> bool:
+        """정차 차량 옆 보행자 통행(h2 관측) — 캘리브레이션이 있으면 실측 2m,
+        없으면 화면 정규화 프록시(설치 초기 호환). K3(_conflict_step)와 같은 기준."""
+        if not self._persons:
+            return False
+        if self.world_fn is not None:
+            fx, fy = self.world_fn(*foot)
+            return any(math.hypot(fx - px, fy - py) < CONFLICT_DIST_M
+                       for px, py in (self.world_fn(*p) for p in self._persons))
         return any(math.dist(foot, p) < PERSON_NEAR_EPS for p in self._persons)
 
     def _conflict_step(self, tr: Track) -> None:
