@@ -6,15 +6,16 @@ const WINDOW_S = 60;       // live 입력 카운트다운 — 기억 신선도 �
 const DWELL_CONFIRM_S = 20; // 이벤트 ts = 정차 20초 경과 '확정' 시각 — 실제 정차 시작은 ts-20s
 
 /** 정차 '구간 시작'(ts-20s, 재생은 -3s 부터)을 담은 세션 찾기 — 확정 시각(ts)이
- *  다음 클립으로 넘어간 경우에도 시작 장면이 있는 클립을 고른다. */
+ *  다음 클립으로 넘어간 경우에도 시작 장면이 있는 클립을 고른다.
+ *  폴백(2026-10-20): 시작 장면이 녹화 시작보다 앞서는 경계 이벤트(짧은 수동 클립에서
+ *  흔함)는 확정 시각이 들어 있는 클립이라도 쓴다 — 시작 몇 초를 못 볼 뿐 에이밍·라벨 가능. */
 function findSession(sessions: SessionItem[], ts: string): SessionItem | null {
-  const t = Date.parse(ts) - (DWELL_CONFIRM_S + 3) * 1000;
-  for (const s of sessions) {
-    if (s.status !== "ready") continue;
+  const inClip = (t: number) => sessions.find((s) => {
+    if (s.status !== "ready") return false;
     const start = Date.parse(s.start_utc);
-    if (t >= start && t <= start + s.duration_s * 1000) return s;
-  }
-  return null;
+    return t >= start && t <= start + s.duration_s * 1000;
+  }) ?? null;
+  return inClip(Date.parse(ts) - (DWELL_CONFIRM_S + 3) * 1000) ?? inClip(Date.parse(ts));
 }
 
 /** 대조 결과 카드용 수치 칩 — "라벨 + 큰 숫자" */
