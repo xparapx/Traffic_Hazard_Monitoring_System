@@ -16,7 +16,8 @@ import urllib.request
 from .. import settings
 from . import TAGS, UNKNOWN, VlmResult
 
-PROMPT_VER = "pv1"
+PROMPT_VER = "pv2"   # pv1→pv2: thinking 비활성 (Qwen3.5 가 생각 토큰으로 max_tokens 를
+                     # 소진해 content 가 비던 문제 — 2026-10-20 첫 실전에서 unknown·10.6s 실측)
 # 객관식 강제 — 모델이 고를 수 있는 답을 enum 으로 못박고 JSON 한 덩이만 받는다.
 SYSTEM = (
     "You are a traffic-stop classifier. Look at the vehicle in the image. "
@@ -67,11 +68,16 @@ class LlamaVlmTagger:
             "model": self.model_ver,
             "temperature": 0.0,          # 분류 작업 — 창의성 불필요, 재현성 우선
             "max_tokens": 120,
+            # thinking 금지 — 생각 토큰이 max_tokens 를 소진해 답(JSON)이 비는 함정.
+            # chat_template_kwargs 는 llama-server 의 Qwen 계열 템플릿 스위치,
+            # "/no_think" 는 같은 목적의 Qwen 소프트 스위치(템플릿 미지원 모델에서 무해).
+            "chat_template_kwargs": {"enable_thinking": False},
             "messages": [
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": [
                     {"type": "text",
-                     "text": f"Stopped for {meta.get('duration_s', '?')}s in a no-stopping zone."},
+                     "text": f"/no_think Stopped for {meta.get('duration_s', '?')}s"
+                             f" in a no-stopping zone."},
                     {"type": "image_url",
                      "image_url": {"url": "data:image/jpeg;base64," + self._jpeg_b64(crop)}},
                 ]},
