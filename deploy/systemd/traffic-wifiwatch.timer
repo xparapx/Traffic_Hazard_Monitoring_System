@@ -1,0 +1,10 @@
+[Unit]
+Description=traffic wifi watchdog every 15min
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

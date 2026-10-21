@@ -1,0 +1,7 @@
+# Wi-Fi 워치독 — 15분 주기(timer), scripts/wifi_watchdog.sh 참조
+[Unit]
+Description=traffic wifi watchdog (USB adapter stall auto-recovery)
+
+[Service]
+Type=oneshot
+ExecStart=%h/traffic/scripts/wifi_watchdog.sh
