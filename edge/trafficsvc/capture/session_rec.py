@@ -45,7 +45,9 @@ def _gst_convert(mjpeg: Path, mp4: Path, frames: int, duration_s: float) -> bool
            "videoconvert", "!", "videorate", f"rate={rate:.4f}", "!",
            f"video/x-raw,framerate={num}/{den}", "!",
            # bitrate(kbps) 제한 — 미지정 시 1분 117MB 실측(orin). 2500k ≈ 19MB/분
-           "x264enc", "speed-preset=veryfast", "bitrate=2500", "key-int-max=30",
+           # 900k — 라벨링 열람용으로 충분(720p 고정 CCTV 구도). 2500k 는 테일넷 릴레이
+           # (학교 대칭 NAT → DERP 0.4Mbps 실측, 2026-10-21)에서 재생 불가였다.
+           "x264enc", "speed-preset=veryfast", "bitrate=900", "key-int-max=30",
            "threads=2", "!",
            "h264parse", "!", "mp4mux", "faststart=true", "!",
            "filesink", f"location={mp4}"]
