@@ -360,13 +360,12 @@ def _meta(page: str) -> dict:
 
 # ---------- 공개 포트 (오늘 · 프로파일 · 속도 · 정차) ----------
 
-def create_public_app(con: sqlite3.Connection) -> FastAPI:
-    app = FastAPI(title="trafficsvc public", version="0.1.0")
+def build_public_router(con: sqlite3.Connection) -> APIRouter:
+    """공개 API 라우터 — 공개 앱(:8600)과 관리 앱(:8601) 양쪽에 올린다.
+    관리 쪽에 함께 올리는 이유: Cloudflare 터널(단일 호스트 443) 경유 접속에서는
+    :8600 절대주소로 건너갈 수 없어, 관리 호스트가 공개 API 도 서빙해야 한다(2026-10-21).
+    전부 읽기 전용·이미지 없음이라 관리 포트에 얹어도 노출 증가는 없다."""
     api = APIRouter(prefix="/api/public")
-
-    @app.get("/healthz")
-    def healthz():
-        return {"ok": True}
 
     @api.get("/")
     def today():
@@ -484,7 +483,17 @@ def create_public_app(con: sqlite3.Connection) -> FastAPI:
         return {"rows": out, "zones_world": zw, "frame": "gate",
                 "p1": list(gate_frame(0.0, 0.0))}
 
-    app.include_router(api)
+    return api
+
+
+def create_public_app(con: sqlite3.Connection) -> FastAPI:
+    app = FastAPI(title="trafficsvc public", version="0.1.0")
+
+    @app.get("/healthz")
+    def healthz():
+        return {"ok": True}
+
+    app.include_router(build_public_router(con))
     _mount_web(app)
     return app
 
@@ -934,6 +943,8 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         return _meta("system") | {"db_rows": rowcounts, "fake_hw": settings.fake_hw()}
 
     app.include_router(api)
+    # 공개 API 동봉 — Cloudflare 터널(단일 호스트) 경유 관리 UI 가 공개 데이터도 읽는다
+    app.include_router(build_public_router(con))
 
     # 관리 포트 전용 아이콘·매니페스트 — 홈 화면에서 공개용(주황)과 구분되는 다크 변형.
     # 라우트가 "/" 정적 마운트보다 먼저 매칭되어 같은 경로를 덮어쓴다.
