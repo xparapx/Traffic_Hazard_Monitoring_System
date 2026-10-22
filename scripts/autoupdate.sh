@@ -18,6 +18,20 @@ if [ "$sha" = "$cur" ]; then
   [ -s web/dist/index.html ] && exit 0
   echo "[autoupdate] dist 손상 감지(index.html 비어 있음) — 강제 재설치"
 fi
+
+# 녹화 중이면 설치를 다음 주기로 연기 — 재시작이 녹화를 끊어 미변환 고아 mjpeg 가
+# 남는 사고(2026-10-22 등교 클립 658MB 실측) 방지. 녹화는 수집 창(90분)보다 길 수
+# 없으므로 연기는 자연 해소된다.
+ADMIN_IP=$(tailscale ip -4 2>/dev/null | head -1)
+if [ -n "${ADMIN_IP:-}" ]; then
+  rec=$(curl -fsS -m 5 "http://$ADMIN_IP:8601/api/admin/session" 2>/dev/null \
+        | grep -oE '"recording": *"[^"]+"' || true)
+  if [ -n "$rec" ]; then
+    echo "[autoupdate] 녹화 중($rec) — 설치 연기"
+    exit 0
+  fi
+fi
+
 echo "[autoupdate] $(date -Is) $cur -> $sha"
 
 # 백업 (롤백용)
