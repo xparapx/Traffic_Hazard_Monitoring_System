@@ -204,6 +204,11 @@ export const api = {
   sessionDelete: (name: string) => del(`${ADM_BASE}/api/admin/session/${name}`),
   sessionDeleteAll: () => del(`${ADM_BASE}/api/admin/session`),   // ready 클립 일괄 삭제
   // R4(GATE 1) 수동 대조 — 사람 계수 vs 자동 카운트
+  // 미탐 위험 수동 기록 — 탐지 실패로 이벤트가 없는 위험을 클립에서 발견했을 때
+  missAdd: (body: { clip: string; t_rel_s: number; miss_kind: "근접" | "기타";
+                    note: string | null; labeler: string }) =>
+    postJson<{ ok: boolean; ts: string; total: number }>(
+      `${ADM_BASE}/api/admin/validation/miss`, body),
   validationAdd: (clip: string, manual_n: number) =>
     postJson<{ ok: boolean; manual_n: number; auto_n: number; err_pct: number | null }>(
       `${ADM_BASE}/api/admin/validation`, { clip, manual_n }),

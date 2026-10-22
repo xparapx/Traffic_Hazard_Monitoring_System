@@ -553,6 +553,15 @@ class ValidationIn(BaseModel):
     manual_n: int = Field(ge=0, le=2000)
 
 
+class MissIn(BaseModel):
+    """미탐 위험 수동 기록 — t_rel_s: 클립 시작부터의 실측 초(재생 배속 보정 후)."""
+    clip: str
+    t_rel_s: float = Field(ge=0, le=5400)
+    miss_kind: Literal["근접", "기타"] = "근접"
+    note: str | None = None
+    labeler: str
+
+
 class ProjectIn(BaseModel):
     """정규화 화면 좌표 → 실측 평면 좌표(m) — 현행 호모그래피 적용."""
     points: list[tuple[float, float]] = Field(min_length=1, max_length=16)
@@ -777,6 +786,28 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         log.warning("수동 대조 기록: clip=%s manual=%d auto=%d err=%s%%",
                     body.clip, body.manual_n, auto_n, err)
         return {"ok": True, "manual_n": body.manual_n, "auto_n": auto_n, "err_pct": err}
+
+    @api.post("/validation/miss")
+    def validation_miss(body: MissIn):
+        """미탐 위험 수동 기록 — 탐지 실패로 이벤트가 안 생긴 위험(예: 야간 무단횡단)을
+        사람이 클립에서 발견해 남기는 장부. 라벨(탐지된 것 채점)과 분리된 FN 원장:
+        야간 미검출률 측정·R4 누락 보고·임계/모델 개선 근거. K 지표 집계와 무관."""
+        from datetime import datetime, timedelta
+        s = next((x for x in recorder.list() if x["name"] == body.clip), None)
+        if not s:
+            raise HTTPException(404, "클립 없음")
+        ts = (datetime.fromisoformat(s["start_utc"])
+              + timedelta(seconds=float(body.t_rel_s))).isoformat(timespec="seconds")
+        con.execute(
+            "INSERT INTO validation(ts, kind, manual_n, auto_n, err_pct, note) VALUES(?,?,?,?,?,?)",
+            (ts, "missed_hazard", 1, 0, None,
+             f"clip={body.clip} t={body.t_rel_s:.0f}s {body.miss_kind}: "
+             f"{(body.note or '').strip()[:200]} ({body.labeler})"))
+        con.commit()
+        n = con.execute("SELECT COUNT(*) c FROM validation WHERE kind='missed_hazard'"
+                        ).fetchone()["c"]
+        log.warning("미탐 위험 기록: %s %s @%s (누적 %d건)", body.clip, body.miss_kind, ts, n)
+        return {"ok": True, "ts": ts, "total": n}
 
     @api.get("/validation")
     def validation_list():

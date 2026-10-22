@@ -168,6 +168,32 @@ export default function Label() {
     resetSpeed();
   }
 
+  // 미탐 위험 기록 — 탐지 실패로 이벤트가 없는 위험을 수동 재생 중 발견했을 때.
+  // 버튼 클릭 순간의 '실측 초'(배속·구버전 슬로모션 보정)를 고정해 폼을 연다.
+  const [miss, setMiss] = useState<{ tReal: number; kind: "근접" | "기타"; note: string } | null>(null);
+  const [missMsg, setMissMsg] = useState("");
+
+  function openMissForm() {
+    const v = videoRef.current;
+    const s = sess.sessions.find((x) => x.name === playing);
+    if (!v || !s) return;
+    const scale = Number.isFinite(v.duration) && s.duration_s > 0 ? v.duration / s.duration_s : 1;
+    v.pause();
+    setMiss({ tReal: v.currentTime / scale, kind: "근접", note: "" });
+  }
+
+  async function saveMiss() {
+    if (!miss || !playing || !labeler.trim()) return;
+    const r = await api.missAdd({
+      clip: playing, t_rel_s: Math.round(miss.tReal), miss_kind: miss.kind,
+      note: miss.note.trim() || null, labeler: labeler.trim(),
+    });
+    if (r && typeof r !== "string" && r.ok) {
+      setMissMsg(`✓ 미탐 기록됨 (누적 ${r.total}건) — 시스템이 놓친 위험 원장에 추가`);
+      setMiss(null);
+    } else setMissMsg("기록 실패 — 백엔드 확인");
+  }
+
   const [msg, setMsg] = useState("");
   const [sess, setSess] = useState<{ recording: string | null; sessions: SessionItem[] }>(
     { recording: null, sessions: [] });
@@ -553,6 +579,43 @@ export default function Label() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* 미탐 위험 기록 — 탐지 실패로 이벤트·자동점핑이 없는 위험의 수동 원장 */}
+          {playing && !miss && !tally && !speedMode && (
+            <button onClick={openMissForm}
+              className="mt-2 w-full rounded-lg border border-dashed border-gravy/60 py-1.5 text-[12px] font-bold text-gravy/90 transition active:scale-[0.98] hover:bg-gravy/10">
+              ⚠ 미탐 위험 기록 — 시스템이 못 잡은 위험을 지금 장면으로 남기기
+            </button>
+          )}
+          {miss && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-gravy bg-gravy/10 px-3 py-2 text-[12.5px]">
+              <b className="text-gravy">미탐 기록</b>
+              <span className="num">
+                {Math.floor(miss.tReal / 60)}:{String(Math.round(miss.tReal % 60)).padStart(2, "0")} 시점
+              </span>
+              {(["근접", "기타"] as const).map((k) => (
+                <button key={k} onClick={() => setMiss({ ...miss, kind: k })}
+                  className={`rounded-full px-3 py-1 font-bold ${
+                    miss.kind === k ? "bg-gravy text-white" : "border border-gravy/60 text-gravy"}`}>
+                  {k}
+                </button>
+              ))}
+              <input value={miss.note} onChange={(e) => setMiss({ ...miss, note: e.target.value })}
+                placeholder="메모 (예: 무단횡단, person 미탐)"
+                className="min-w-[180px] flex-1 rounded bg-cotton px-2.5 py-1.5 text-cobble outline-none" />
+              <button onClick={saveMiss} disabled={!labeler.trim()}
+                title={labeler.trim() ? "" : "오른쪽 카드의 라벨러 이니셜을 먼저 입력하세요"}
+                className="rounded-full bg-gravy px-3.5 py-1.5 font-bold text-white disabled:opacity-40">저장</button>
+              <button onClick={() => setMiss(null)}
+                className="rounded border border-cobble px-2.5 py-1">취소</button>
+              <span className="w-full text-[11px] text-dim-dark">
+                라벨(탐지된 이벤트 채점)과 별도의 누락 원장 — 야간 미검출률 측정·임계/모델 개선 근거로 쓰입니다
+              </span>
+            </div>
+          )}
+          {missMsg && (
+            <div className="mt-2 rounded-lg bg-smoke/60 px-3 py-2 text-[12.5px]">{missMsg}</div>
           )}
 
           {/* 클립 목록 헤더 — 개수·용량 요약 + 일괄 삭제 (ready 2개 이상일 때만 노출) */}
