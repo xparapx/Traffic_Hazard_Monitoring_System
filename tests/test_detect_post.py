@@ -35,6 +35,18 @@ def test_postprocess_filters_low_conf_and_non_target():
     assert postprocess(out, 1.0, (0, 0), (640, 640), 0.35) == []
 
 
+def test_postprocess_person_threshold_is_separate(monkeypatch):
+    """야간 보행자 미탐 대응(2026-10-22) — person 은 전용 임계(기본 0.12),
+    차량은 공용 임계(0.35) 그대로: conf 0.2 에서 person 만 살아남아야 한다."""
+    out = _pred([(320, 240, 40, 60, 0, 0.2),      # person conf 0.2 → 통과
+                 (100, 100, 100, 80, 2, 0.2)])    # car conf 0.2 → 기각
+    dets = postprocess(out, 1.0, (0, 0), (640, 640), 0.35)
+    assert [d.cls for d in dets] == ["person"]
+    # person 임계(0.12)보다 낮으면 person 도 기각
+    out2 = _pred([(320, 240, 40, 60, 0, 0.09)])
+    assert postprocess(out2, 1.0, (0, 0), (640, 640), 0.35) == []
+
+
 def test_nms_suppresses_overlaps():
     boxes = np.array([[0, 0, 100, 100], [5, 5, 105, 105], [300, 300, 400, 400]],
                      dtype=np.float32)

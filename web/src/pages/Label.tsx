@@ -643,7 +643,9 @@ export default function Label() {
         ) : (
           <div className="rounded-[14px] bg-cobble p-5 text-white">
             <div className="flex items-center justify-between">
-              <span className="text-[16px] font-bold">이 정차, 위험했나요?</span>
+              <span className="text-[16px] font-bold">
+                {ev.kind === "conflict" ? "이 근접, 위험했나요?" : "이 정차, 위험했나요?"}
+              </span>
               <span className="flex items-center gap-1 text-[11px] text-dim-dark">
                 <button onClick={() => gotoEvent(idx - 1)} disabled={idx === 0}
                   className="rounded border border-smoke px-2 py-0.5 transition active:scale-90 active:bg-otan active:text-white disabled:opacity-40">이전</button>

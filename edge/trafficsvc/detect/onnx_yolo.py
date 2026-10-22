@@ -51,20 +51,29 @@ def _nms(boxes, scores, iou_thr=0.45):
     return keep
 
 
+def person_conf_thr() -> float:
+    """person 전용 임계 — 야간 보행자가 conf 0.1 대로 떨어져 0.35 공용 임계에
+    전멸하는 실측(2026-10-22, 무단횡단 미탐) 때문에 클래스 분리. 오탐 방어는
+    추적기 min_hits=3 + conflict 의 '이동 차량 근접' 조건 + O/X 라벨 채점."""
+    return float(settings._env("TRAFFIC_DET_CONF_PERSON", "0.12"))
+
+
 def postprocess(out, scale, pad, src_wh, conf_thr):
     """YOLOv8/11 ONNX 출력 (1,84,8400) → Detection 목록(정규화 좌표).
-    scale·pad 는 letterbox 역변환용, src_wh 는 원본 (w,h). numpy 배열 전제."""
+    scale·pad 는 letterbox 역변환용, src_wh 는 원본 (w,h). numpy 배열 전제.
+    임계는 클래스별 — person 은 person_conf_thr(), 나머지는 conf_thr."""
     import numpy as np
     pred = out[0].T                      # (8400, 84)
     cls_scores = pred[:, 4:]
     conf = cls_scores.max(axis=1)
-    m = conf >= conf_thr
+    m = conf >= min(conf_thr, person_conf_thr())
     if not m.any():
         return []
     pred, conf = pred[m], conf[m]
     cls_idx = cls_scores[m].argmax(axis=1)
     coco = np.array([COCO6.get(int(c), "") for c in cls_idx])
-    m2 = coco != ""
+    thr = np.where(coco == "person", person_conf_thr(), conf_thr)
+    m2 = (coco != "") & (conf >= thr)
     if not m2.any():
         return []
     pred, conf, coco = pred[m2], conf[m2], coco[m2]
