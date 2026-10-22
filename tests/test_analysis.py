@@ -5,9 +5,16 @@ from datetime import datetime, timedelta, timezone
 from trafficsvc import analysis
 
 
+KST = timezone(timedelta(hours=9))
+
+
 def _utc_now_iso(minutes_ago: int = 0) -> str:
-    return (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat(
-        timespec="seconds")
+    """kst_today 정오 기준 UTC 시각 — '지금 - N분'으로 심으면 KST 자정 직후(UTC 15시대)
+    CI 에서 전일 KST 날짜로 떨어져 집계가 0 이 되는 플래키(2026-10-22 실측 2회)."""
+    base = datetime.strptime(analysis.kst_today(), "%Y-%m-%d").replace(
+        hour=12, tzinfo=KST)
+    return (base - timedelta(minutes=minutes_ago)).astimezone(
+        timezone.utc).isoformat(timespec="seconds")
 
 
 def _seed_today(con):
