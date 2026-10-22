@@ -206,7 +206,8 @@ export const api = {
   // R4(GATE 1) 수동 대조 — 사람 계수 vs 자동 카운트
   // 미탐 위험 수동 기록 — 탐지 실패로 이벤트가 없는 위험을 클립에서 발견했을 때
   missAdd: (body: { clip: string; t_rel_s: number; miss_kind: "근접" | "기타";
-                    note: string | null; labeler: string }) =>
+                    note: string | null; labeler: string;
+                    pos_x?: number; pos_y?: number; track_id?: number | null }) =>
     postJson<{ ok: boolean; ts: string; total: number }>(
       `${ADM_BASE}/api/admin/validation/miss`, body),
   validationAdd: (clip: string, manual_n: number) =>

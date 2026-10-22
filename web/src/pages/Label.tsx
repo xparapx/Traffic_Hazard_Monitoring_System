@@ -170,7 +170,12 @@ export default function Label() {
 
   // 미탐 위험 기록 — 탐지 실패로 이벤트가 없는 위험을 수동 재생 중 발견했을 때.
   // 버튼 클릭 순간의 '실측 초'(배속·구버전 슬로모션 보정)를 고정해 폼을 연다.
-  const [miss, setMiss] = useState<{ tReal: number; kind: "근접" | "기타"; note: string } | null>(null);
+  const [miss, setMiss] = useState<{
+    tReal: number; kind: "근접" | "기타"; note: string;
+    picking: boolean;                                   // 위치 클릭 대기 중
+    pos: { x: number; y: number } | null;               // 영상 클릭 위치(정규화)
+    trk: number | null;                                 // 클릭점 최근접 추적 박스
+  } | null>(null);
   const [missMsg, setMissMsg] = useState("");
 
   function openMissForm() {
@@ -179,7 +184,29 @@ export default function Label() {
     if (!v || !s) return;
     const scale = Number.isFinite(v.duration) && s.duration_s > 0 ? v.duration / s.duration_s : 1;
     v.pause();
-    setMiss({ tReal: v.currentTime / scale, kind: "근접", note: "" });
+    setMiss({ tReal: v.currentTime / scale, kind: "근접", note: "",
+              picking: true, pos: null, trk: null });
+  }
+
+  function missPickClick(e: React.MouseEvent<HTMLDivElement>) {
+    // 위험 지점 클릭 → 위치(정규화) 고정 + 그 프레임 사이드카에서 최근접 track 자동 연결
+    const v = videoRef.current;
+    if (!v || !miss) return;
+    const r = v.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    let trk: number | null = null;
+    if (boxes?.length && Number.isFinite(v.duration) && v.duration > 0) {
+      const i = Math.min(boxes.length - 1,
+        Math.max(0, Math.floor((v.currentTime / v.duration) * boxes.length)));
+      let best = 0.15;   // 정규화 거리 임계 — 이보다 멀면 '연결 없음'
+      for (const t of boxes[i] ?? []) {
+        const [tid, , x1, y1, x2, y2] = t as unknown as [number, string, number, number, number, number];
+        const d = Math.hypot((x1 + x2) / 2 - x, (y1 + y2) / 2 - y);
+        if (d < best) { best = d; trk = tid; }
+      }
+    }
+    setMiss({ ...miss, picking: false, pos: { x, y }, trk });
   }
 
   async function saveMiss() {
@@ -187,6 +214,7 @@ export default function Label() {
     const r = await api.missAdd({
       clip: playing, t_rel_s: Math.round(miss.tReal), miss_kind: miss.kind,
       note: miss.note.trim() || null, labeler: labeler.trim(),
+      pos_x: miss.pos?.x, pos_y: miss.pos?.y, track_id: miss.trk,
     });
     if (r && typeof r !== "string" && r.ok) {
       setMissMsg(`✓ 미탐 기록됨 (누적 ${r.total}건) — 시스템이 놓친 위험 원장에 추가`);
@@ -446,6 +474,12 @@ export default function Label() {
                 className="absolute inset-x-0 bottom-12 top-0 cursor-crosshair"
                 title="차량 접지점(앞바퀴 밑)을 클릭" />
             )}
+            {/* 미탐 기록 위치 클릭 레이어 — 위험 지점을 찍으면 구역·차량이 자동 연결 */}
+            {miss?.picking && (
+              <div onClick={missPickClick}
+                className="absolute inset-x-0 bottom-12 top-0 cursor-crosshair"
+                title="위험이 일어난 지점을 클릭" />
+            )}
             </div>
             <button title="전체화면 (강조 표시 유지)"
               onClick={() => {
@@ -594,6 +628,18 @@ export default function Label() {
               <span className="num">
                 {Math.floor(miss.tReal / 60)}:{String(Math.round(miss.tReal % 60)).padStart(2, "0")} 시점
               </span>
+              {miss.picking && (
+                <span className="font-bold text-white">
+                  ↑ 영상에서 위험이 일어난 <u>지점을 클릭</u>하세요 — 구역·차량이 자동 연결됩니다
+                </span>
+              )}
+              {miss.pos && (
+                <span className="rounded bg-cobble/80 px-2 py-0.5 text-[11px]">
+                  위치 ✓ {miss.trk != null ? `· 차량 track #${miss.trk} 연결` : "· 근처 추적 차량 없음"}
+                  <button onClick={() => setMiss({ ...miss, picking: true, pos: null, trk: null })}
+                    className="ml-1.5 text-dim-dark hover:text-white">다시 찍기</button>
+                </span>
+              )}
               {(["근접", "기타"] as const).map((k) => (
                 <button key={k} onClick={() => setMiss({ ...miss, kind: k })}
                   className={`rounded-full px-3 py-1 font-bold ${

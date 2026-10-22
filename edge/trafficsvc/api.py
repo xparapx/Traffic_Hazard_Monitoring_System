@@ -554,12 +554,18 @@ class ValidationIn(BaseModel):
 
 
 class MissIn(BaseModel):
-    """미탐 위험 수동 기록 — t_rel_s: 클립 시작부터의 실측 초(재생 배속 보정 후)."""
+    """미탐 위험 수동 기록 — t_rel_s: 클립 시작부터의 실측 초(재생 배속 보정 후).
+    pos_x/y: 영상 클릭 위치(정규화) — 구역 자동 판정·추후 약도 투영용.
+    track_id: 클릭점에 가장 가까운 추적 박스(프런트가 사이드카에서 선택) —
+    외형 묘사 없이 차량을 특정하는 프라이버시 합치 수단."""
     clip: str
     t_rel_s: float = Field(ge=0, le=5400)
     miss_kind: Literal["근접", "기타"] = "근접"
     note: str | None = None
     labeler: str
+    pos_x: float | None = Field(default=None, ge=0, le=1)
+    pos_y: float | None = Field(default=None, ge=0, le=1)
+    track_id: int | None = None
 
 
 class ProjectIn(BaseModel):
@@ -798,10 +804,24 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
             raise HTTPException(404, "클립 없음")
         ts = (datetime.fromisoformat(s["start_utc"])
               + timedelta(seconds=float(body.t_rel_s))).isoformat(timespec="seconds")
+        # 클릭 위치 → 구역 자동 판정 (저장된 금지구역/ROI 폴리곤 — 운영 판정과 같은 기준)
+        loc = ""
+        if body.pos_x is not None and body.pos_y is not None:
+            z = roi_mod.load_zones(con)
+            from .detect.roi import no_stop_list, point_in_poly
+            if any(point_in_poly(body.pos_x, body.pos_y, p) for p in no_stop_list(z)):
+                zone = "no_stop"
+            elif len(z.get("roi", [])) >= 3 and point_in_poly(body.pos_x, body.pos_y, z["roi"]):
+                zone = "roi"
+            else:
+                zone = "out"
+            loc = f" zone={zone} pos=({body.pos_x:.3f},{body.pos_y:.3f})"
+        if body.track_id is not None:
+            loc += f" trk={body.track_id}"
         con.execute(
             "INSERT INTO validation(ts, kind, manual_n, auto_n, err_pct, note) VALUES(?,?,?,?,?,?)",
             (ts, "missed_hazard", 1, 0, None,
-             f"clip={body.clip} t={body.t_rel_s:.0f}s {body.miss_kind}: "
+             f"clip={body.clip} t={body.t_rel_s:.0f}s{loc} {body.miss_kind}: "
              f"{(body.note or '').strip()[:200]} ({body.labeler})"))
         con.commit()
         n = con.execute("SELECT COUNT(*) c FROM validation WHERE kind='missed_hazard'"
