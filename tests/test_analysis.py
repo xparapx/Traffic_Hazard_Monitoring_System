@@ -58,6 +58,22 @@ def test_school_window_filter_excludes_offwindow_events(con):
     assert out["k1"]["value"] is None and out["k1"]["all_day"] == 50.0
 
 
+def test_friday_afternoon_window_is_one_hour_earlier(con):
+    """금요일 하교 창 15:30–16:30 (월~목은 16:30–17:30) — 2026-10-23 사용자 결정."""
+    analysis.SCHOOL_WINDOWS = None   # 요일별 기본 창 사용
+    def ev(ts_kst, eid):
+        utc = (datetime.fromisoformat(ts_kst + "+09:00")
+               .astimezone(timezone.utc).isoformat(timespec="seconds"))
+        con.execute("INSERT INTO events(ts,kind,zone,event_id) VALUES(?, 'dwell', 'no_stop', ?)",
+                    (utc, eid))
+    # 2026-10-23 = 금: 15:45 포함, 16:45 제외 / 2026-10-22 = 목: 그 반대
+    ev("2026-10-23T15:45:00", "fri-in"); ev("2026-10-23T16:45:00", "fri-out")
+    ev("2026-10-22T15:45:00", "thu-out"); ev("2026-10-22T16:45:00", "thu-in")
+    con.commit()
+    assert analysis.run_daily(con, "2026-10-23")["k2"]["value"] == 1
+    assert analysis.run_daily(con, "2026-10-22")["k2"]["value"] == 1
+
+
 def test_safety_index_with_baseline(con):
     d = _seed_today(con)
     # 직전 5일 baseline 을 오늘과 같은 값으로 → 변화 0 → 지수 100

@@ -162,7 +162,7 @@ export default function Today() {
         <div className="rounded-[14px] bg-cotton">
           <div className="border-b border-line px-5 pt-4 pb-2">
             <span className="meta font-bold">핵심 지표 K1 · K2 · K3</span>
-            <span className="ml-2 text-[10px] text-dim">통학 창(07:30–08:30·16:30–17:30) 기준 · 매일 22:00 배치</span>
+            <span className="ml-2 text-[10px] text-dim">통학 창(등교 07:30–08:30 · 하교 16:30–17:30, 금 15:30–16:30) 기준 · 매일 22:00 배치</span>
           </div>
           {k.map((row) => (
             <div key={row.name} className="flex items-center gap-4 border-b border-line px-5 py-4 last:border-0">

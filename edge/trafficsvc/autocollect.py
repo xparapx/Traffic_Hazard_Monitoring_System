@@ -1,5 +1,5 @@
 # autocollect — 라벨용 세션 자동 수집 스케줄러. 읽는 표: labels(건수) · school_cal / 쓰는 표: -
-# 사람이 켠 상시 동의(토글) 아래에서만 동작: 등·하교 창(KST 07:30-08:30 · 16:30-17:30)에
+# 사람이 켠 상시 동의(토글) 아래에서만 동작: 등·하교 창(KST 07:30-08:30 · 16:30-17:30, 금 하교 15:30-16:30)에
 # 캘리브레이션 모드를 창 길이만큼 연장하고 클립 녹화를 시작한다(창 끝에 자동 종료).
 # 등교일에만 수집: 주말은 코드가 제외, 공휴일·재량휴업일은 school_cal(school_day=0)로 —
 # school_cal 에 행이 있으면 그 값이 최우선(주말 행사일 school_day=1 로 수집도 가능).
@@ -21,7 +21,13 @@ from . import settings
 log = logging.getLogger("trafficsvc.autocollect")
 
 KST = timezone(timedelta(hours=9))
-WINDOWS = ((7, 30, 8, 30), (16, 30, 17, 30))   # (시작h, 시작m, 끝h, 끝m) KST
+WINDOWS = ((7, 30, 8, 30), (16, 30, 17, 30))   # (시작h, 시작m, 끝h, 끝m) KST — 월~목
+WINDOWS_FRI = ((7, 30, 8, 30), (15, 30, 16, 30))  # 금요일 하교 15:30 (2026-10-23 사용자 결정)
+
+
+def windows_for(now_kst: datetime):
+    """요일별 수집 창 — 금요일은 하교가 1시간 이르다."""
+    return WINDOWS_FRI if now_kst.weekday() == 4 else WINDOWS
 TARGET_LABELS = 150
 TICK_S = 30
 DWELL_CONFIRM_S = 20       # 이벤트 ts = 정차 20초 '확정' 시각 — 실제 시작은 ts-20s
@@ -54,7 +60,7 @@ def is_school_day(con, now_kst: datetime) -> bool:
 
 def window_end(now_kst: datetime) -> datetime | None:
     """지금이 수집 창 안이면 그 창의 끝(KST)을, 아니면 None."""
-    for h1, m1, h2, m2 in WINDOWS:
+    for h1, m1, h2, m2 in windows_for(now_kst):
         start = now_kst.replace(hour=h1, minute=m1, second=0, microsecond=0)
         end = now_kst.replace(hour=h2, minute=m2, second=0, microsecond=0)
         if start <= now_kst < end:
@@ -95,7 +101,8 @@ class AutoCollector(threading.Thread):
     def status(self) -> dict:
         return {"enabled": self._enabled, "labels_n": self.labels_n(),
                 "target": TARGET_LABELS, "recording": self._recorder.recording,
-                "windows": [f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d}" for h1, m1, h2, m2 in WINDOWS],
+                "windows": [f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d}"
+                            for h1, m1, h2, m2 in windows_for(datetime.now(KST))],
                 "school_day": is_school_day(self._con, datetime.now(KST))}
 
     # ---- 스케줄 루프 ----

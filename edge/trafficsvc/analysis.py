@@ -26,8 +26,13 @@ def _one(con, sql, args=()):
 
 # K 지표 집계 창 (KST) — 공개 지표·리포트는 통학 창만 센다 (2026-10-20 사용자 결정 A안).
 # 원시 수집(counts·events)은 24시간 그대로 — 요일·시간대 인사이트는 전일 데이터에서.
-# 자동수집 창과 동일하게 유지한다 (창을 바꾸면 지표 기준일도 갱신할 것).
-SCHOOL_WINDOWS = (("07:30", "08:30"), ("16:30", "17:30"))
+# 자동수집 창(autocollect.windows_for)과 동일하게 유지한다 — 금요일은 하교 15:30
+# (2026-10-23 사용자 결정). SCHOOL_WINDOWS 는 테스트 오버라이드용: 단순 튜플을 넣으면
+# 요일 구분 없이 그 창만 쓴다, None(기본)이면 아래 요일별 창.
+SCHOOL_WINDOWS: tuple | None = None
+WINDOW_MORNING = ("07:30", "08:30")
+WINDOW_AFTERNOON = ("16:30", "17:30")       # 월~목
+WINDOW_AFTERNOON_FRI = ("15:30", "16:30")   # 금
 
 
 def _kst_time(col: str) -> str:
@@ -36,8 +41,16 @@ def _kst_time(col: str) -> str:
 
 def _window_sql(col: str) -> str:
     t = _kst_time(col)
-    return "(" + " OR ".join(f"({t} >= '{a}' AND {t} < '{b}')"
-                             for a, b in SCHOOL_WINDOWS) + ")"
+
+    def rng(a: str, b: str) -> str:
+        return f"({t} >= '{a}' AND {t} < '{b}')"
+
+    if SCHOOL_WINDOWS is not None:   # 테스트 오버라이드 — 요일 무시
+        return "(" + " OR ".join(rng(a, b) for a, b in SCHOOL_WINDOWS) + ")"
+    wd = f"strftime('%w', datetime({col}, '+9 hours'))"   # 0=일 … 5=금
+    return ("(" + rng(*WINDOW_MORNING)
+            + f" OR ({wd} = '5' AND {rng(*WINDOW_AFTERNOON_FRI)})"
+            + f" OR ({wd} != '5' AND {rng(*WINDOW_AFTERNOON)})" + ")")
 
 
 def _kst_day(col: str) -> str:
@@ -289,7 +302,7 @@ def build_weekly_draft(facts: dict, llm: dict | None = None) -> str:
     suggestion = llm["suggestion"] if llm else "이번 주 당부는 검토 화면에서 작성해 주세요."
     lines = [
         f"[교문 앞 통행 · 주간 운영 리포트] {facts['start']}–{facts['end']}"
-        f" 통학 시간(07:30–08:30·16:30–17:30)",
+        f" 통학 시간(등교 07:30–08:30 · 하교 16:30–17:30, 금 15:30–16:30)",
         f"· 30 km/h 초과 비율(K1): 주 평균 {_fmt(facts['k1'], '%')}"
         + (f" — 전주 대비 {facts['k1_trend']}" if facts.get("k1_trend") else ""),
         f"· 금지 구역 20초+ 정차(K2): 하루 평균 {_fmt(facts['k2'], '건')}"
