@@ -51,10 +51,9 @@ export type Fetched<T> = T & { offline: boolean };
 // 기기 배포에서는 공개 :8600 · 관리 :8601 이 각자 SPA 를 서빙하므로
 // 반대편 API 는 절대 주소로 호출한다. dev(:5173)에서는 vite 프록시 사용.
 const loc = window.location;
-// Cloudflare 터널 경유(https, 포트 없음) — 첫 라벨이 admin 으로 끝나는 호스트
-// (admin.* / tr-admin.* 등)는 관리 앱(8601)이 통째로 서빙하며 공개 API 도
-// 동봉하므로(api.py build_public_router) 전부 상대 경로면 된다.
-const TUNNEL_ADMIN = loc.hostname.split(".")[0].endsWith("admin");
+// Cloudflare 터널 경유(https, 포트 없음) — admin.* 호스트는 관리 앱(8601)이 통째로
+// 서빙하며 공개 API 도 동봉하므로(api.py build_public_router) 전부 상대 경로면 된다.
+const TUNNEL_ADMIN = loc.hostname.startsWith("admin.");
 const PUB_BASE = loc.port === "8601" ? `${loc.protocol}//${loc.hostname}:8600` : "";
 export const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
 /** 관리 화면 노출 여부 — 관리 포트(:8601)·개발 서버(:5173)·관리 터널 호스트(admin.*).
