@@ -145,16 +145,21 @@ def _serve() -> int:
         async def serve_admin_with_retry():
             """부팅 직후 테일스케일 인터페이스가 아직 없으면 바인딩이 실패한다(2026-10-19
             실측 — 워치독 재부팅 후 레이스). 관리 포트는 재시도하되, 실패가 공개 포트를
-            끌어내리면 안 된다 — '관리가 죽어도 K1~K3(공개)는 나온다'."""
-            for i in range(60):                     # 최대 ~5분 대기
+            끌어내리면 안 된다 — '관리가 죽어도 K1~K3(공개)는 나온다'.
+            포기하지 않는다: 2026-10-27 실측 — 학교망 차단으로 테일넷이 수 시간 뒤에야
+            올라왔는데 5분 포기 때문에 관리 포트가 영영 죽어 있었다. 최대 60s 백오프."""
+            i = 0
+            while True:
                 try:
                     await uvicorn.Server(adm_cfg).serve()
                     return
                 except (OSError, SystemExit):
-                    print(f"[trafficsvc] 관리 포트 바인딩 실패({settings.ADMIN_BIND}) —"
-                          f" 테일넷 대기 재시도 {i + 1}")
-                    await asyncio.sleep(5)
-            print("[trafficsvc] 관리 포트 기동 포기 — 공개 포트는 계속 서비스")
+                    i += 1
+                    wait = min(60, 5 * i)
+                    if i <= 3 or i % 10 == 0:
+                        print(f"[trafficsvc] 관리 포트 바인딩 실패({settings.ADMIN_BIND}) —"
+                              f" {wait}s 후 재시도 (누적 {i}회)")
+                    await asyncio.sleep(wait)
 
         print(f"[trafficsvc] public http://{settings.BIND_HOST}:{settings.PUBLIC_PORT}"
               f" · admin http://{settings.ADMIN_BIND}:{settings.ADMIN_PORT} (테일넷 전용)")

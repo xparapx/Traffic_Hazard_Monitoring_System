@@ -31,6 +31,12 @@ if [ -n "${ADMIN_IP:-}" ]; then
     exit 0
   fi
 fi
+# 관리 API 가 죽어 있어도 녹화는 돌 수 있다(2026-10-27 실측: 관리 포트 기동 실패 중
+# 자동수집 정상) — 진행 중 녹화의 임시 mjpeg 가 2분 내 갱신됐으면 녹화 중으로 간주.
+if find "$HOME/traffic/data/sessions" -name "*.mjpeg" -mmin -2 2>/dev/null | grep -q .; then
+  echo "[autoupdate] 최근 mjpeg 갱신 감지 — 녹화 중으로 간주, 설치 연기"
+  exit 0
+fi
 
 echo "[autoupdate] $(date -Is) $cur -> $sha"
 
