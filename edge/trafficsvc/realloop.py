@@ -346,8 +346,10 @@ class RealLoop:
     # ---- 메인 루프 ----
     def _run(self) -> None:
         from .capture.camwatch import CamWatch
+        from .capture.corruptguard import CorruptionGuard
         from .detect.onnx_yolo import make_detector
         watch = CamWatch()
+        guard = CorruptionGuard()   # 프레임 손상 자동 감지 → 재협상 (10-28 나흘 공백 재발 방지)
         try:
             detector = make_detector()
             self.model_ver = detector.name
@@ -373,6 +375,9 @@ class RealLoop:
                     last = ts
                     now = time.time()
                     dets = detector.detect(frame)
+                    bad = guard.check(frame, len(dets))
+                    if bad:
+                        raise RuntimeError(bad)   # 소스 닫고 재-open — USB 재협상
                     self._cur_frame = frame      # dwell 확정 콜백의 crop 소스 (메모리만)
                     kept, excl = self.pipeline.step(ts, dets)
                     if prev is not None:
