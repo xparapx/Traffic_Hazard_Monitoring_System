@@ -40,3 +40,6 @@ design/mockup/traffic-hazard-dashboard.html
 
 # autoupdate 롤백 백업 (기기 생성)
 web/dist.prev/
+
+# 성과발표회 hwpx 조립 산출물 (spec.json·조립 스크립트만 커밋)
+docs/report2026/dist/
