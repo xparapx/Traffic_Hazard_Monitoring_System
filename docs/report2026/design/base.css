@@ -1,0 +1,73 @@
+/* Traffic 성과발표회 그림 공통 베이스 — 웹앱(web/src/index.css, MP020 팔레트) 토큰을 인쇄용으로 이식.
+   사용: <html data-kind="r"|"p" data-w="159" data-h="60">  r=보고서(A4 본문 폭 159mm), p=포스터(국판 전지 칸 ~144×86mm)
+   글자 크기는 두 단계뿐: 제목 .t(--fs-t, 굵게) / 그 밖의 모든 글자(--fs). 더 작은 글자는 금지(축 눈금·범례·캡션도 --fs). */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ---- 웹앱 MP020 토큰 (web/src/index.css) ---- */
+  --bg: #f6f5ef; --panel: #ffffff; --panel2: #eceade; --plot: #f6f5ef;
+  --cotton: #e4e3dc; --sandstone: #dad8cf;
+  --ink: #1f282e; --dim: #6e7780; --grid: #cbc8bc; --rowline: #e3e0d4; --foot: #98a2ab;
+  --acc: #ff4e20;     /* otan — 주 액센트(지금 말하려는 것) */
+  --danger: #b83312;  /* gravy — 위험·부정 신호 */
+  --tint: #f3dcd2;    /* 오렌지 틴트 배경(통학 창 하이라이트 밴드) */
+  /* ---- 의미색 (한 그림 안에서 항상 동일) ---- */
+  --spd: #2f6fb5;        /* K1 속도 — 파랑 */
+  --dwell: #ff4e20;      /* K2 금지구역 정차 — otan */
+  --conf: #b83312;       /* K3 근접(conflict) — gravy */
+  --ped: #1f9d8a;        /* 보행자·횡단 — 청록 */
+  --veh: #4f6d9e;        /* 차량·통행량 — 차분한 남청 */
+  --ok: #3f8f5a;         /* 검증 합격·신뢰 — 녹색 */
+  --thr: var(--danger);  /* 기준선(30 km/h·±10%) — 점선 */
+  /* 3중 기록 모드 — YOLO는 '보는 능력만'(무채색), VLM 보라, HYBRID는 제품의 주 색 */
+  --yolo: #7a7f87; --vlm: #8b6fd6; --hyb: #ff4e20;
+  /* 공간 지도 램프 (web Metrics 헥사곤과 동일 언어) */
+  --ramp-plain-lo: #e8e2cf; --ramp-plain-hi: #ff8a3c;   /* 정차 밀도: 모래→주황 */
+  --ramp-danger-lo: #f4cdb8; --ramp-danger-hi: #8a2a5e; /* 정차+보행 공존: 살구→자주 */
+  --chart-ink: #414e58;
+  --font: "IBM Plex Sans KR", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+}
+/* 두 가지 크기 체계. u = 선·간격 배율 */
+html[data-kind="r"] { --fs: 10.5pt; --fs-t: 12pt; --u: 1; }
+html[data-kind="p"] { --fs: 17pt;   --fs-t: 22pt; --u: 1.65; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #fff; }
+body { font-family: var(--font); color: var(--ink); font-size: var(--fs); line-height: 1.3;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; overflow: hidden; }
+.fig { width: 100%; height: 100%; display: flex; flex-direction: column; gap: calc(1.6mm * var(--u));
+  padding: calc(1mm * var(--u)) calc(1.2mm * var(--u)); }
+.t { font-size: var(--fs-t); font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; flex: none; }
+.t .sub { font-weight: 400; color: var(--dim); font-size: var(--fs); margin-left: calc(2mm * var(--u)); }
+.fill { flex: 1; min-height: 0; }
+.dim { color: var(--dim); } b, strong { font-weight: 700; }
+
+/* 웹앱 패널·칩 */
+.panel { background: var(--panel); border: calc(0.25mm * var(--u)) solid var(--grid); border-radius: calc(2.2mm * var(--u));
+  padding: calc(1.6mm * var(--u)) calc(2mm * var(--u)); }
+.panel.soft { background: var(--panel2); }
+.chip { display: inline-flex; align-items: center; gap: .35em; padding: .08em .55em; border-radius: .45em; font-weight: 600;
+  white-space: nowrap; line-height: 1.25; border: calc(0.2mm * var(--u)) solid color-mix(in srgb, var(--rc, var(--dim)) 55%, transparent);
+  background: color-mix(in srgb, var(--rc, var(--dim)) 16%, transparent); color: var(--rc, var(--dim)); }
+.c-spd { --rc: var(--spd); } .c-dwell { --rc: var(--dwell); } .c-conf { --rc: var(--conf); }
+.c-ped { --rc: var(--ped); } .c-veh { --rc: var(--veh); } .c-ok { --rc: var(--ok); }
+.c-yolo { --rc: var(--yolo); } .c-vlm { --rc: var(--vlm); } .c-hyb { --rc: var(--hyb); } .c-ink { --rc: var(--ink); }
+.dot { display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--rc, var(--dim)); margin-right: .35em; vertical-align: -0.02em; }
+.num { display: inline-flex; align-items: center; justify-content: center; width: 1.5em; height: 1.5em; border-radius: 50%;
+  background: var(--ink); color: #fff; font-weight: 700; font-size: .92em; flex: none; }
+.arrow { color: var(--grid); font-weight: 700; align-self: center; text-align: center; flex: none; }
+.row { display: flex; gap: calc(1.4mm * var(--u)); } .col { display: flex; flex-direction: column; gap: calc(1.4mm * var(--u)); }
+.kpi { font-size: calc(var(--fs-t) * 1.5); font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+
+/* SVG 차트 공통 */
+svg { display: block; overflow: visible; font-family: var(--font); }
+svg text { font-size: var(--fs); fill: var(--ink); }
+svg .axis line, svg .axis path { stroke: var(--grid); }
+svg .gridline { stroke: var(--rowline); }
+svg .thr { stroke: var(--thr); stroke-dasharray: 4 3; }
+/* 통학 창 하이라이트 밴드 */
+svg .window-band, .window-band { fill: var(--tint); }
+
+/* 포스터 카드 번호 배지 (주요 인사이트 순서) — 제목 앞 */
+.t .idx { display: inline-flex; align-items: center; justify-content: center; width: 1.25em; height: 1.25em; border-radius: 50%;
+  background: var(--spd); color: #fff; font-size: 0.92em; font-weight: 700; margin-right: 0.38em; vertical-align: 0.06em; letter-spacing: 0; }

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko" data-kind="p" data-w="286" data-h="74">
+<head><meta charset="utf-8"><title>p_kpi</title>
+<link rel="stylesheet" href="../design/base.css">
+<style>
+html,body{height:100%} body{word-break:keep-all}
+.fill{display:flex;flex-direction:column;gap:2.6mm;min-height:0}
+.blocks{flex:1;display:flex;gap:4mm;min-height:0}
+.blocks .panel{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1.3mm}
+.panel .lab{color:var(--dim)}
+.badges{flex:none;display:flex;align-items:center;gap:4mm}
+.badges .lead{font-weight:700}
+</style></head>
+<body><div class="fig">
+<div class="t">숫자로 확인한 결과 <span class="sub">2026-10-08~11-02 · 통행 절대치는 규칙 v3(10-17) 이후</span></div>
+<div class="fill" data-fit="blocks">
+ <div class="blocks">
+  <div class="panel"><span><span class="chip c-veh">통행</span></span>
+   <div class="kpi">650대/h</div>
+   <div class="lab">등교 창 차량 유량<br>주간 평시의 1.38배</div></div>
+  <div class="panel"><span><span class="chip c-spd">과속 K1</span></span>
+   <div class="kpi">16~19%</div>
+   <div class="lab">심야 30 km/h 초과율<br>통학 창은 9.5~10.9%</div></div>
+  <div class="panel"><span><span class="chip c-ok">신뢰도</span></span>
+   <div class="kpi" style="color:var(--ok)">−7.4%</div>
+   <div class="lab">차량수 오차 · 16클립 Σ596<br>속도 |차| 2.55 km/h</div></div>
+  <div class="panel"><span><span class="chip c-hyb">판정</span></span>
+   <div class="kpi" style="color:var(--hyb)">89 → 0</div>
+   <div class="lab">비위험 89건 오탐 h2→h3<br>Slow 지연 p95 3.0 s</div></div>
+ </div>
+ <div class="badges"><span class="lead">판정 기준</span>
+  <span class="chip c-ok">차량수 ±10% 통과</span>
+  <span class="chip c-ok">속도 ±3 km/h 통과</span>
+  <span class="chip c-ok">지연 ≤4 s 통과</span>
+  <span class="chip c-ok">fps ≥15 97.9%</span>
+  <span class="chip c-ok">스왑 0</span>
+ </div>
+</div></div>
+</body></html>

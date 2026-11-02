@@ -1,0 +1,44 @@
+<!doctype html><html lang="ko" data-kind="p" data-w="140" data-h="83"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 위 공개 대시보드(QR·신뢰도 상시 게시) · 아래 주간 리포트(제안→승인→발송) */
+.fill{position:relative;display:flex;flex-direction:column;gap:4mm}
+.box{display:flex;flex-direction:column;justify-content:center;gap:1.2mm}
+.box .h{font-weight:700;line-height:1.25}
+#pub{flex:1;flex-direction:row;align-items:center;gap:5mm}
+#pub .col{display:flex;flex-direction:column;gap:1.6mm}
+.qr{flex:none;width:17mm;height:17mm}
+#rep{flex:1.1}
+.flow{display:flex;align-items:center;gap:7mm;margin-top:1mm}
+.step{display:flex;flex-direction:column;justify-content:center;gap:.4mm;padding:1.6mm 2.6mm}
+.step .h{font-weight:700}
+#s2{border-color:var(--ok);border-width:.7mm} #s2 .h{color:var(--ok)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t"><span class="idx">8</span>숫자는 공개, 판단은 사람이</div>
+<div class="fill">
+ <div class="panel box" id="pub" data-fit="pub">
+  <svg class="qr" viewBox="0 0 7 7"><g style="fill:var(--ink)"><path d="M0 0h3v3H0zM1 1h1v1H1z" fill-rule="evenodd"/><path d="M4 0h3v3H4zM5 1h1v1H5z" fill-rule="evenodd"/><path d="M0 4h3v3H0zM1 5h1v1H1z" fill-rule="evenodd"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></g></svg>
+  <div class="col"><div class="h">공개 대시보드 — 누구나 QR</div><div><span class="chip c-ok">신뢰도(QC) 상시 게시</span></div></div>
+ </div>
+ <div class="panel box" id="rep" data-fit="rep"><div class="h">주간 리포트</div>
+  <div class="flow">
+   <div class="panel step" id="s1"><div class="h" style="color:var(--vlm)">LLM 초안</div><div class="dim">제안만</div></div>
+   <div class="panel step" id="s2"><div class="h">사람 승인</div></div>
+   <div class="panel step" id="s3"><div class="h">발송</div></div>
+  </div>
+ </div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function arrow(a,b,c,o={}){const hl=6.2*U,w=1.8*U;const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),cs=Math.cos(ang),s=Math.sin(ang);
+ const e=[b[0]-cs*hl*.7,b[1]-s*hl*.7];const p=document.createElementNS(NS,'path');p.setAttribute('d',`M${a[0]} ${a[1]} L${e[0]} ${e[1]}`);
+ p.setAttribute('stroke',c);p.setAttribute('stroke-width',w);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),ok=C('--ok');
+ arrow(pt('s1','r'),pt('s2','l'),ink);arrow(pt('s2','r'),pt('s3','l'),ok);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

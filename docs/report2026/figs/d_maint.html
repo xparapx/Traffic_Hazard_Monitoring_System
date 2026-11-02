@@ -1,0 +1,40 @@
+<!doctype html><html lang="ko" data-kind="r" data-w="159" data-h="37"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* ①~⑤ 가로 흐름 + 아래 점선으로 ⑤→① 순환 */
+.fill{position:relative;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 6mm;gap:1mm 4mm}
+.card{position:relative;display:flex;flex-direction:column;gap:.2mm;justify-content:center;grid-row:1}
+.card .num{position:absolute;top:-1.5mm;left:-1.5mm;box-shadow:0 0 0 .45mm #fff}
+.card .h{font-weight:700;margin-left:2.8mm}
+#c4{border-color:var(--ok);border-width:.45mm} #c4 .num{background:var(--ok)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t">유지보수 루프 — 보드는 손대지 않고, PC에서 고쳐 자동 배포로</div>
+<div class="fill">
+ <div class="panel card" id="c1" data-fit="c1"><span class="num">1</span><div class="h">지켜보기</div><div>화면·로그 확인</div></div>
+ <div class="panel card" id="c2" data-fit="c2"><span class="num">2</span><div class="h">원인 찾기</div><div>데이터로 좁히기</div></div>
+ <div class="panel card" id="c3" data-fit="c3"><span class="num">3</span><div class="h">PC에서 고치기</div><div>보드 직접 수정 금지</div></div>
+ <div class="panel card" id="c4" data-fit="c4"><span class="num">4</span><div class="h">자동 점검</div><div>CI 시험 + 저장 코드 차단</div></div>
+ <div class="panel card" id="c5" data-fit="c5"><span class="num">5</span><div class="h">보드 반영</div><div>5분 주기, 실패 시 자동 복귀</div></div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function stroke(d,c,o={}){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke',c);p.setAttribute('stroke-width',(o.w||1.8)*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);}
+function head(b,ang,c){const hl=6.2*U,cs=Math.cos(ang),s=Math.sin(ang);const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function arrow(a,b,c,o={}){const hl=6.2*U,ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+ stroke(`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`,c,o);head(b,ang,c);}
+function label(x,y,t,c,bold){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','middle');e.setAttribute('fill',c);if(bold)e.setAttribute('font-weight','700');e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',5*U);e.setAttribute('paint-order','stroke');e.textContent=t;svg.appendChild(e);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),dim=C('--dim');
+ arrow(pt('c1','r'),pt('c2','l'),ink);arrow(pt('c2','r'),pt('c3','l'),ink);
+ arrow(pt('c3','r'),pt('c4','l'),ink);arrow(pt('c4','r'),pt('c5','l'),ink);
+ // ⑤ → ① 순환 (아래 점선)
+ const a=pt('c5','b',.5),b=pt('c1','b',.5),box=svg.getBoundingClientRect();
+ const y=box.height-2*U;
+ stroke(`M${a[0]} ${a[1]} L${a[0]} ${y} L${b[0]} ${y} L${b[0]} ${b[1]+6.2*U*.7}`,dim,{dash:1});
+ head([b[0],b[1]],-Math.PI/2,dim);
+ label((a[0]+b[0])/2,y,'↻ 다시 ①로',dim,1);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

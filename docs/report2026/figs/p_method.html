@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko" data-kind="p" data-w="285" data-h="42">
+<head><meta charset="utf-8"><title>p_method</title>
+<link rel="stylesheet" href="../design/base.css">
+<style>
+html,body{height:100%} body{word-break:keep-all}
+.fig{gap:2mm}
+.fill{position:relative;display:flex;flex-direction:column;gap:2mm;min-height:0}
+.lane{flex:1;display:flex;align-items:center;gap:6.5mm;min-height:0}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.2mm;padding:1mm 2mm}
+.box .h{font-weight:700;white-space:nowrap} .box .d{color:var(--dim);white-space:nowrap}
+#vlm{background:var(--tint);border-color:color-mix(in srgb,var(--vlm) 45%,transparent)}
+#vlm .h{color:var(--vlm)}
+.loop{display:flex;align-items:center;gap:3mm;color:var(--dim);flex:none;white-space:nowrap}
+.loop b{color:var(--ink)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head>
+<body><div class="fig">
+<div class="t">영상은 저장하지 않는다 — 세고, 위험 순간만 판단한다 <span class="sub">Fast 상시 15 fps + Slow 위험 순간만</span></div>
+<div class="fill" data-fit="flow">
+ <div class="lane">
+  <div class="panel box" id="cam"><div class="h">카메라</div><div class="d">720p</div></div>
+  <div class="panel box" id="det"><div class="h">Fast 검출·추적</div><div class="d">YOLO·TensorRT</div></div>
+  <div class="panel box" id="hom"><div class="h">실측 좌표</div><div class="d">호모그래피 (m)</div></div>
+  <div class="panel box" id="k"><div class="h">K1·K2·K3 지표</div><div class="d">속도·정차·근접</div></div>
+  <div class="panel box" id="vlm"><div class="h">Slow 사유 태그</div><div class="d">VLM · 2~4 s</div></div>
+  <div class="panel box" id="db"><div class="h">DB</div><div class="d">enum만 · 영상 0</div></div>
+ </div>
+ <div class="loop"><b>↩ 검증 루프</b><span class="chip c-ok">수동 대조 ±10% · ±3 km/h</span><span class="chip c-ok">라벨 404건</span><span>→ 규칙 갱신 v3 · h3</span></div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=1.65,C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:[x,y+h*f];};
+function arrow(a,b,c,dash){const hl=6.2*U,ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+ const p=document.createElementNS(NS,'path');p.setAttribute('d',`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`);
+ p.setAttribute('stroke',c);p.setAttribute('stroke-width',1.8*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');
+ if(dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);
+ const cs2=Math.cos(ang),s=Math.sin(ang);
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs2*hl-s*hl*.6} ${b[1]-s*hl+cs2*hl*.6} L${b[0]-cs2*hl+s*hl*.6} ${b[1]-s*hl-cs2*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),vlm=C('--vlm');
+ arrow(pt('cam','r'),pt('det','l'),ink);arrow(pt('det','r'),pt('hom','l'),ink);
+ arrow(pt('hom','r'),pt('k','l'),ink);
+ arrow(pt('k','r'),pt('vlm','l'),vlm,1);arrow(pt('vlm','r'),pt('db','l'),vlm);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

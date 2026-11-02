@@ -1,0 +1,202 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Pipeline",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main",
+        "label": "CSV에서 리포트까지",
+        "focus": [
+          "extract",
+          "clean",
+          "boundary",
+          "metrics",
+          "crosscheck",
+          "deliver"
+        ],
+        "note": "추출 CSV가 전처리·경계 분리를 거쳐 지표와 산출물이 되는 경로."
+      },
+      {
+        "id": "verify",
+        "label": "검증 경로",
+        "focus": [
+          "boundary",
+          "crosscheck",
+          "manual"
+        ],
+        "note": "규칙 경계 분리와 수동 대조가 수치 신뢰도를 받친다."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "data",
+      "label": "데이터"
+    },
+    {
+      "id": "analysis",
+      "label": "분석"
+    },
+    {
+      "id": "output",
+      "label": "산출"
+    }
+  ],
+  "phases": [
+    {
+      "id": "prep",
+      "label": "파악·전처리",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "calc",
+      "label": "분석·검증",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "out",
+      "label": "시각화·리포트",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "extract",
+    "clean",
+    "boundary",
+    "metrics",
+    "crosscheck",
+    "deliver"
+  ],
+  "nodes": [
+    {
+      "id": "extract",
+      "lane": "data",
+      "col": 0,
+      "type": "database",
+      "label": "CSV 추출본",
+      "sublabel": "SQLite→10개 테이블",
+      "width": 136
+    },
+    {
+      "id": "clean",
+      "lane": "data",
+      "col": 1,
+      "type": "backend",
+      "label": "전처리",
+      "sublabel": "1970 오염 제외·KST 변환",
+      "width": 136
+    },
+    {
+      "id": "boundary",
+      "lane": "analysis",
+      "col": 2,
+      "type": "security",
+      "label": "규칙 경계 분리",
+      "sublabel": "v3·금지구역·pv2",
+      "tag": "전후 비교 금지",
+      "width": 136
+    },
+    {
+      "id": "metrics",
+      "lane": "analysis",
+      "col": 3,
+      "type": "backend",
+      "label": "지표 계산",
+      "sublabel": "K1·K2·K3·패턴·VLM",
+      "width": 136
+    },
+    {
+      "id": "crosscheck",
+      "lane": "analysis",
+      "col": 4,
+      "type": "security",
+      "label": "교차검증",
+      "sublabel": "독립 재계산·검산",
+      "width": 136
+    },
+    {
+      "id": "manual",
+      "lane": "data",
+      "col": 4,
+      "type": "external",
+      "label": "수동 대조",
+      "sublabel": "클립 65건 정답지",
+      "width": 136
+    },
+    {
+      "id": "deliver",
+      "lane": "output",
+      "col": 5,
+      "type": "backend",
+      "label": "시각화·리포트",
+      "sublabel": "차트 8장→HTML·stats.json",
+      "width": 136
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "extract",
+      "to": "clean",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "clean",
+      "to": "boundary",
+      "label": "유효 구간",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "boundary",
+      "to": "metrics",
+      "variant": "default"
+    },
+    {
+      "id": "e4",
+      "from": "metrics",
+      "to": "crosscheck",
+      "label": "핵심 수치",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "manual",
+      "to": "crosscheck",
+      "label": "정답지",
+      "variant": "dashed"
+    },
+    {
+      "id": "e6",
+      "from": "crosscheck",
+      "to": "deliver",
+      "label": "확정 수치",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "경계 규율",
+      "items": [
+        "카운트 규칙 v3(10-17) 이전 통행량은 절대치 분석에서 제외",
+        "금지구역 재설정(10-20) 전후 K2 비교 금지"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "검증 계약",
+      "items": [
+        "핵심 수치는 독립 스크립트로 재계산 교차검증",
+        "수동 대조 누적 판정(±10%·3km/h)으로 신뢰도 산정"
+      ]
+    }
+  ]
+}

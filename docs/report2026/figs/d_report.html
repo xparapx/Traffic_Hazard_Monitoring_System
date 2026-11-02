@@ -1,0 +1,41 @@
+<!doctype html><html lang="ko" data-kind="r" data-w="159" data-h="58"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 집계 → LLM 초안(제안만) → 게이트① 수치 검증기 → 게이트② 사람 승인 → 발송, 거부는 점선 회귀 */
+.fill{position:relative;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 9mm;gap:1mm 4.5mm}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.4mm;grid-row:1;align-items:flex-start}
+.box .h{font-weight:700}
+#llm .h{color:var(--vlm)}
+#ver{border-color:var(--conf);border-width:.45mm} #ver .h{color:var(--conf)}
+#hum{border-color:var(--ok);border-width:.45mm} #hum .h{color:var(--ok)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t">주간 리포트 — LLM은 제안만, 게이트 2개를 지나야 발송</div>
+<div class="fill">
+ <div class="panel box" id="agg" data-fit="agg"><div class="h">주간 수치 집계</div><div class="dim">DB 원본</div></div>
+ <div class="panel box" id="llm" data-fit="llm"><div class="h">로컬 LLM 초안</div><span class="chip c-vlm">제안만</span></div>
+ <div class="panel box" id="ver" data-fit="ver"><span class="chip c-conf">게이트 ①</span><div class="h">수치 검증기</div><div>원본 대조 — 변조·금칙어 거부</div></div>
+ <div class="panel box" id="hum" data-fit="hum"><span class="chip c-ok">게이트 ②</span><div class="h">사람 승인</div><div>승인해야 발송</div></div>
+ <div class="panel box" id="snd" data-fit="snd"><div class="h">발송</div><div class="dim">주간 리포트</div></div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function stroke(d,c,o={}){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke',c);p.setAttribute('stroke-width',(o.w||1.8)*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);}
+function head(b,ang,c){const hl=6.2*U,cs=Math.cos(ang),s=Math.sin(ang);const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function arrow(a,b,c,o={}){const hl=6.2*U,ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+ stroke(`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`,c,o);head(b,ang,c);}
+function label(x,y,t,c,bold){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','middle');e.setAttribute('fill',c);if(bold)e.setAttribute('font-weight','700');e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',5*U);e.setAttribute('paint-order','stroke');e.textContent=t;svg.appendChild(e);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),conf=C('--conf'),ok=C('--ok');
+ arrow(pt('agg','r'),pt('llm','l'),ink);arrow(pt('llm','r'),pt('ver','l'),ink);
+ arrow(pt('ver','r'),pt('hum','l'),ink);arrow(pt('hum','r'),pt('snd','l'),ok);
+ // 검증기 거부 → 초안으로 회귀 (점선)
+ const a=pt('ver','b',.5),b=pt('llm','b',.5),box=svg.getBoundingClientRect();
+ const y=box.height-3*U;
+ stroke(`M${a[0]} ${a[1]} L${a[0]} ${y} L${b[0]} ${y} L${b[0]} ${b[1]+6.2*U*.7}`,conf,{dash:1});
+ head([b[0],b[1]],-Math.PI/2,conf);
+ label((a[0]+b[0])/2,y,'변조·금칙어 → 거부',conf,1);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

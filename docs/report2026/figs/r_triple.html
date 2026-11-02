@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko" data-kind="r" data-w="159" data-h="56">
+<head><meta charset="utf-8"><title>r_triple</title>
+<link rel="stylesheet" href="../design/base.css">
+<style>html,body{height:100%} body{word-break:keep-all} .fill svg{width:100%;height:100%}</style>
+</head>
+<body><div class="fig">
+<div class="t">실측을 결합하자 오탐이 0이 됐다 <span class="sub">3중 기록 같은 이벤트 비교 · h3 = person_near 실측 교정(11-02)</span></div>
+<div class="fill" data-fit="plot"><svg class="main" width="100%" height="100%"></svg></div>
+</div>
+<script>
+const root=document.documentElement,KIND=root.dataset.kind,P=KIND==='p',U=P?1.65:1;
+const cs=getComputedStyle(root),C=n=>cs.getPropertyValue(n).trim();
+const K={spd:C('--spd'),dwell:C('--dwell'),conf:C('--conf'),veh:C('--veh'),ok:C('--ok'),yolo:C('--yolo'),vlm:C('--vlm'),hyb:C('--hyb'),thr:C('--thr'),tint:C('--tint'),ink:C('--ink'),dim:C('--dim'),grid:C('--grid'),row:C('--rowline')};
+const FS=parseFloat(getComputedStyle(document.body).fontSize);
+const PX=96/25.4,mm=v=>v*PX,LW=mm(P?0.85:0.55),LT=mm(P?0.4:0.26),NS='http://www.w3.org/2000/svg';
+function E(t,a={},p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+function T(p,x,y,s,o={}){const e=E('text',{x,y,'text-anchor':o.a||'start','dominant-baseline':o.b||'auto',fill:o.c||K.ink,'font-weight':o.w||400},p);
+ if(o.halo){e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',mm(P?1.0:0.65));e.setAttribute('paint-order','stroke');e.setAttribute('stroke-linejoin','round');}
+ e.textContent=s;return e;}
+let _m;function tw(s,w){if(!_m)_m=E('svg',{width:10,height:10,style:'position:absolute;left:-9999px;top:0'},document.body);const t=E('text',{'font-weight':w||400},_m);t.textContent=s;const l=t.getComputedTextLength();_m.removeChild(t);return l;}
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const lin=(d0,d1,r0,r1)=>v=>r0+(v-d0)/(d1-d0)*(r1-r0);
+function frame(x,y,W,H,o){const lw=o.yLabels?Math.max(...o.yLabels.map(s=>tw(s)))+FS*0.5:0;
+ const left=x+(o.left||0)+lw,top=y+(o.top!=null?o.top:(o.yTitle?FS*1.85:FS*0.7)),right=x+W-(o.right!=null?o.right:FS*0.5),
+ bottom=y+H-((o.xLabels?FS*1.45:0)+(o.xTitle?FS*1.3:0)+(o.bottom||0));
+ return {x0:left,x1:right,y0:top,y1:bottom,lx:x+(o.left||0)};}
+function yAxis(g,f,sy,ticks,o={}){for(const t of ticks){const y=sy(t);E('line',{x1:f.x0,x2:f.x1,y1:y,y2:y,stroke:K.row,'stroke-width':LT},g);
+ if(!o.noLabel)T(g,f.x0-FS*0.45,y,o.fmt?o.fmt(t):fmt(t),{a:'end',b:'middle',c:K.dim});}
+ if(o.title)T(g,o.noLabel?f.x0:f.lx,f.y0-FS*0.95,o.title,{c:K.dim});}
+function cats(g,f,sx,names,cols){E('line',{x1:f.x0,x2:f.x1,y1:f.y1,y2:f.y1,stroke:K.grid,'stroke-width':LT},g);
+ names.forEach((nm,i)=>{const lines=Array.isArray(nm)?nm:[nm];
+  lines.forEach((ln,j)=>T(g,sx(i),f.y1+FS*1.2+j*FS*1.15,ln,{a:'middle',c:cols?cols[i]:K.dim,w:cols?600:400}));});}
+function barset(g,x,y,Wp,Hp,vals,names,colf,yTitle,sub,labf,yt,ymax){
+ yt=yt||[0,30,60,90];ymax=ymax||97;
+ const f=frame(x,y,Wp,Hp,{yLabels:yt.map(String),yTitle:1,xLabels:1,bottom:FS*2.5,right:FS*0.3});
+ const sx=lin(-0.5,vals.length-0.5,f.x0,f.x1), sy=lin(0,ymax,f.y1,f.y0), bw=(f.x1-f.x0)/vals.length*0.56;
+ yAxis(g,f,sy,yt,{title:yTitle});
+ cats(g,f,sx,names);
+ vals.forEach((v,i)=>{const [fill,op]=colf(i);
+  if(v>0)E('rect',{x:sx(i)-bw/2,y:sy(v),width:bw,height:f.y1-sy(v),fill,opacity:op,rx:mm(0.3)},g);
+  else E('line',{x1:sx(i)-bw/2,x2:sx(i)+bw/2,y1:f.y1-LT,y2:f.y1-LT,stroke:fill,'stroke-width':LT*3},g);
+  const lab=labf?labf(v):String(v);
+  const e=T(g,sx(i),sy(v)-FS*0.35,lab,{a:'middle',w:700,c:v===0||lab==='1.1%'?K.hyb:K.ink,halo:1});
+  if(v===0||lab==='1.1%')e.setAttribute('style','font-size:calc(var(--fs-t)*1.1)');});
+ T(g,(f.x0+f.x1)/2,f.y1+FS*3.6,sub,{a:'middle',c:K.dim});
+ return f;}
+function draw(svg){const W=svg.clientWidth,H=svg.clientHeight,g=E('g',{},svg);
+ const lw=W*0.54;
+ // 왼쪽: 확정 비위험 89건 중 잘못된 DANGER
+ barset(g,0,0,lw,H,[89,89,85,0],['Fast','Slow',['Hybrid','h2'],['Hybrid','h3']],
+  i=>[[K.yolo,1],[K.vlm,1],[K.hyb,0.45],[K.hyb,1]][i],'잘못된 DANGER (건)','확정 비위험 89건 (Slow 가동 시기 라벨)');
+ // 오른쪽: 실가동 정차 5,541건 DANGER 비중
+ barset(g,lw+FS*0.8,0,W-lw-FS*0.8,H,[100,89.3,1.1],['Fast','h2','h3'],
+  i=>[[K.yolo,1],[K.hyb,0.45],[K.hyb,1]][i],'DANGER 비중 (%)','실가동 정차 5,541건',v=>v+'%',[0,50,100],112);
+}
+function run(fn){const svg=document.querySelector('svg.main');const go=()=>{while(svg.firstChild)svg.removeChild(svg.firstChild);fn(svg);};go();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);}
+run(draw);
+</script></body></html>

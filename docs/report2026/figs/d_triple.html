@@ -1,0 +1,54 @@
+<!doctype html><html lang="ko" data-kind="r" data-w="159" data-h="58"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 좌 이벤트 1건 → 중앙 세 판정(회색·보라·주황) → 우 DB 3행, 아래 사람 정답지가 셋을 채점 */
+.fill{position:relative;display:grid;grid-template-columns:32mm 11mm 56mm 11mm 1fr;grid-template-rows:1fr 1fr 1fr 2.2mm 9.5mm;gap:2mm 0}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.2mm}
+.box .h{font-weight:700}
+#ev{grid-column:1;grid-row:1/4} #db{grid-column:5;grid-row:1/4}
+#my{grid-column:3;grid-row:1} #mv{grid-column:3;grid-row:2} #mh{grid-column:3;grid-row:3}
+#hum{grid-column:3/6;grid-row:5}
+.mode{flex-direction:row;align-items:center;gap:1.6mm;justify-content:flex-start}
+#my{border-color:var(--yolo)} #mv{border-color:var(--vlm)}
+#mh{border-color:var(--hyb);border-width:.45mm;background:color-mix(in srgb,var(--hyb) 9%,#fff)}
+#hum{border-color:var(--ok);border-width:.45mm;flex-direction:row;align-items:center;gap:1.6mm;justify-content:center}
+.rowline{display:flex;align-items:center;gap:1.2mm}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t">3중 기록 — 한 이벤트, 세 판정, 한 정답지 <span class="sub">셋을 같은 기준으로 채점</span></div>
+<div class="fill">
+ <div class="panel box" id="ev" data-fit="ev"><div class="h">위험 이벤트 1건</div><div class="dim">같은 순간, 같은 입력</div></div>
+ <div class="panel box mode" id="my" data-fit="my"><span class="c-yolo"><span class="dot"></span><b>Fast(YOLO)</b></span><span class="dim">— 규칙만</span></div>
+ <div class="panel box mode" id="mv" data-fit="mv"><span class="c-vlm"><span class="dot"></span><b>Slow(VLM)</b></span><span class="dim">— 모델 판단만</span></div>
+ <div class="panel box mode" id="mh" data-fit="mh"><span class="c-hyb"><span class="dot"></span><b>Hybrid</b></span><span class="dim">— 검출 + 사유</span></div>
+ <div class="panel box" id="db" data-fit="db"><div class="h">DB — 나란히 3행</div>
+  <div class="rowline c-yolo"><span class="dot"></span>Fast 행</div>
+  <div class="rowline c-vlm"><span class="dot"></span>Slow 행</div>
+  <div class="rowline c-hyb"><span class="dot"></span>Hybrid 행</div></div>
+ <div class="panel box" id="hum" data-fit="hum"><span class="c-ok"><span class="dot"></span><b>사람 수동 라벨 = 정답지</b></span><span class="dim">— 세 판정을 같은 기준으로 채점</span></div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function stroke(d,c,o={}){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke',c);p.setAttribute('stroke-width',(o.w||1.8)*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);}
+function arrow(a,b,c,o={}){const hl=6.2*U;let ang;
+ if(o.curve){const mx=(a[0]+b[0])/2;ang=b[0]>a[0]?0:Math.PI;stroke(`M${a[0]} ${a[1]} C${mx} ${a[1]} ${mx} ${b[1]} ${b[0]-Math.cos(ang)*hl*.7} ${b[1]}`,c,o);}
+ else{ang=Math.atan2(b[1]-a[1],b[0]-a[0]);stroke(`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`,c,o);}
+ const cs=Math.cos(ang),s=Math.sin(ang);
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function label(x,y,t,c,bold){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','middle');e.setAttribute('fill',c);if(bold)e.setAttribute('font-weight','700');e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',5*U);e.setAttribute('paint-order','stroke');e.textContent=t;svg.appendChild(e);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),ok=C('--ok'),yolo=C('--yolo'),vlm=C('--vlm'),hyb=C('--hyb');
+ arrow(pt('ev','r',.3),pt('my','l'),ink,{curve:1});
+ arrow(pt('ev','r',.5),pt('mv','l'),ink,{curve:1});
+ arrow(pt('ev','r',.7),pt('mh','l'),ink,{curve:1});
+ arrow(pt('my','r'),pt('db','l',.3),yolo,{curve:1});
+ arrow(pt('mv','r'),pt('db','l',.5),vlm,{curve:1});
+ arrow(pt('mh','r'),pt('db','l',.7),hyb,{curve:1});
+ // 사람 정답지 → DB 채점
+ const dbb=pt('db','b',.5),humt=pt('hum','t',.5);
+ arrow([dbb[0],humt[1]],dbb,ok);
+ label(dbb[0]+14*1.9*U,(humt[1]+dbb[1])/2,'채점',ok,1);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

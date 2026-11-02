@@ -1,0 +1,53 @@
+<!doctype html><html lang="ko" data-kind="r" data-w="159" data-h="66"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 두 레인: 위 = 상시 15fps(흰 바탕), 아래 = 위험 순간만 2~4s(틴트 바탕) */
+.fill{position:relative;display:flex;flex-direction:column;gap:3mm}
+.lane{flex:1;display:flex;align-items:center;gap:4.5mm;border:.3mm solid var(--grid);border-radius:2.2mm;padding:1.6mm 2mm;min-height:0}
+.lane .tag{flex:none;width:15mm;font-weight:700;line-height:1.25}
+#lane2{background:var(--tint);border-color:color-mix(in srgb,var(--vlm) 45%,transparent)} #lane2 .tag{color:var(--vlm)}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.3mm}
+.box .h{font-weight:700}
+.kcol{display:flex;flex-direction:column;gap:.8mm}
+#vlm .h{color:var(--vlm)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t">판정은 두 루프 — Fast는 상시, Slow는 위험 순간만 <span class="sub">Slow가 멈춰도 K1~K3는 계속</span></div>
+<div class="fill">
+ <div class="lane" id="lane1">
+  <div class="tag">Fast<br>Loop<br><span style="font-weight:400">상시<br>15 fps</span></div>
+  <div class="panel box" id="cam" data-fit="cam"><div class="h">카메라</div><div class="dim">720p</div></div>
+  <div class="panel box" id="det" data-fit="det"><div class="h">검출(YOLO)</div><div class="dim">TensorRT</div></div>
+  <div class="panel box" id="trk" data-fit="trk"><div class="h">IoU 추적</div></div>
+  <div class="panel box" id="hom" data-fit="hom"><div class="h">실측 좌표</div><div class="dim">호모그래피 &lt;0.3 m</div></div>
+  <div class="box kcol" id="k" data-fit="k"><span class="chip c-spd">K1 속도 p85 km/h</span><span class="chip c-dwell">K2 금지구역 정차</span><span class="chip c-conf">K3 근접 2.0 m</span></div>
+ </div>
+ <div class="lane" id="lane2">
+  <div class="tag">Slow<br>Loop<br><span style="font-weight:400">위험<br>순간만<br>2~4 s</span></div>
+  <div class="panel box" id="evt" data-fit="evt"><div class="h">위험 이벤트</div><div class="dim">정차 ∧ 보행자</div></div>
+  <div class="panel box" id="vlm" data-fit="vlm"><div class="h">Slow 판정</div><div class="dim">VLM·Qwen3.5-4B 4bit</div></div>
+  <div class="panel box" id="enum" data-fit="enum"><div class="h">정차 사유 enum</div><div class="chips" style="display:flex;flex-wrap:wrap;gap:.8mm"><span class="chip c-vlm">승하차</span><span class="chip c-vlm">택배·배달</span><span class="chip c-vlm">신호 대기</span><span class="chip c-vlm">불법 정차</span><span class="chip c-vlm">unknown</span></div></div>
+  <div class="panel box" id="db" data-fit="db"><div class="h">DB</div><div class="dim">enum만 저장</div></div>
+ </div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function stroke(d,c,o={}){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke',c);p.setAttribute('stroke-width',(o.w||1.8)*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);}
+function arrow(a,b,c,o={}){const hl=6.2*U;let ang;
+ if(o.vcurve){const my=(a[1]+b[1])/2;ang=b[1]>a[1]?Math.PI/2:-Math.PI/2;stroke(`M${a[0]} ${a[1]} C${a[0]} ${my} ${b[0]} ${my} ${b[0]} ${b[1]-(b[1]>a[1]?1:-1)*hl*.7}`,c,o);}
+ else{ang=Math.atan2(b[1]-a[1],b[0]-a[0]);stroke(`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`,c,o);}
+ const cs=Math.cos(ang),s=Math.sin(ang);
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function label(x,y,t,c,bold){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','middle');e.setAttribute('fill',c);if(bold)e.setAttribute('font-weight','700');e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',5*U);e.setAttribute('paint-order','stroke');e.textContent=t;svg.appendChild(e);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),vlm=C('--vlm');const lh=14*1.3*U;
+ arrow(pt('cam','r'),pt('det','l'),ink);arrow(pt('det','r'),pt('trk','l'),ink);
+ arrow(pt('trk','r'),pt('hom','l'),ink);arrow(pt('hom','r'),pt('k','l'),ink);
+ arrow(pt('evt','r'),pt('vlm','l'),vlm);arrow(pt('vlm','r'),pt('enum','l'),vlm);arrow(pt('enum','r'),pt('db','l'),vlm);
+ // 분기: K2 → 위험 이벤트 (점선)
+ const a=pt('k','b',.35),b=pt('evt','t',.5);arrow([a[0],a[1]+1],b,vlm,{vcurve:1,dash:1});
+ label((a[0]+b[0])/2,(a[1]+b[1])/2,'이벤트 순간만 분기',vlm,1);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

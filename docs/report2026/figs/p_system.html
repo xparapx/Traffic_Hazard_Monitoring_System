@@ -1,0 +1,44 @@
+<!doctype html><html lang="ko" data-kind="p" data-w="140" data-h="83"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 위 현장(카메라→보드) · 가운데 가로 점선 = 프라이버시 경계 · 아래 공유 */
+.fill{position:relative;display:flex;flex-direction:column;gap:2.6mm}
+.zone{display:flex;gap:4mm;min-height:0}
+#field{flex:1.7} #share{flex:1}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.3mm}
+.box .h{font-weight:700;line-height:1.25}
+#cam{flex:none;width:27mm;align-items:center;text-align:center}
+#board{flex:1;border-color:var(--ink);border-width:.7mm}
+.bnd{flex:none;display:flex;align-items:center;gap:3mm;color:var(--ok);font-weight:700}
+.bnd::before,.bnd::after{content:"";flex:1;border-top:.7mm dashed var(--ok)}
+#pub,#adm{flex:1}
+#adm{background:var(--panel2)}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t"><span class="idx">2</span>영상은 안 나가고, 숫자만 나간다</div>
+<div class="fill">
+ <div class="zone" id="field">
+  <div class="panel box" id="cam" data-fit="cam"><div class="h">카메라</div><div class="dim">720p</div></div>
+  <div class="panel box" id="board" data-fit="board"><div class="h">Jetson 보드 — 검출·추적·좌표</div><div>K1 속도 · K2 정차 · K3 근접</div><div>위험 순간만 Slow(VLM) enum</div><div><b>영상 저장 0</b></div></div>
+ </div>
+ <div class="bnd">경계 밖으로는 수치·enum만</div>
+ <div class="zone" id="share">
+  <div class="panel box" id="pub" data-fit="pub"><div class="h">공개 대시보드 — QR</div></div>
+  <div class="panel box" id="adm" data-fit="adm"><div class="h">관리 화면 — 보안망 전용</div></div>
+ </div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function arrow(a,b,c,o={}){const hl=6.2*U,w=1.8*U;const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),cs=Math.cos(ang),s=Math.sin(ang);
+ const e=[b[0]-cs*hl*.7,b[1]-s*hl*.7];const p=document.createElementNS(NS,'path');p.setAttribute('d',`M${a[0]} ${a[1]} L${e[0]} ${e[1]}`);
+ p.setAttribute('stroke',c);p.setAttribute('stroke-width',w);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl-s*hl*.6} ${b[1]-s*hl+cs*hl*.6} L${b[0]-cs*hl+s*hl*.6} ${b[1]-s*hl-cs*hl*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function draw(){svg.innerHTML='';const ink=C('--ink');
+ arrow(pt('cam','r'),pt('board','l'),ink);
+ arrow(pt('board','b',.06),pt('pub','t',.3),ink);
+ arrow(pt('board','b',.96),pt('adm','t',.72),ink);}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

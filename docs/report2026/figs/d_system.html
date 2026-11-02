@@ -1,0 +1,64 @@
+<!doctype html><html lang="ko" data-kind="r" data-w="159" data-h="64"><head><meta charset="utf-8"><link rel="stylesheet" href="../design/base.css"><style>
+html,body{height:100%} body{word-break:keep-all}
+/* 좌 현장(도로→보드) · 중앙 프라이버시 경계(점선) · 우 공유 3단. 맨 위 5mm 띠에 경계 라벨 */
+.fill{position:relative;display:grid;grid-template-columns:27mm 7mm 56mm 13mm 1fr;grid-template-rows:4.5mm 1fr 1fr 1fr;gap:2mm 0}
+.box{display:flex;flex-direction:column;justify-content:center;gap:.3mm}
+.box .h{font-weight:700}
+#road{grid-column:1;grid-row:2/5} #board{grid-column:3;grid-row:2/5} #bnd{grid-column:4;grid-row:2/5}
+#pub{grid-column:5;grid-row:2} #adm{grid-column:5;grid-row:3} #rep{grid-column:5;grid-row:4}
+#board{border-color:var(--ink);border-width:.45mm}
+#adm{background:var(--panel2)}
+.chips{display:flex;gap:1mm;flex-wrap:wrap;margin:.4mm 0}
+#pub{position:relative;padding-right:11mm}
+.qr{position:absolute;right:2mm;top:50%;transform:translateY(-50%);width:7.5mm;height:7.5mm}
+#ov{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+</style></head><body><div class="fig">
+<div class="t">시스템 구성 — 영상은 보드 안에서 끝나고, 밖으로는 수치·enum만</div>
+<div class="fill">
+ <div class="panel box" id="road" data-fit="road"><div class="h">교문 앞 도로</div>
+  <svg viewBox="0 0 100 44" style="width:100%;margin:.6mm 0">
+   <rect x="0" y="12" width="100" height="26" rx="2" style="fill:var(--cotton)"/>
+   <line x1="4" y1="25" x2="96" y2="25" style="stroke:#fff;stroke-width:1.6" stroke-dasharray="7 5"/>
+   <rect x="12" y="16" width="16" height="7" rx="2.4" style="fill:var(--veh)"/>
+   <rect x="58" y="29" width="16" height="7" rx="2.4" style="fill:var(--veh)"/>
+   <circle cx="42" cy="7" r="3.2" style="fill:var(--ped)"/>
+   <circle cx="52" cy="7" r="3.2" style="fill:var(--ped)"/>
+  </svg>
+  <div class="c-veh"><span class="dot"></span>차량 통행</div>
+  <div class="c-ped"><span class="dot"></span>보행자 통행</div>
+  <div class="dim">USB 카메라 720p</div></div>
+ <div class="panel box" id="board" data-fit="board"><div class="h">Jetson Orin Nano 8GB <span class="dim" style="font-weight:400;white-space:nowrap">— 교실 창가</span></div>
+  <div>Fast(YOLO) 검출·TensorRT</div>
+  <div>IoU 추적 → 실측 좌표 &lt;0.3 m</div>
+  <div class="chips"><span class="chip c-spd">K1 속도</span><span class="chip c-dwell">K2 정차</span><span class="chip c-conf">K3 근접</span></div>
+  <div>위험 순간만 Slow(VLM) → enum 태그</div>
+  <div><b>영상 저장 0</b> — 프레임 소멸</div></div>
+ <div id="bnd"></div>
+ <div class="panel box" id="pub" data-fit="pub"><svg class="qr" viewBox="0 0 7 7"><g style="fill:var(--ink)"><path d="M0 0h3v3H0zM1 1h1v1H1z" fill-rule="evenodd"/><path d="M4 0h3v3H4zM5 1h1v1H5z" fill-rule="evenodd"/><path d="M0 4h3v3H0zM1 5h1v1H1z" fill-rule="evenodd"/><rect x="4" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/></g></svg><div class="h">공개 대시보드</div><div>누구나 QR 접속</div></div>
+ <div class="panel box" id="adm" data-fit="adm"><div class="h">관리 화면</div><div>보안망 전용</div></div>
+ <div class="panel box" id="rep" data-fit="rep"><div class="h">주간 리포트</div><div>사람 승인 후 발송</div></div>
+ <svg id="ov"></svg>
+</div></div>
+<script>
+const svg=document.getElementById('ov'),NS='http://www.w3.org/2000/svg';
+const U=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u'))||1;
+const C=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pt=(id,s,f=.5)=>{const r=document.getElementById(id).getBoundingClientRect(),b=svg.getBoundingClientRect();const x=r.left-b.left,y=r.top-b.top,w=r.width,h=r.height;return s==='r'?[x+w,y+h*f]:s==='l'?[x,y+h*f]:s==='t'?[x+w*f,y]:[x+w*f,y+h];};
+function stroke(d,c,o={}){const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('stroke',c);p.setAttribute('stroke-width',(o.w||1.8)*U);p.setAttribute('fill','none');p.setAttribute('stroke-linecap','round');if(o.dash)p.setAttribute('stroke-dasharray',`${2.6*U} ${2.2*U}`);svg.appendChild(p);}
+function arrow(a,b,c,o={}){const hl=6.2*U;let ang;
+ if(o.curve){const mx=(a[0]+b[0])/2;ang=b[0]>a[0]?0:Math.PI;stroke(`M${a[0]} ${a[1]} C${mx} ${a[1]} ${mx} ${b[1]} ${b[0]-Math.cos(ang)*hl*.7} ${b[1]}`,c,o);}
+ else{ang=Math.atan2(b[1]-a[1],b[0]-a[0]);stroke(`M${a[0]} ${a[1]} L${b[0]-Math.cos(ang)*hl*.7} ${b[1]-Math.sin(ang)*hl*.7}`,c,o);}
+ const cs=Math.cos(ang),s=Math.sin(ang),hl2=6.2*U;
+ const h=document.createElementNS(NS,'path');h.setAttribute('d',`M${b[0]} ${b[1]} L${b[0]-cs*hl2-s*hl2*.6} ${b[1]-s*hl2+cs*hl2*.6} L${b[0]-cs*hl2+s*hl2*.6} ${b[1]-s*hl2-cs*hl2*.6} Z`);h.setAttribute('fill',c);svg.appendChild(h);}
+function label(x,y,t,c,bold){const e=document.createElementNS(NS,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor','middle');e.setAttribute('dominant-baseline','middle');e.setAttribute('fill',c);if(bold)e.setAttribute('font-weight','700');e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',5*U);e.setAttribute('paint-order','stroke');e.textContent=t;svg.appendChild(e);}
+function draw(){svg.innerHTML='';const ink=C('--ink'),ok=C('--ok');
+ arrow(pt('road','r'),pt('board','l'),ink);
+ // 프라이버시 경계선 + 라벨(맨 위 띠)
+ const bt=pt('bnd','t',.5),bb=pt('bnd','b',.5);
+ stroke(`M${bt[0]} ${bt[1]} L${bb[0]} ${bb[1]}`,ok,{dash:1,w:1.4});
+ label(bt[0],bt[1]-9*U,'프라이버시 경계 — 밖으로는 수치·enum만',ok,1);
+ arrow(pt('board','r',.14),pt('pub','l'),ink,{curve:1});
+ arrow(pt('board','r',.5),pt('adm','l'),ink,{curve:1});
+ arrow(pt('board','r',.86),pt('rep','l'),ink,{curve:1});}
+draw();document.fonts.ready.then(draw);
+</script></body></html>

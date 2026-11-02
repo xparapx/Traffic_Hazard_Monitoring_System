@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko" data-kind="p" data-w="140" data-h="83">
+<head><meta charset="utf-8"><title>p_triple</title>
+<link rel="stylesheet" href="../design/base.css">
+<style>html,body{height:100%} body{word-break:keep-all}
+.fill{display:flex;gap:4mm} .fill svg{flex:1;min-width:0;height:100%}
+aside{flex:none;width:40mm;display:flex;flex-direction:column;justify-content:center;gap:1.6mm}
+aside .lab{color:var(--dim)}
+</style>
+</head>
+<body><div class="fig">
+<div class="t"><span class="idx">6</span>보는 AI vs 판단 AI <span class="sub">오탐이 0이 되기까지</span></div>
+<div class="fill" data-fit="plot"><svg class="main"></svg>
+<aside>
+ <div class="kpi" style="color:var(--hyb)">0건</div>
+ <div class="lab">h3 오탐 · 비위험 89건 중</div>
+ <div class="kpi">0.061</div>
+ <div class="lab">Fast 정밀도 · 라벨 404건</div>
+</aside>
+</div>
+</div>
+<script>
+const root=document.documentElement,KIND=root.dataset.kind,P=KIND==='p',U=P?1.65:1;
+const cs=getComputedStyle(root),C=n=>cs.getPropertyValue(n).trim();
+const K={ok:C('--ok'),yolo:C('--yolo'),vlm:C('--vlm'),hyb:C('--hyb'),ink:C('--ink'),dim:C('--dim'),grid:C('--grid'),row:C('--rowline')};
+const FS=parseFloat(getComputedStyle(document.body).fontSize);
+const PX=96/25.4,mm=v=>v*PX,LT=mm(P?0.4:0.26),NS='http://www.w3.org/2000/svg';
+function E(t,a={},p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+function T(p,x,y,s,o={}){const e=E('text',{x,y,'text-anchor':o.a||'start','dominant-baseline':o.b||'auto',fill:o.c||K.ink,'font-weight':o.w||400},p);
+ if(o.halo){e.setAttribute('stroke','#fff');e.setAttribute('stroke-width',mm(P?1.0:0.65));e.setAttribute('paint-order','stroke');e.setAttribute('stroke-linejoin','round');}
+ e.textContent=s;return e;}
+let _m;function tw(s,w){if(!_m)_m=E('svg',{width:10,height:10,style:'position:absolute;left:-9999px;top:0'},document.body);const t=E('text',{'font-weight':w||400},_m);t.textContent=s;const l=t.getComputedTextLength();_m.removeChild(t);return l;}
+const lin=(d0,d1,r0,r1)=>v=>r0+(v-d0)/(d1-d0)*(r1-r0);
+function draw(svg){const W=svg.clientWidth,H=svg.clientHeight,g=E('g',{},svg);
+ const vals=[89,85,0], names=[['Fast','단독'],['Hybrid','h2'],['Hybrid','h3 실측']], cols=[[K.yolo,1],[K.hyb,0.45],[K.hyb,1]];
+ const yt=[0,30,60,90], ylab=tw('90')+FS*0.5;
+ const x0=ylab, x1=W-FS*0.3, y0=FS*1.85, y1=H-FS*2.6;
+ const sx=lin(-0.5,2.5,x0,x1), sy=lin(0,97,y1,y0), bw=(x1-x0)/3*0.56;
+ for(const t of yt){E('line',{x1:x0,x2:x1,y1:sy(t),y2:sy(t),stroke:K.row,'stroke-width':LT},g);
+  T(g,x0-FS*0.45,sy(t),String(t),{a:'end',b:'middle',c:K.dim});}
+ T(g,0,y0-FS*0.75,'잘못된 DANGER (건)',{c:K.dim});
+ E('line',{x1:x0,x2:x1,y1,y2:y1,stroke:K.grid,'stroke-width':LT},g);
+ vals.forEach((v,i)=>{const [fill,op]=cols[i];
+  if(v>0)E('rect',{x:sx(i)-bw/2,y:sy(v),width:bw,height:y1-sy(v),fill,opacity:op,rx:mm(0.3*U)},g);
+  else E('line',{x1:sx(i)-bw/2,x2:sx(i)+bw/2,y1:y1-LT,y2:y1-LT,stroke:fill,'stroke-width':LT*3},g);
+  const e=T(g,sx(i),sy(v)-FS*0.35,String(v),{a:'middle',w:700,c:v===0?K.hyb:K.ink,halo:1});
+  if(v===0)e.setAttribute('style','font-size:calc(var(--fs-t)*1.15)');
+  names[i].forEach((ln,j)=>T(g,sx(i),y1+FS*1.2+j*FS*1.15,ln,{a:'middle',c:K.dim}));});
+}
+function run(fn){const svg=document.querySelector('svg.main');const go=()=>{while(svg.firstChild)svg.removeChild(svg.firstChild);fn(svg);};go();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);}
+run(draw);
+</script></body></html>

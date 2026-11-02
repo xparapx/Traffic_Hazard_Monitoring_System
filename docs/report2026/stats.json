@@ -1,0 +1,376 @@
+{
+  "_meta": {
+    "generated_at_kst": "2026-11-02T11:55:24.997298+09:00",
+    "pandas_version": "3.1.0",
+    "source": "SQLite export CSV (traffic_export, 2026-11-02 추출)",
+    "timezone": "모든 시각 KST(UTC+9) 변환",
+    "preprocess_log": [
+      "1970 에포크 오염 행 제외: counts 1행, speed_samples 2행, qc 1행",
+      "labels event_id 중복 22건은 최신 라벨 채택 (426 -> 404)"
+    ],
+    "updated_at_kst": "2026-11-02T11:55:28.236180+09:00"
+  },
+  "collection": {
+    "period_kst": {
+      "start": "2026-10-08",
+      "end": "2026-11-02"
+    },
+    "observed_days": 23,
+    "calendar_days": 26,
+    "missing_days": [
+      "2026-10-29",
+      "2026-10-30",
+      "2026-10-31"
+    ],
+    "partial_days_bucket_count": {
+      "2026-10-08": 126,
+      "2026-10-21": 164,
+      "2026-10-22": 188,
+      "2026-10-28": 12,
+      "2026-11-01": 72,
+      "2026-11-02": 122
+    },
+    "total_counted": {
+      "veh4": 259695,
+      "person": 13051,
+      "two_wheel": 217,
+      "unit": "건(5분 버킷 통행 카운트 합)",
+      "caution": "전 기간 합 — 10-17 카운트 규칙 v3 이전 과계수 포함, 절대치 인용은 traffic.total_counted_v3 사용"
+    },
+    "rows": {
+      "counts_5min": 8063,
+      "events": 11280,
+      "inferences": 31867,
+      "labels": 426,
+      "speed_samples": 172328,
+      "qc_5min": 7153,
+      "validation": 67
+    }
+  },
+  "traffic": {
+    "basis": "카운트 규칙 v3(2026-10-17) 이후 등교일만 — 이전 규칙은 과계수 확인되어 제외",
+    "total_counted_v3": {
+      "veh4": 92188,
+      "person": 2242,
+      "two_wheel": 41,
+      "unit": "건 (10-17 이후, 규칙 v3)"
+    },
+    "school_days_observed": 9,
+    "peak_am_slot_kst": {
+      "slot": "08:20",
+      "mean_n_per_5min": 66.1,
+      "top3": [
+        {
+          "slot": "08:20",
+          "mean_n": 66.1
+        },
+        {
+          "slot": "08:10",
+          "mean_n": 56.3
+        },
+        {
+          "slot": "08:15",
+          "mean_n": 54.3
+        }
+      ],
+      "unit": "등교일 평균 통행(veh4+person+two_wheel)/5분"
+    },
+    "hourly_rate_school_days": {
+      "window_am_total_per_hour": {
+        "person": 13.4,
+        "veh4": 650.0
+      },
+      "window_pm_total_per_hour": {
+        "person": 13.5,
+        "veh4": 581.8
+      },
+      "day_other_07_19_per_hour": {
+        "person": 7.5,
+        "two_wheel": 0.1,
+        "veh4": 471.2
+      },
+      "unit": "등교일 평균 통행량/시간"
+    },
+    "composition_pct_v3": {
+      "person": 2.4,
+      "two_wheel": 0.0,
+      "veh4": 97.6
+    }
+  },
+  "speed_k1": {
+    "n_samples_veh4": 172289,
+    "period": {
+      "start": "2026-10-18",
+      "end": "2026-11-02"
+    },
+    "p50_kmh": 20.2,
+    "p85_kmh": 28.9,
+    "max_kmh": 318.9,
+    "over_30kmh_pct": 12.1,
+    "over_40kmh_pct": 2.27,
+    "by_window": {
+      "am": {
+        "n": 12778,
+        "p50_kmh": 19.3,
+        "p85_kmh": 28.1,
+        "over30_pct": 10.9,
+        "over40_pct": 2.1
+      },
+      "pm": {
+        "n": 8995,
+        "p50_kmh": 19.5,
+        "p85_kmh": 27.8,
+        "over30_pct": 9.5,
+        "over40_pct": 1.6
+      },
+      "other": {
+        "n": 150516,
+        "p50_kmh": 20.4,
+        "p85_kmh": 29.0,
+        "over30_pct": 12.4,
+        "over40_pct": 2.3
+      }
+    },
+    "outliers": {
+      "n_over_80kmh": 344,
+      "pct_over_80kmh": 0.2,
+      "over_30_excl_gt80_pct": 12.0,
+      "note": "80km/h 초과 표본은 추적 글리치 추정 — 제외해도 p85·초과율 변동 0.1%p 이내"
+    },
+    "note": "속도 표본은 4점 캘리브레이션(h4, 2026-10-16) 이후. 30km/h=어린이보호구역 제한"
+  },
+  "events": {
+    "dwell_k2": {
+      "total_all_period": 10625,
+      "total_after_rezone_1020": 5585,
+      "days_after_rezone": 11,
+      "per_day_mean": 507.7,
+      "in_window_am": 72,
+      "in_window_pm": 290,
+      "duration_s": {
+        "p50": 51.7,
+        "p85": 170.3,
+        "max": 6506.1,
+        "n": 5585
+      },
+      "person_near_pct": 1.1,
+      "person_near_n": 5585,
+      "risk_danger_n": 4956,
+      "note": "금지구역 재설정(2026-10-20 10:40 KST) 이후만 집계 — 전후 직접 비교 불가"
+    },
+    "conflict_k3": {
+      "total": 655,
+      "days": 12,
+      "dist_m": {
+        "p50": 1.66,
+        "min": 0.09,
+        "n": 655
+      },
+      "in_window_am": 20,
+      "in_window_pm": 21,
+      "by_track_cls": {
+        "veh4": 638,
+        "two_wheel": 17
+      },
+      "missed_in_validation": 2,
+      "note": "실측 2m 이내 차량·보행자 근접. 수동 대조에서 미탐 2건 확인(missed_hazard). pos_x/pos_y는 이 추출본에서 0~1 정규화 화면 좌표(m 단위 아님)"
+    }
+  },
+  "vlm": {
+    "live_since": "2026-10-20 (backend=llama.cpp, Qwen3.5-4B Q4, prompt pv2, rules h2)",
+    "inference_rows": {
+      "total": 31867,
+      "live_pv2": 11083,
+      "fake_excluded": 10134
+    },
+    "labels": {
+      "n_rows": 426,
+      "n_events_dedup": 404,
+      "hazard_1": 28,
+      "dwell_labeled": 396,
+      "dwell_hazard_1": 24,
+      "conflict_labeled": 8,
+      "conflict_hazard_1": 4,
+      "hazard_rate_pct": 6.9
+    },
+    "yolo_only_baseline_dwell": {
+      "tp": 24,
+      "fp": 372,
+      "fn": 0,
+      "tn": 0,
+      "precision": 0.061,
+      "recall": 1.0,
+      "fpr": 1.0,
+      "positive_def": "이벤트 발화 전건 양성(기준선 방법) · dwell 라벨만 — 종전 0.077(라벨 312건)의 갱신값"
+    },
+    "hybrid_precision_note": "live(pv2) 시기 라벨 89건이 전원 hazard=0 — 위험 양성 라벨 0건이라 HYBRID 정밀도·재현율은 현 데이터로 산출 불가(GATE 2 채점 불가)",
+    "false_alarm_suppression_live_labeled": {
+      "n_labeled_nonhazard": 89,
+      "yolo_danger": 89,
+      "vlm_only_danger": 89,
+      "hybrid_danger": 85,
+      "hybrid_suppression_pct": 4.5,
+      "note": "h2 기록 당시 값 — 회귀(결선이 VLM 추측 person_near 사용) 수정 전. h3 재채점은 hybrid_h3_rescore 참조"
+    },
+    "hybrid_overall_danger_share_pct": 89.3,
+    "tag_distribution_pct": {
+      "boarding": 89.7,
+      "waiting": 6.4,
+      "parking": 3.5,
+      "delivery": 0.3
+    },
+    "unknown_rate_pct": 0.0,
+    "conf": {
+      "p50": 0.85,
+      "p05": 0.85,
+      "p95": 0.85
+    },
+    "latency": {
+      "VLM_ONLY": {
+        "n": 5542,
+        "p50_ms": 2899,
+        "p95_ms": 2965,
+        "max_ms": 3814
+      },
+      "HYBRID": {
+        "n": 5541,
+        "p50_ms": 2899,
+        "p95_ms": 2965,
+        "max_ms": 3814
+      },
+      "target": "이벤트당 p95 <= 4000 ms",
+      "pass_p95": true
+    },
+    "resource_note": "swap_mb·mem_mb·power_w 열은 이 추출본에 미기록(null) — 보드 수준 실측은 별도 기록 참조",
+    "hybrid_h3_rescore": {
+      "method": "h3 소급 재채점 — events.person_near(실측) 우선, 결측 시 VLM 관측 폴백, YOLO DANGER ∧ person_near=0 → WARNING 강등. DB 기록만 사용(크롭 불필요). h2 회귀(결선이 VLM 추측 person_near 사용)는 커밋 67e4060에서 수정(rules h3, 2026-11-02)",
+      "n_live_dwell_events": 5541,
+      "pn_fallback_vlm_n": 0,
+      "pn_unresolved_n": 0,
+      "danger_counts": {
+        "yolo_only": 5541,
+        "hybrid_h2_recorded": 4950,
+        "hybrid_h3_rescored": 61
+      },
+      "danger_share_pct": {
+        "yolo_only": 100.0,
+        "hybrid_h2_recorded": 89.3,
+        "hybrid_h3_rescored": 1.1
+      },
+      "labeled_nonhazard_fp": {
+        "n_labeled": 89,
+        "yolo_only": 89,
+        "hybrid_h2_recorded": 85,
+        "hybrid_h3_rescored": 0
+      },
+      "fp_suppression_vs_yolo_pct": {
+        "hybrid_h2": 4.5,
+        "hybrid_h3": 100.0
+      },
+      "fpr_reduction_h2_to_h3_pct": 100.0,
+      "precision_note": "live 시기 위험 양성 라벨 0건 — 정밀도·재현율은 여전히 산출 불가, FP 억제만 평가"
+    },
+    "hybrid_overall_danger_share_pct_note": "h2 기록 당시 값 — h3 재채점은 hybrid_h3_rescore 참조"
+  },
+  "validation": {
+    "veh4_count": {
+      "n_clips_all": 23,
+      "cum_all": {
+        "manual": 696,
+        "auto": 789,
+        "err_pct": 13.4
+      },
+      "n_clips_rule_v3": 16,
+      "cum_rule_v3": {
+        "manual": 596,
+        "auto": 552,
+        "err_pct": -7.4
+      },
+      "cum_pre_cut": {
+        "manual": 100,
+        "auto": 237,
+        "n_clips": 7,
+        "err_pct": 137.0,
+        "note": "컷 이전 클립(v2 규칙 자동값) 누적 — 수렴 서사: v1 +393.8% → v3 -7.4%"
+      },
+      "pass_criterion": "누적 오차 ±10% 이내",
+      "pass_rule_v3": true,
+      "note": "정본 필터: clip=session_ 타임스탬프 >= 20261017T1445(규칙 v3 확정 시각, UTC) — db.py validation_cum·공개 대시보드 신뢰도 카드와 동일 계산. (보조 참고: 10-16 녹화 2건만 제외한 21클립 누적은 수동 644/자동 606, -5.9%)"
+    },
+    "speed_kmh": {
+      "n": 42,
+      "mean_diff_kmh": -0.78,
+      "mean_abs_diff_kmh": 2.55,
+      "within_3kmh_pct": 64.3,
+      "max_abs_diff_kmh": 10.2,
+      "pass_criterion": "평균 |차이| <= 3 km/h",
+      "pass": true
+    },
+    "missed_hazard": {
+      "n": 2,
+      "note": "횡단 보행자-차량 근접 미탐 2건 수동 발견 — K3 재현율 한계 증거"
+    }
+  },
+  "system": {
+    "qc_pass_pct": 100.0,
+    "qc_buckets": 7152,
+    "fps_med_overall": 16.6,
+    "fps_ge15_pct": 64.8,
+    "fps_ge15_pct_since_1017": 97.9,
+    "fps_med_since_1017": 16.7,
+    "qc_blindspot_note": "10-29~31 결측 기간에도 qc 버킷은 288개/일·qc=0 — 프레임 손상이 당시 QC 지표에 잡히지 않음(corruptguard 도입 계기)",
+    "fps_min_p05": 6.1,
+    "vlm_dropped_total": 0,
+    "gap": {
+      "missing_days": [
+        "2026-10-29",
+        "2026-10-30",
+        "2026-10-31"
+      ],
+      "partial_days": {
+        "2026-10-08": 126,
+        "2026-10-21": 164,
+        "2026-10-22": 188,
+        "2026-10-28": 12,
+        "2026-11-01": 72,
+        "2026-11-02": 122
+      },
+      "cause": "2026-10-28 전후 프레임 손상(corrupt) 사건 — corruptguard 도입 계기"
+    },
+    "note": "qc=0 비율. fps 목표 >=15 — 초기(10-08~)는 캡처 파이프라인 전 구간이라 8.3fps, realloop 전환 후 상승"
+  },
+  "resources": {
+    "source": "docs/report2026/data/resource_snapshot_1102.txt — 2026-11-02 13:12 KST경 기기 현장 실측 (tegrastats 2초 간격·free·ps, Fast+Slow 상주 중, 복전 약 12분 후 안정 상주 상태)",
+    "db_columns_note": "DB inferences의 mem_mb·power_w·swap_mb 열은 모니터링 모듈 미가동으로 전부 공란 — 자원 수치는 이 스냅샷이 근거(지연·fps만 DB 실측)",
+    "ram_used_mb": {
+      "min": 6265,
+      "max": 6282,
+      "total": 7485,
+      "unit": "MB"
+    },
+    "slow_llama_server_rss_mb": 5299,
+    "fast_trafficsvc_rss_mb": 576,
+    "swap_total_mb": 0,
+    "swap_used_mb": 0,
+    "power_board_w": {
+      "min": 6.29,
+      "max": 6.37,
+      "unit": "W (VDD_IN, 보드 입력)"
+    },
+    "power_cpu_gpu_cv_w": 1.62,
+    "gpu_load_pct_range": [
+      0,
+      56
+    ],
+    "temp_tj_c": 50.9,
+    "latency_from_db": {
+      "slow_p50_ms": 2899,
+      "slow_p95_ms": 2965,
+      "target_ms": 4000,
+      "fps_med_since_1017": 16.7,
+      "fps_ge15_pct_since_1017": 97.9
+    },
+    "interpretation": "8GB 중 Slow(llama-server)가 5.3GB를 상시 차지하지만 스왑 0(할당 자체 0)·fps 유지로 공존이 성립. 다만 가용 여유 약 1GB뿐 — 더 큰 Slow 후보(9B)는 교체 벤치 필요",
+    "limitation": "1회 스냅샷(복전 12분 후) — 장기 분포·피크 부하는 모니터링 모듈 가동 후 보강 필요. 스냅샷 타임스탬프가 1970년인 것은 복전 직후 NTP 미동기 — DB '1970 오염 행'과 같은 원인"
+  }
+}
