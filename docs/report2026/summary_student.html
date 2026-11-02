@@ -1,0 +1,267 @@
+<title>교문 앞 도로, 숫자가 되다</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* 레이아웃: 공동체 데이터 탐구 사이클 7단계를 세로 스파인으로 — 각 단계가 한 장(章),
+   장마다 "어떻게 알아냈나"(데이터→방법→발견) 스트립. 팔레트는 프로젝트 MP020 그대로. */
+:root{
+  --bg:#dad8cf; --card:#e9e7de; --panel:#ffffff; --ink:#1f282e; --dim:#5d6770;
+  --line:#c4c1b5; --acc:#ff4e20; --danger:#b83312; --spd:#2f6fb5; --ped:#1f9d8a;
+  --ok:#2f7a4d; --slow:#7a5fe0; --tint:#f3dcd2; --darkcard:#1f282e; --darkink:#e4e3dc;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#171d21; --card:#222a30; --panel:#1f282e; --ink:#e4e3dc; --dim:#98a2ab;
+  --line:#3a444c; --acc:#ff6a40; --danger:#d4764f; --spd:#6fa3e0; --ped:#4dbfab;
+  --ok:#6cbf8c; --slow:#a995ee; --tint:#3a2d27; --darkcard:#11161a; --darkink:#e4e3dc;
+  color-scheme: dark } }
+:root[data-theme="dark"]{
+  --bg:#171d21; --card:#222a30; --panel:#1f282e; --ink:#e4e3dc; --dim:#98a2ab;
+  --line:#3a444c; --acc:#ff6a40; --danger:#d4764f; --spd:#6fa3e0; --ped:#4dbfab;
+  --ok:#6cbf8c; --slow:#a995ee; --tint:#3a2d27; --darkcard:#11161a; --darkink:#e4e3dc;
+  color-scheme: dark }
+@import url('');
+body{ background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  line-height:1.62; font-size:16px; margin:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:0 64px; }
+.wrap{ max-width:880px; margin:0 auto; }
+h1,h2,h3{ line-height:1.25; text-wrap:balance; margin:0; }
+p{ margin:.5em 0; }
+.eyebrow{ font-size:.78rem; font-weight:600; letter-spacing:.14em; color:var(--acc); text-transform:uppercase; }
+.num-font{ font-variant-numeric: tabular-nums; }
+
+/* 히어로 */
+header{ padding:56px 0 28px; border-bottom:2px solid var(--ink); }
+header h1{ font-size:clamp(1.9rem,5.5vw,3rem); font-weight:700; letter-spacing:-.02em; }
+header .sub{ color:var(--dim); margin-top:10px; max-width:40em; }
+.kpis{ display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
+.kpi{ flex:1 1 150px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+.kpi b{ display:block; font-size:1.55rem; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.kpi span{ font-size:.82rem; color:var(--dim); }
+.kpi.hot b{ color:var(--acc); }
+
+/* 사이클 스파인 */
+.stage{ display:grid; grid-template-columns:52px 1fr; gap:0 18px; padding:40px 0 8px; }
+.stage + .stage{ border-top:1px solid var(--line); }
+.spine{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+.step{ width:44px; height:44px; border-radius:50%; background:var(--ink); color:var(--bg);
+  display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.05rem; flex:none; }
+.stage.hl .step{ background:var(--acc); color:#fff; }
+.rail{ width:2px; flex:1; background:var(--line); min-height:24px; }
+.stage h2{ font-size:1.3rem; padding-top:8px; }
+.stage h2 small{ display:block; font-size:.8rem; font-weight:600; color:var(--dim); letter-spacing:.08em; margin-bottom:2px; }
+.body{ min-width:0; }
+
+/* 공용 부품 */
+.card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:14px 0; }
+.card.soft{ background:var(--card); }
+.how{ display:flex; flex-wrap:wrap; gap:0 10px; align-items:baseline; background:var(--card);
+  border-left:4px solid var(--acc); border-radius:0 10px 10px 0; padding:10px 14px; margin:14px 0; font-size:.9rem; }
+.how b{ color:var(--acc); font-size:.78rem; letter-spacing:.1em; margin-right:2px; }
+.how .arrow{ color:var(--dim); }
+.chip{ display:inline-block; padding:.08em .6em; border-radius:999px; font-size:.82rem; font-weight:600;
+  border:1.5px solid currentColor; vertical-align:.08em; }
+.c-fast{ color:var(--dim); } .c-slow{ color:var(--slow); } .c-hyb{ color:var(--acc); }
+.c-ok{ color:var(--ok); } .c-danger{ color:var(--danger); } .c-spd{ color:var(--spd); } .c-ped{ color:var(--ped); }
+ul{ margin:.5em 0; padding-left:1.25em; } li{ margin:.3em 0; }
+.grid2{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:14px 0; }
+.term{ border-bottom:2px dotted var(--acc); cursor:help; }
+.quote{ font-size:1.12rem; font-weight:600; border-left:4px solid var(--ink); padding:4px 0 4px 16px; margin:18px 0; text-wrap:balance; }
+.fine{ font-size:.84rem; color:var(--dim); }
+svg{ display:block; max-width:100%; height:auto; }
+svg text{ font-family:inherit; font-variant-numeric:tabular-nums; }
+.flow{ display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; margin:12px 0; }
+.flow .node{ flex:1 1 120px; min-width:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:.88rem; }
+.flow .node b{ display:block; font-size:.95rem; }
+.flow .sep{ align-self:center; color:var(--dim); font-weight:700; }
+.dark-note{ background:var(--darkcard); color:var(--darkink); border-radius:12px; padding:18px 20px; margin:16px 0; }
+.dark-note .fine{ color:#98a2ab; }
+footer{ margin-top:48px; padding-top:16px; border-top:2px solid var(--ink); font-size:.86rem; color:var(--dim); }
+@media (max-width:560px){ .stage{ grid-template-columns:38px 1fr; gap:0 12px; } .step{ width:34px; height:34px; font-size:.95rem; } }
+@media (prefers-reduced-motion: no-preference){ .kpi{ transition:transform .15s; } .kpi:hover{ transform:translateY(-2px); } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">연구보고서 요약 · 학생용 — 공동체 데이터 탐구 사이클 7단계로 읽기</div>
+  <h1>교문 앞 도로, 숫자가 되다</h1>
+  <p class="sub">등하교 시간 교문 앞의 과속·불법 정차·보행자 근접은 누구나 체감하지만 숫자가 없었다.
+  창가의 작은 AI 보드가 <strong>영상을 저장하지 않고</strong> 그 숫자를 만들었고,
+  그 숫자가 믿을 만한지까지 사람이 직접 검증했다. 그 23일의 기록이다.</p>
+  <div class="kpis num-font">
+    <div class="kpi"><b>92,188대</b><span>차량 통행 집계 (23일 관측)</span></div>
+    <div class="kpi"><b>−7.4%</b><span>수동 대조 누적 오차 — 기준 ±10% 합격</span></div>
+    <div class="kpi hot"><b>89 → 0건</b><span>AI 헛경보, 규칙 교정 후</span></div>
+    <div class="kpi"><b>0 MB</b><span>저장된 영상 — 설계 제1원칙</span></div>
+  </div>
+</header>
+
+<!-- ① 문제 발견 -->
+<section class="stage">
+  <div class="spine"><div class="step">1</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>공동체 문제 발견</small>"위험하다"는 말에는 숫자가 없었다</h2>
+    <p>민원과 체감은 반복되는데, 얼마나 빠른지·언제 어디에 정차가 몰리는지·근접 상황이 하루 몇 번인지
+    아무도 답할 수 없었다. 사람이 서서 세는 방법은 하루를 못 버틴다. 그래서 질문을 측정 가능한 형태로 바꿨다.</p>
+    <ul>
+      <li><b>Q1.</b> 통행·속도·위험은 <em>언제·어디서</em> 생기는가?</li>
+      <li><b>Q2.</b> 영상을 저장하지 않아도 <em>믿을 수 있는</em> 측정이 가능한가?</li>
+      <li><b>Q3.</b> AI에게 <em>판단</em>을 맡기면 무엇을 얻고 무엇을 치르는가?</li>
+      <li><b>Q4.</b> 결과를 공동체의 <em>행동</em>으로 어떻게 잇는가?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ② 측정 설계 -->
+<section class="stage">
+  <div class="spine"><div class="step">2</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>측정 설계</small>위험의 세 얼굴을 지표로, 프라이버시를 원칙으로</h2>
+    <div class="grid2">
+      <div class="card"><b class="c-spd">K1 · 속도</b><br>차량 속도의 p85<span class="fine"> (100대 중 85번째로 빠른 차)</span> — 어린이보호구역 제한 30 km/h와 비교</div>
+      <div class="card"><b class="c-hyb">K2 · 정차</b><br>금지구역에 멈춰 선 횟수와 시간</div>
+      <div class="card"><b class="c-danger">K3 · 근접</b><br>움직이는 차와 보행자가 <strong>실측 2 m</strong> 안에 든 순간</div>
+    </div>
+    <p>핵심 설계는 <strong>두 속도의 AI</strong>다. 카메라 영상은 보드 밖으로 나가지도, 저장되지도 않는다.</p>
+    <div class="flow">
+      <div class="node"><b><span class="chip c-fast">Fast 모델</span> — 보는 일</b>YOLO가 매 프레임(15fps) 차량·보행자를 탐지·추적하고, 호모그래피<span class="fine">(화면 픽셀→실제 미터 변환)</span>로 K1·K2·K3를 계산</div>
+      <div class="sep">→</div>
+      <div class="node"><b><span class="chip c-slow">Slow 모델</span> — 판단하는 일</b>위험 후보 순간에만 VLM이 "왜 서 있나"를 <strong>객관식(enum)</strong>으로 답함 — 승하차/대기/배달/주차/모름</div>
+      <div class="sep">→</div>
+      <div class="node"><b>DB에 남는 것</b>숫자와 객관식 답 하나뿐. 자유 문장·인상착의·번호판 칸은 아예 없음 — 민감 정보는 <em>저장이 불가능</em>하게 설계</div>
+    </div>
+    <p class="fine">"Fast 와 Slow 는 남남" — Slow(AI 판단)가 멈춰도 숫자(K1~K3)는 계속 나온다. 이것이 설계 제1조건.</p>
+  </div>
+</section>
+
+<!-- ③ 수집 -->
+<section class="stage">
+  <div class="spine"><div class="step">3</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>데이터 수집</small>23일의 무인 운영, 그리고 고장과의 싸움</h2>
+    <p class="num-font">10월 8일~11월 2일, 차량 92,188대·보행 2,242건·속도 표본 172,289건·위험 이벤트 11,280건.
+    쉽게 쌓인 숫자가 아니다 — 시스템을 <em>만드는</em> 것보다 <em>계속 돌아가게</em> 하는 것이 어려웠다.</p>
+    <div class="grid2">
+      <div class="card soft"><b>보드가 자꾸 통째로 재부팅</b><br>전원 탓으로 짐작할 뻔했지만, 리셋 기록 레지스터를 읽어 "내장 Wi-Fi × AI 연산 충돌"로 특정 → USB Wi-Fi 전환으로 해결</div>
+      <div class="card soft"><b>나흘간 수집이 비었는데 아무 경보가 없었다</b><br>영상 신호 손상으로 탐지만 0 — 겉보기 지표는 전부 정상. 색 신호 감시자를 추가해 자동 복구</div>
+    </div>
+    <div class="how"><b>교훈</b> 짐작이 아니라 기록으로 원인을 좁힌다 <span class="arrow">—</span> 고장의 원인도 데이터에서 찾았다</div>
+  </div>
+</section>
+
+<!-- ④ 검증 -->
+<section class="stage hl">
+  <div class="spine"><div class="step">4</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>분석 · 검증</small>기계의 숫자를, 사람이 센 숫자와 맞춰 보다</h2>
+    <p>자동 집계가 처음부터 맞았을까? 아니다. 첫 대조에서 기계는 사람보다 <strong class="c-danger num-font">+393.8%</strong> 더 셌다.
+    주차된 차의 탐지가 깜빡일 때마다 새 차로 세고 있었던 것. <strong>화면에는 아무 오류도 없었다 —
+    사람이 직접 센 값과의 대조만이 이 오차를 드러냈다.</strong></p>
+    <svg viewBox="0 0 680 150" role="img" aria-label="수동 대조 오차의 수렴">
+      <text x="0" y="16" font-size="13" fill="var(--dim)">클립별 누적 오차(%) — 규칙을 두 번 고치며 수렴</text>
+      <rect x="40" y="96" width="620" height="28" fill="var(--ok)" opacity="0.13"/>
+      <text x="46" y="114" font-size="12" fill="var(--ok)">합격 범위 ±10%</text>
+      <line x1="40" y1="110" x2="660" y2="110" stroke="var(--line)"/>
+      <circle cx="80" cy="34" r="6" fill="var(--danger)"/>
+      <text x="80" y="24" font-size="13" text-anchor="middle" fill="var(--danger)" font-weight="700">+393.8%</text>
+      <text x="80" y="140" font-size="12" text-anchor="middle" fill="var(--dim)">규칙 v1</text>
+      <circle cx="270" cy="66" r="6" fill="var(--danger)" opacity="0.6"/>
+      <text x="270" y="56" font-size="13" text-anchor="middle" fill="var(--dim)">+66.7%</text>
+      <text x="270" y="140" font-size="12" text-anchor="middle" fill="var(--dim)">v2 이동 게이트</text>
+      <circle cx="560" cy="113" r="7" fill="var(--ok)"/>
+      <text x="560" y="98" font-size="14" text-anchor="middle" fill="var(--ok)" font-weight="700">−7.4% 합격</text>
+      <text x="560" y="140" font-size="12" text-anchor="middle" fill="var(--dim)">v3 분신 승계 · 16클립 596대</text>
+      <path d="M 86 38 Q 180 40 264 62 M 276 70 Q 420 92 552 110" stroke="var(--ink)" fill="none" stroke-width="2" stroke-dasharray="5 4"/>
+    </svg>
+    <p>속도도 같은 차를 사람이 직접 재서 맞췄다: 42건 평균 오차 <b class="num-font">2.55 km/h</b> (기준 ±3 통과).
+    대조는 기계가 <em>놓친</em> 위험 2건도 찾아냈다 — 검증은 양방향이다.</p>
+    <div class="how"><b>어떻게</b> 통제 녹화 클립 16개, 누적 596대 <span class="arrow">→</span> 사람 수와 기계 수의 누적 합산 비교 <span class="arrow">→</span> ±10% 안이면 합격</div>
+    <p class="quote">AI의 숫자를 믿는 근거는 AI가 아니라, 사람의 검증 설계였다.</p>
+  </div>
+</section>
+
+<!-- ⑤ 인사이트 -->
+<section class="stage hl">
+  <div class="spine"><div class="step">5</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>인사이트</small>데이터가 통념을 수정하다</h2>
+    <p>"등교 시간이 가장 위험하다"고 모두 믿었다. 실측은 다르게 말했다 —
+    <strong>통행·과속·근접의 피크는 서로 다른 시간에 있다.</strong></p>
+    <div class="grid2">
+      <div class="card"><div class="eyebrow" style="color:var(--spd)">통행 압력</div><b class="num-font" style="font-size:1.3rem">등교 08:10–08:25</b>
+        <p class="fine">시간당 650대 — 평시의 1.38배. 15분의 병목.</p></div>
+      <div class="card"><div class="eyebrow" style="color:var(--danger)">과속</div><b class="num-font" style="font-size:1.3rem">심야 21–01시</b>
+        <p class="fine">30 km/h 초과율 16~19% — 통학 창(9.5~10.9%)보다 높다. 차가 많으면 오히려 느려진다.</p></div>
+      <div class="card"><div class="eyebrow" style="color:var(--ped)">보행자 근접</div><b class="num-font" style="font-size:1.3rem">저녁 18–20시</b>
+        <p class="fine">근접 655건의 38%가 이 시간대. 통학 창 안은 6%뿐.</p></div>
+      <div class="card"><div class="eyebrow">공간</div><b style="font-size:1.3rem">정차는 금지구역 띠, 근접은 횡단 지점</b>
+        <p class="fine">실측 좌표 지도(헥사곤 밀도)로 확인.</p></div>
+    </div>
+    <div class="how"><b>왜 중요한가</b> 개선 수단이 시간대별로 달라진다 <span class="arrow">—</span> 등교엔 안내 인력, 심야엔 과속 단속, 저녁엔 횡단 조명</div>
+  </div>
+</section>
+
+<!-- ⑥ AI 판단 -->
+<section class="stage">
+  <div class="spine"><div class="step">6</div><div class="rail"></div></div>
+  <div class="body">
+    <h2><small>확장 — AI 판단</small>보는 AI는 판단하지 못한다, 그래서 실험했다</h2>
+    <p><span class="chip c-fast">Fast</span> 혼자 위험을 판정하게 하면? 라벨 404건 채점 결과 정밀도 <b class="num-font">0.061</b> —
+    경보 100번 중 진짜는 6번. 승하차하는 차도, 신호 대기 차도 전부 "위험"이라 외친다.
+    그래서 같은 이벤트에 <strong>세 가지 판정을 나란히 기록</strong>하고 사람 라벨(정답지)로 채점했다 — 하이브리드를 구호가 아니라 실험으로 다룬 것.</p>
+    <div class="dark-note">
+      <b>결합 규칙의 질문은 하나 — "정차한 차 곁에, 지금 보행자가 지나가는가?"</b>
+      <p style="margin:.6em 0 0">핵심은 같은 질문을 <strong>누구에게 묻느냐</strong>였다.</p>
+      <ul>
+        <li><b>h2</b> — <span class="chip c-slow">Slow</span>에게 물었다(사진 보고 "사람 있어?"). 교문 앞 사진엔 인도 보행자가 거의 항상 찍혀 89%가 "있음" → 헛경보 89건 중 4건만 줄었다.</li>
+        <li><b>h3</b> — 추적기의 <strong>실측 거리</strong>(2 m 자)에게 물었다. 실측 근접은 1.1%뿐 → <strong>헛경보 0건.</strong></li>
+      </ul>
+      <p class="fine">이 결함은 수동 라벨의 분석이 두 수치의 모순(실측 1.1% vs 판정 89%)으로 찾아냈고, 당일 코드가 고쳐졌다.
+      영상이 없어도 DB의 기록만으로 과거 5,541건을 다시 채점할 수 있었다.</p>
+    </div>
+    <svg viewBox="0 0 680 168" role="img" aria-label="헛경보 비교 막대">
+      <text x="0" y="16" font-size="13" fill="var(--dim)">확정 비위험 89건 중 "위험" 오판(헛경보) 수</text>
+      <g font-size="13">
+        <rect x="150" y="30"  width="445" height="22" fill="var(--dim)"/><text x="40" y="46" fill="var(--ink)">Fast 단독</text><text x="605" y="46" fill="var(--ink)" font-weight="700">89</text>
+        <rect x="150" y="60"  width="445" height="22" fill="var(--slow)"/><text x="40" y="76" fill="var(--ink)">Slow 단독</text><text x="605" y="76" fill="var(--ink)" font-weight="700">89</text>
+        <rect x="150" y="90"  width="425" height="22" fill="var(--acc)" opacity="0.45"/><text x="40" y="106" fill="var(--ink)">Hybrid h2</text><text x="585" y="106" fill="var(--ink)" font-weight="700">85</text>
+        <rect x="150" y="120" width="3"   height="22" fill="var(--acc)"/><text x="40" y="136" fill="var(--ink)">Hybrid h3</text><text x="162" y="136" fill="var(--acc)" font-weight="700">0</text>
+      </g>
+    </svg>
+    <p><strong>정직한 성적표</strong> — Slow의 "정차 사유" 판독도 채점했더니 사람과 일치 <b class="num-font">4.7%</b>
+    (대기 중인 차 84건 중 80건을 승하차로 오판). 정지 사진 한 장으로 "타는 중"과 "기다리는 중"을 가르기 어려운 탓이다.
+    그러나 이 한계는 느낌이 아니라 <em>혼동표</em>로 남았고, 개선 과제(두 장면 입력·더 큰 모델 벤치)가 데이터로 정의됐다.</p>
+    <div class="grid2 num-font">
+      <div class="card"><b>비용은 치를 만했나?</b><p class="fine" style="margin-top:6px">8GB 보드에서 Slow 상주 5.3GB · <b class="c-ok">스왑 0</b> · 판정 지연 3.0초(목표 4초) · 보드 전력 6.3W · 15fps 유지 — 공존 성립</p></div>
+      <div class="card"><b>결론</b><p class="fine" style="margin-top:6px"><strong>구조는 입증</strong>(사실+판단의 분리·결합, 헛경보 89→0), <strong>모델은 교체 가능한 부품</strong> — 모든 판정에 버전이 찍혀 부품을 바꾼 성적을 같은 자리에서 비교한다</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑦ 제안·공유 -->
+<section class="stage">
+  <div class="spine"><div class="step">7</div></div>
+  <div class="body">
+    <h2><small>제안 · 공유</small>숫자가 공동체로 돌아가다</h2>
+    <ul>
+      <li><b>공개 대시보드(QR)</b> — 지표와 함께 "사람이 검증한 오차(−7.4%)"를 상시 게시. 신뢰도의 공개가 공유의 전제.</li>
+      <li><b>주간 리포트</b> — AI가 초안을 쓰면 검증기가 모든 숫자를 원본과 대조해 변조를 거부하고, 발송은 사람 승인 후에만. AI는 제안하고 사람이 확정한다.</li>
+      <li><b>실측 기반 건의(안)</b> — 등교 피크 15분 안내 집중 · 심야 과속 단속/시설 · 저녁 횡단 환경 개선. 체감이 아니라 숫자가 근거다.</li>
+    </ul>
+    <div class="card soft"><b>남은 숙제 — 그리고 이 시스템이 계속 돌아가는 이유</b>
+      <p class="fine" style="margin-top:6px">"헛경보를 안 낸다"는 입증됐지만 "진짜 위험을 놓치지 않는다"는 아직 정답지가 없다 —
+      진짜 위험은 다행히 드문 사례라 23일 라벨에 한 건도 없었다. 위험 후보 61건의 라벨링, 그리고 드문 사례가
+      쌓일 때까지의 장기간 수집·검증이 다음 단계다. 수집·라벨·채점 체계를 상시 운영 상태로 남긴 이유가 이것이다.</p></div>
+    <p class="quote">일상의 체감을 숫자로 바꾸면 진단할 수 있고, 진단할 수 있으면 바꿀 수 있는 문제가 된다 —
+    그리고 그 숫자를 만드는 시스템 자신도, 같은 방법으로 검증되어야 한다.</p>
+  </div>
+</section>
+
+<footer>
+  2026 융합형 연구과제 성과발표회 연구보고서 요약 · 공주고 STEAM 클럽 ·
+  수치 출처: 기기 DB 실측(2026-10-08~11-02) — 자세한 분석은 데이터 분석 리포트, 전체 내용은 연구보고서 참조
+</footer>
+
+</div>
