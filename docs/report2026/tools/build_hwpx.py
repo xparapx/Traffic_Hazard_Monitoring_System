@@ -131,6 +131,9 @@ def patch_pic_dims(sec_paths: list[Path], bid: str, w: int, h: int) -> None:
         for m in re.finditer(r"<hp:pic .*?</hp:pic>", s, re.S):
             blk = m.group(0)
             if f'binaryItemIDRef="{bid}"' in blk:
+                # 교체된 그림의 shapeComment(원본 파일명·촬영 메타)는 옛 내용 유출 — 중립 문구로 초기화
+                blk = re.sub(r"<hp:shapeComment>.*?</hp:shapeComment>",
+                             "<hp:shapeComment>그림입니다.</hp:shapeComment>", blk, flags=re.S)
                 blk = re.sub(r'(<hp:imgClip left="0" right=")\d+(" top="0" bottom=")\d+(")',
                              rf"\g<1>{w * 75}\g<2>{h * 75}\g<3>", blk)
                 blk = re.sub(r'(imgDim dimwidth=")\d+(" dimheight=")\d+(")',
