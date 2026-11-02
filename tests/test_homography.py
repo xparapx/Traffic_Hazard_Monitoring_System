@@ -66,17 +66,23 @@ def _vlm(tag="waiting", near=0, conf=0.9):
     return VlmResult(tag=tag, door_open=0, person_near=near, conf=conf, latency_ms=100)
 
 
-def test_h2_person_near_is_decisive():
-    assert RULES_VER == "h2"
-    # 금지구역 정차: 보행자 없음 → 완화, 있음 → 유지 (태그 불문 — 2026-10-16 정책)
+def test_h3_measured_person_near_is_decisive():
+    assert RULES_VER == "h3"
+    # 실측 person_near 가 결정 변수 — VLM 관측·태그·신뢰도 불문 (2026-11-02 h3)
+    assert combine("DANGER", _vlm("waiting", near=1), duration_s=120, person_near=0) == "WARNING"
+    assert combine("DANGER", _vlm("unknown", near=1, conf=0.0), duration_s=60, person_near=0) == "WARNING"
+    assert combine("DANGER", _vlm("boarding", near=0), duration_s=30, person_near=1) == "DANGER"
+    # WARNING 은 승격하지 않는다
+    assert combine("WARNING", _vlm("waiting", near=1), duration_s=60, person_near=1) == "WARNING"
+
+
+def test_h2_fallback_without_measurement():
+    # 실측 불가(person_near=None) — h2 폴백: VLM 관측 사용, unknown·저신뢰는 YOLO 유지
     assert combine("DANGER", _vlm("waiting", near=0), duration_s=120) == "WARNING"
     assert combine("DANGER", _vlm("boarding", near=0), duration_s=30) == "WARNING"
     assert combine("DANGER", _vlm("waiting", near=1), duration_s=120) == "DANGER"
-    assert combine("DANGER", _vlm("boarding", near=1), duration_s=30) == "DANGER"
-    # unknown·저신뢰는 YOLO 유지 (결측 ≠ 완화)
     assert combine("DANGER", _vlm("unknown", near=0), duration_s=60) == "DANGER"
     assert combine("DANGER", _vlm("waiting", near=0, conf=0.3), duration_s=60) == "DANGER"
-    # WARNING 은 승격하지 않는다
     assert combine("WARNING", _vlm("waiting", near=1), duration_s=60) == "WARNING"
 
 

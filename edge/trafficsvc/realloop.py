@@ -305,7 +305,7 @@ class RealLoop:
                 crop = f[py1:py2, px1:px2].copy()
         self.slow.submit(event_id, crop, {
             "zone": zone, "duration_s": dur, "ts": db.utcnow(),
-            "person_near": tr.person_near,   # YOLO 관측 — 가짜 태거가 h2 입력으로 사용
+            "person_near": tr.person_near,   # 추적기 실측 — h3 결선 판정의 결정 변수
             "yolo_risk": "DANGER" if zone == "no_stop" else "WARNING"})
         log.warning("dwell 확정: %s %s %.0fs (track %d)", zone, tr.cls, dur, tr.track_id)
         return event_id
