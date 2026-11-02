@@ -838,16 +838,20 @@ def create_admin_app(con: sqlite3.Connection) -> FastAPI:
         # 상쇄되도록. 표본 ~100대 누적 후 ±10% 로 판정. 계산은 _validation_cum.
         for r in rows:
             r["in_cum"] = r["note"][:len(_CUM_CUT)] >= _CUM_CUT   # 현행 규칙 클립인가 (UI 구분용)
-        # 속도 대조(±3 km/h) — err_pct 열이 km/h 차이(기록 시 그렇게 저장)
+        # 속도 대조(±3 km/h) — err_pct 열이 km/h 차이(기록 시 그렇게 저장).
+        # 표는 최근 20건만 보여주지만 판정 요약은 누적 전수 — 최근 창 평균을 기준과
+        # 비교해 보여주면 '누적 합격'이 '불합격'처럼 읽히는 오해(2026-11-02 실측)가 생긴다.
         sp = _rows(con, "SELECT ts, manual_n, auto_n, err_pct, note FROM validation"
                         " WHERE kind='speed_kmh' ORDER BY id DESC LIMIT 20")
-        spd = [abs(r["err_pct"]) for r in sp if r["err_pct"] is not None]
+        spd_all = [abs(r[0]) for r in con.execute(
+            "SELECT err_pct FROM validation WHERE kind='speed_kmh'"
+            " AND err_pct IS NOT NULL").fetchall()]
         return {"rows": rows,
                 "mean_abs_err_pct": round(sum(errs) / len(errs), 1) if errs else None,
                 "n": len(rows),
                 "cum": _validation_cum(con),
-                "speed": {"rows": sp, "n": len(sp), "matched": len(spd),
-                          "mean_abs_diff_kmh": round(sum(spd) / len(spd), 1) if spd else None}}
+                "speed": {"rows": sp, "n": len(spd_all), "matched": len(spd_all),
+                          "mean_abs_diff_kmh": round(sum(spd_all) / len(spd_all), 2) if spd_all else None}}
 
     @api.delete("/session")
     def session_delete_all():
