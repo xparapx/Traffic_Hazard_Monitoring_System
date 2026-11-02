@@ -264,6 +264,8 @@ class RealLoop:
 
     def _on_speed(self, cls: str, kmh: float) -> None:
         self._speeds.setdefault(cls, []).append(kmh)
+        if not db.clock_guard("speed_samples"):
+            return
         # 건별 보존 — R4 속도 대조(±3 km/h)에서 수동 측정과 1:1 로 맞춰 보기 위함
         self.con.execute("INSERT INTO speed_samples(ts, cls, kmh) VALUES(?,?,?)",
                          (db.utcnow(), cls, round(kmh, 1)))
@@ -272,6 +274,8 @@ class RealLoop:
     def _on_conflict(self, tr: Track, dist_m: float) -> None:
         """K3 — 횡단 중 2m 접근. 이벤트 행만 남긴다(영상·crop 없음, VLM 미개입).
         event_id 는 라벨 큐 채점(GATE 1 conflict 정밀도)용."""
+        if not db.clock_guard("conflict 이벤트"):
+            return
         foot = tr.foot
         db.insert_event(self.con, ts=db.utcnow(), kind="conflict", zone="roi",
                         event_id=str(uuid.uuid4()),
@@ -280,6 +284,8 @@ class RealLoop:
         log.warning("conflict: %s %.2fm (track %d)", tr.cls, dist_m, tr.track_id)
 
     def _on_dwell_start(self, tr: Track, zone: str, dur: float) -> str:
+        if not db.clock_guard("dwell 이벤트"):
+            return "sent"   # 이벤트 전체 보류 — 기록·VLM 제출·종료 UPDATE 전부 없음
         event_id = str(uuid.uuid4())
         foot = tr.anchor or tr.foot   # 정차 기준점(발점, 정규화) — R2 후 지도 투영용
         db.insert_event(self.con, ts=db.utcnow(), kind="dwell", zone=zone,
@@ -320,6 +326,10 @@ class RealLoop:
 
     # ---- 5분 버킷 ----
     def _flush_bucket(self, bucket: str) -> None:
+        if not db.clock_guard("counts_5min·qc_5min", bucket):
+            # 1970 버킷은 키 자체가 오염 — 적재하지 않고 누적기만 비운다
+            self._counts, self._speeds, self._frame_dts, self._dropped = {}, {}, [], 0
+            return
         for cls, n in self._counts.items():
             sp = sorted(self._speeds.get(cls, []))
             p85 = round(sp[min(len(sp) - 1, int(len(sp) * 0.85))], 1) if sp else None
@@ -357,6 +367,16 @@ class RealLoop:
             self.status = f"검출기 불가: {e}"
             log.error("realloop 중단 — %s", self.status)
             return
+        # 정전 복구 부팅 직후 NTP 동기 전(시계=1970) 짧은 대기 — 그 뒤에도 미동기면
+        # 루프는 정상 가동하되 기록 게이트(db.clock_guard)가 오염 행을 드롭한다.
+        t0 = time.monotonic()
+        while not self._stop and not db.clock_valid():
+            if time.monotonic() - t0 >= 60:
+                log.warning("시계 미동기 상태로 기동 — 동기 전 지표 기록은 드롭됨"
+                            " (NTPSynchronized=%s)", db.ntp_synchronized())
+                break
+            self.status = "시계 동기 대기 (NTP)"
+            time.sleep(5)
         interval = 1.0 / self.target_fps
         while not self._stop:
             src = None

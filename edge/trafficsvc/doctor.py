@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from . import settings
+from . import db, settings
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".mp4", ".h264", ".avi", ".mkv", ".webp"}
 
@@ -37,4 +37,7 @@ def run(con: sqlite3.Connection) -> dict:
         "db": str(settings.db_path()),
         "schema": check_schema(con),
         "no_images": check_no_images(),
+        # 시계 타당성 — RTC 없는 보드의 정전 부팅 직후 1970 오염 감시 (2026-11-02)
+        "clock": {"now_utc": db.utcnow(), "ok": db.clock_valid(),
+                  "ntp_synchronized": db.ntp_synchronized()},
     }

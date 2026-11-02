@@ -51,7 +51,7 @@
 - **Qwen3.5 thinking 모드**: 생각 토큰이 max_tokens 를 소진해 답(JSON)이 빈다 — 태거는 chat_template_kwargs.enable_thinking=false + "/no_think" 병행(pv2). 새 모델 후보 벤치 때마다 재확인.
 - **가짜 태거가 숨긴 회귀 — h2 person_near 입력(2026-11-02 발견, h3 로 교정)**: h2 의 결정 변수(보행자 통행)는 추적기 실측이어야 하는데 combine 이 VLM 의 이미지 추측(res.person_near)을 썼다. 가짜 태거는 meta 실측값을 메아리쳐 테스트·더미 운용에서 안 드러났고, 실 태거(10-20~)는 크롭 속 인도 보행자까지 1 로 답해(라이브 정차 실측 1.1% vs VLM 관측 89%) 완화가 무력화 — HYBRID DANGER 89.3%. 교훈: 가짜 구현이 입력을 메아리치면 연결 오류가 숨는다 — 실물 전환 시 데이터 분포(실측 vs 모델 출력)로 검증할 것. h3 소급 재채점은 크롭 없이 가능(실측 person_near·VLM 태그가 DB에 있음).
 - **학교망 필터의 신규 도메인 HTTP/2 차단(2026-11-02 실측)**: kjhs-lab.com 의 https(HTTP/2)만 교내에서 무응답 — TLS·DNS·터널 정상, HTTP/1.1 은 통과, 교외(LTE) 정상, 구 도메인(kjhs-meal)은 통과. 미분류 신규 도메인에 대한 DPI 로 판정. 교내 관리 접속은 테일넷(orin:8601)을 쓰고, 터널 주소는 교외용. 해소 확인(11-02 오후): 등록 ~1주 뒤 자동 분류돼 교내도 통과(초기 간헐 000 잔존 후 소멸 추세). 신규 도메인 개설 직후 교내 https 불통은 이 과도기 현상 — 교내는 테일넷으로 우회하면 됨.
-- JetPack 7.2.1 휠 호환성 — 설치 전 검증.
+- **RTC 없는 보드의 정전 부팅 = 1970 시계 오염(2026-11-02 실측, 가드 추가)**: 복전 자동 부팅 후 NTP 동기 전까지 시계가 1970 — 그동안의 지표 행은 참시각 복원 불가. db.clock_guard(2026-01-01 이전이면 드롭+로그)가 events·inferences·counts_5min·qc_5min·speed_samples 기록을 보류하고, realloop/fastloop 은 기동 시 최대 60s 동기 대기. doctor 에 clock 항목(정보용 — ok 판정엔 미포함: autoupdate 헬스체크 오롤백 방지).
 - Camera Module 3를 Jetson에 붙이는 시도는 **1일 한도** (JetPack 7.2.1 검증 자료 없음). 실패 기록을 여기에 남기고 UVC(ELP AR0234)로 진행.
 - TensorRT 엔진은 보드 간 이식 불가 — 각 보드에서 빌드.
 - tegrastats 필드명이 버전마다 다름 — 파서 작성 시 실제 출력으로 확인.

@@ -20,6 +20,8 @@ class FastLoop:
 
     def record_bucket(self) -> str:
         rows = self.synth.bucket_rows()
+        if not db.clock_guard("counts_5min·qc_5min(fake)", rows["bucket_utc"]):
+            return rows["bucket_utc"]   # 시계 미동기 — 1970 버킷은 적재하지 않음
         for r in rows["counts"]:
             self.con.execute(
                 "INSERT OR REPLACE INTO counts_5min(bucket_utc,cls,dir,n,speed_p85,speed_med)"
@@ -52,6 +54,10 @@ class FastLoop:
 
     async def run_dummy(self, tick_s: float = 5.0) -> None:
         """더미 모드 상시 루프 — tick 마다 버킷 갱신, 확률적으로 이벤트 발생."""
+        waited = 0.0
+        while not db.clock_valid() and waited < 60:   # 부팅 직후 NTP 동기 짧은 대기
+            await asyncio.sleep(5)
+            waited += 5
         while True:
             self.record_bucket()
             ev = self.synth.maybe_event()

@@ -1,17 +1,58 @@
 # db — SQLite 연결·초기화·기록 헬퍼. 읽는 표: 전체 / 쓰는 표: 전체 (스키마 생성 · insert 헬퍼)
 from __future__ import annotations
 
+import logging
 import sqlite3
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import settings
+
+log = logging.getLogger("trafficsvc.db")
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# ---- 시계 타당성 게이트 (2026-11-02 정전 실측) ----
+# Jetson 은 RTC 배터리가 없어 정전 복구 부팅 직후 NTP 동기 전까지 시스템 시계가
+# 1970 이다 — 그 사이 기록된 지표 행은 참시각 복원이 불가하므로 드롭+로그한다
+# (버퍼 보류가 아닌 드롭인 이유: 1970 ts 에는 복원할 오프셋 정보가 없다).
+CLOCK_MIN_UTC = "2026-01-01T00:00:00+00:00"
+_clock_drops = 0
+
+
+def clock_valid(ts: str | None = None) -> bool:
+    """ts(기본: 지금)가 명백한 과거(NTP 미동기)가 아닌지 — ISO UTC 문자열 비교."""
+    return (ts if ts is not None else utcnow()) >= CLOCK_MIN_UTC
+
+
+def clock_guard(what: str, ts: str | None = None) -> bool:
+    """기록 직전 게이트 — 유효하면 True, 아니면 False(드롭 대상)+스로틀 로그."""
+    global _clock_drops
+    if clock_valid(ts):
+        return True
+    _clock_drops += 1
+    if _clock_drops <= 5 or _clock_drops % 100 == 0:
+        log.warning("시계 미동기(%s) — %s 기록 드롭 (누적 %d)",
+                    ts if ts is not None else utcnow(), what, _clock_drops)
+    return False
+
+
+def ntp_synchronized() -> bool | None:
+    """timedatectl 의 NTPSynchronized — 리눅스 외·조회 실패는 None (판정은 clock_valid 몫)."""
+    try:
+        out = subprocess.run(
+            ["timedatectl", "show", "-p", "NTPSynchronized", "--value"],
+            capture_output=True, text=True, timeout=5)
+        v = out.stdout.strip()
+        return {"yes": True, "no": False}.get(v)
+    except Exception:
+        return None
 
 
 def connect(path: str | Path | None = None) -> sqlite3.Connection:
@@ -82,7 +123,9 @@ def validation_cum(con) -> dict:
 
 def insert_event(con, *, ts, kind, zone, duration_s=None, speed_kmh=None,
                  dist_m=None, track_cls=None, event_id=None, calib_ver=None,
-                 track_id=None, pos_x=None, pos_y=None, person_near=None) -> int:
+                 track_id=None, pos_x=None, pos_y=None, person_near=None) -> int | None:
+    if not clock_guard("events", ts):
+        return None
     cur = con.execute(
         "INSERT INTO events(ts,kind,zone,duration_s,speed_kmh,dist_m,track_cls,event_id,"
         "calib_ver,track_id,pos_x,pos_y,person_near) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -96,6 +139,8 @@ def insert_inference(con, *, event_id, ts, model_type, risk_level, tag=None,
                      door_open=None, person_near=None, conf=None, latency_ms=None,
                      mem_mb=None, power_w=None, gpu_pct=None, swap_mb=None,
                      model_ver, prompt_ver=None, rules_ver=None, backend) -> None:
+    if not clock_guard("inferences", ts):
+        return
     con.execute(
         "INSERT OR REPLACE INTO inferences(event_id,ts,model_type,risk_level,tag,door_open,"
         "person_near,conf,latency_ms,mem_mb,power_w,gpu_pct,swap_mb,model_ver,prompt_ver,"
