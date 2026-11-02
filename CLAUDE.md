@@ -57,6 +57,7 @@
 - tegrastats 필드명이 버전마다 다름 — 파서 작성 시 실제 출력으로 확인.
 - llama-server 요청 로그에 이미지가 남을 수 있음 — `--log-disable` 확인.
 - PowerShell 5.1에는 `&&` 없음 — `deploy.ps1` 등에서 `; if ($?) { }` 사용.
+- **hwpx 재조립 시 linesegarray 함정(2026-11-02 격리 실측)**: 한/글 저장본의 `<hp:linesegarray>`는 문단 글자 위치(textpos) 레이아웃 캐시 — 기존 문단의 글을 치환하면 모순이 생겨 한/글이 "문서가 손상되었거나 변조"로 **열람 자체를 거부**한다. 치환 문서는 linesegarray 를 제거하면 열 때 재계산(정상). zip 재압축(mimetype 선두·deflate)·raw 텍스트 치환은 무죄. ElementTree 재직렬화는 쓰지 말 것(XML 선언·네임스페이스 변형). 정본 조립기: docs/report2026/tools/build_hwpx2.py.
 
 ## 완료 보고 규칙 (2026-09-15)
 - 큰 위임 작업의 완료 보고에는 **"묻지 않고 가정한 것"** 절을 포함한다 — 코드 리뷰의 대체물. 사용자가 요청하지 않아도 생략하지 않는다.

@@ -111,6 +111,13 @@ def apply_section(xml: str, ops: dict) -> str:
         del_around(ops["delp"], "hp:p")
     if ops.get("dupp"):
         raise SystemExit("dupp 는 v2 미지원 (현재 spec 미사용)")
+
+    # 줄 배치 캐시 제거 — 한/글 저장본의 linesegarray 는 문단 글자 위치(textpos)를
+    # 참조하는 레이아웃 캐시라, 글을 갈아끼우면 모순이 생겨 한/글이 "손상/변조"로
+    # 거부한다(2026-11-02 격리 실측: 글 치환만으로 재현). 제거하면 한/글이 열 때
+    # 재계산한다 — 선례 빌더(MintCap)도 새 문단을 lineseg 없이 넣어 정상 동작.
+    xml = re.sub(r"<hp:linesegarray>.*?</hp:linesegarray>", "", xml, flags=re.S)
+    xml = re.sub(r"<hp:linesegarray/>", "", xml)
     return xml
 
 
