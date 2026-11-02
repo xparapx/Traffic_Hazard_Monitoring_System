@@ -130,22 +130,30 @@ CD["speeddist"] = {
 print(f"[r_speed] am n={len(am_s)} night n={len(ni_s)} (계산 p85 am {am_s.quantile(.85):.1f} night {ni_s.quantile(.85):.1f})")
 
 # ── r_map: 호모그래피 투영 + 헥사곤 비닝 ─────────────────────────
+# 좌표 규약 = 웹 UI 실측 지도(edge/trafficsvc/api.py /events/positions 의 "정문 프레임")과 동일:
+#   +X = 화면 하단 띠(0.1,0.85)→(0.9,0.85) 투영의 좌→우(정문에서 본 오른쪽),
+#   +Y = 정면 방향(화면 (0.5,0.9)→(0.5,0.35) 투영 쪽), 원점 = (0.5,0.95) 투영(정문 앞 노면).
 H = np.array(json.loads(cal.loc[cal["h_json"].notna(), "h_json"].iloc[0]))
-zones = json.loads(cal.loc[cal["zones_json"].notna(), "zones_json"].iloc[0])["no_stop"]
+zjson = json.loads(cal.loc[cal["zones_json"].notna(), "zones_json"].iloc[0])
+zones = zjson["no_stop"]
+roi_poly = zjson.get("roi", [])
 
 def proj(pts):
     p = np.hstack([np.atleast_2d(pts), np.ones((len(np.atleast_2d(pts)), 1))])
     q = (H @ p.T).T
     return q[:, :2] / q[:, 2:3]
 
-# 카메라 정면이 위(+v)가 되도록 회전 — 화면 하단 중앙을 원점으로
-o = proj([[0.5, 0.98]])[0]
-f = proj([[0.5, 0.75]])[0] - proj([[0.5, 0.95]])[0]
-f = f / np.linalg.norm(f)
-r = np.array([f[1], -f[0]])  # 오른쪽
+_ax, _bx = proj([[0.9, 0.85]])[0], proj([[0.1, 0.85]])[0]
+_ex = _ax - _bx
+_ex = _ex / np.linalg.norm(_ex)
+_eyd = proj([[0.5, 0.35]])[0] - proj([[0.5, 0.9]])[0]
+_ey = np.array([-_ex[1], _ex[0]])
+if _ey @ _eyd < 0:
+    _ey = np.array([_ex[1], -_ex[0]])
+o = proj([[0.5, 0.95]])[0]
 def to_uv(pts):
     w = proj(pts) - o
-    return np.stack([w @ r, w @ f], axis=1)
+    return np.stack([w @ _ex, w @ _ey], axis=1)   # (X=오른쪽, Y=정면)
 
 dw = ev[(ev["kind"] == "dwell") & (ev["utc"] >= REZONE_TS) & ev["pos_x"].notna()]
 cf = ev[(ev["kind"] == "conflict") & ev["pos_x"].notna()]
@@ -175,24 +183,26 @@ def hexbin(uv, S):
         cells.append([round(float(cx), 2), round(float(cy), 2), int(n)])
     return cells
 
-# 도로가 카메라 정면 방향으로 ~100 m 뻗어 있어 지도는 가로(=정면 거리)로 눕혀 그린다.
-V_EXT = [-3.0, 100.0]   # 정면 거리(m) 표시 범위
-U_EXT = [-26.0, 8.0]    # 횡단(m) 표시 범위
+# 세로 지도(웹과 동일 방향): 가로 = X(좌 공주고담길 / 우 GS25), 세로 = Y(정면, 위로).
+# 웹과 같이 Y 상한 캡 — 범위 밖은 각주로 제외 건수 표기.
+X_EXT = [-24.0, 26.0]
+Y_EXT = [-2.0, 58.0]
 def n_out(uv):
-    return int(((uv[:, 1] < V_EXT[0]) | (uv[:, 1] > V_EXT[1])
-                | (uv[:, 0] < U_EXT[0]) | (uv[:, 0] > U_EXT[1])).sum())
+    return int(((uv[:, 1] < Y_EXT[0]) | (uv[:, 1] > Y_EXT[1])
+                | (uv[:, 0] < X_EXT[0]) | (uv[:, 0] > X_EXT[1])).sum())
 CD["map"] = {
-    "hex_r_m": 2.4, "hex_r_m_poster": 4.0,
-    "unit": "m (호모그래피 실측 평면 — x=카메라 정면 거리, y=횡단 방향)",
+    "hex_r_m": 2.4, "hex_r_m_poster": 3.4,
+    "unit": "m (정문 프레임 — X=정문에서 본 좌우, Y=정면)",
     "plain": hexbin(uv_dw, 2.4),      # 정차 밀도
     "danger": hexbin(uv_dg, 2.4),     # 근접 + 정차∧보행 공존
-    "plain_p": hexbin(uv_dw, 4.0), "danger_p": hexbin(uv_dg, 4.0),
+    "plain_p": hexbin(uv_dw, 3.4), "danger_p": hexbin(uv_dg, 3.4),
     "n_plain": int(len(uv_dw)), "n_danger": int(len(uv_dg)),
-    "v_ext": V_EXT, "u_ext": U_EXT,
+    "x_ext": X_EXT, "y_ext": Y_EXT,
     "n_plain_out": n_out(uv_dw), "n_danger_out": n_out(uv_dg),
     "zones_uv": [[[round(float(a), 2), round(float(b), 2)] for a, b in to_uv(np.array(poly))]
                  for poly in zones],
-    "cam_uv": [0.0, 0.0],
+    "roi_uv": [[round(float(a), 2), round(float(b), 2)] for a, b in to_uv(np.array(roi_poly))] if roi_poly else [],
+    "gate_uv": [0.0, 0.0],
 }
 print(f"[r_map] 표시 범위 밖: dwell {CD['map']['n_plain_out']} danger {CD['map']['n_danger_out']}")
 
