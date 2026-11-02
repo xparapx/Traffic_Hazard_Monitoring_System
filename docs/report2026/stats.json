@@ -270,7 +270,38 @@
       "fpr_reduction_h2_to_h3_pct": 100.0,
       "precision_note": "live 시기 위험 양성 라벨 0건 — 정밀도·재현율은 여전히 산출 불가, FP 억제만 평가"
     },
-    "hybrid_overall_danger_share_pct_note": "h2 기록 당시 값 — h3 재채점은 hybrid_h3_rescore 참조"
+    "hybrid_overall_danger_share_pct_note": "h2 기록 당시 값 — h3 재채점은 hybrid_h3_rescore 참조",
+    "tag_agreement": {
+      "method": "live(pv2) Slow 단독(VLM_ONLY) 최신 행과 사람 라벨(중복 시 최신)을 event_id로 조인, 양쪽 태그가 있는 건만 일치율 계산. '사유 판독' 채점 — 위험 판정과 별개의 평가 축",
+      "n_joined": 89,
+      "n_both_tagged": 86,
+      "agree_n": 4,
+      "agree_pct": 4.7,
+      "human_tags": {
+        "waiting": 84,
+        "none": 3,
+        "boarding": 2
+      },
+      "vlm_tags": {
+        "boarding": 85,
+        "parking": 2,
+        "waiting": 2
+      },
+      "confusion": {
+        "boarding->boarding": 2,
+        "waiting->boarding": 80,
+        "waiting->parking": 2,
+        "waiting->waiting": 2
+      },
+      "key_confusion": "사람 waiting(운전자 대기) 중 대부분을 Slow가 boarding(승하차)으로 오판 — 태그 분포의 boarding 쏠림(89.7%)은 현실 반영이 아니라 오판",
+      "h3_residual_danger_vlm_tags": {
+        "boarding": 51,
+        "waiting": 9,
+        "delivery": 1
+      },
+      "h3_residual_danger_n": 61,
+      "interpretation": "정지 사진 1장으로 '승하차 중'과 '운전자 대기'를 가르기는 본질적으로 어렵고 프롬프트 보기 편향 의심 — 개선 과제: 전·후 2프레임 입력(pv3), 후보 9B 벤치"
+    }
   },
   "validation": {
     "veh4_count": {
