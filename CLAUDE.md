@@ -49,6 +49,7 @@
 - **PCIe Wi-Fi(모듈명 rtl8822ce — 구 문서의 "rtl88x2ce"는 오기) × CUDA 부하 = 워치독 리셋(2026-10-18 판정, 전원설 기각 → 2026-10-20 해소)**: 리셋 사유 레지스터 BCCPLEXWDT(CPU 행→워치독) 확인. 기전: CUDA 부하 중 Wi-Fi 링크가 끊기면 CPU 가 죽은 PCIe 레지스터 읽기에 행 — NVIDIA 포럼 동일 사례. **해소: USB Wi-Fi(ipTIME A3000mini, RTL88x2BU·morrownr DKMS) 전환 + /etc/modprobe.d/blacklist-rtl88x2ce.conf 에 rtl8822ce 블랙리스트(2026-10-20).** 블랙리스트 파일명과 달리 유효 줄은 rtl8822ce — 모듈명 틀리면 차단 안 됨(1회 실측). 복원은 파일 삭제 후 재부팅.
 - **부팅 레이스 — 관리 포트 바인딩**: 재부팅 직후 테일스케일 인터페이스보다 앱이 먼저 뜨면 ADMIN_BIND 바인딩 실패. cli.serve 가 관리 포트만 재시도(5s×60)하고 공개 포트는 독립 기동(2026-10-19 수정) — 이 수정 이전 버전으로 롤백 금지.
 - **Qwen3.5 thinking 모드**: 생각 토큰이 max_tokens 를 소진해 답(JSON)이 빈다 — 태거는 chat_template_kwargs.enable_thinking=false + "/no_think" 병행(pv2). 새 모델 후보 벤치 때마다 재확인.
+- **학교망 필터의 신규 도메인 HTTP/2 차단(2026-11-02 실측)**: kjhs-lab.com 의 https(HTTP/2)만 교내에서 무응답 — TLS·DNS·터널 정상, HTTP/1.1 은 통과, 교외(LTE) 정상, 구 도메인(kjhs-meal)은 통과. 미분류 신규 도메인에 대한 DPI 로 판정. 교내 관리 접속은 테일넷(orin:8601)을 쓰고, 터널 주소는 교외용. 해소는 전산팀 도메인 허용 요청 또는 필터의 자동 분류 대기.
 - JetPack 7.2.1 휠 호환성 — 설치 전 검증.
 - Camera Module 3를 Jetson에 붙이는 시도는 **1일 한도** (JetPack 7.2.1 검증 자료 없음). 실패 기록을 여기에 남기고 UVC(ELP AR0234)로 진행.
 - TensorRT 엔진은 보드 간 이식 불가 — 각 보드에서 빌드.
