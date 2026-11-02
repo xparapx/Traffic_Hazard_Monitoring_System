@@ -41,7 +41,10 @@ class CorruptionGuard:
         self._n = 0
         self._streak = 0
         self._last_det = time.monotonic()
-        self._last_fire = 0.0
+        # 쿨다운은 '마지막 발화 후 경과'로 판정하므로 초기값을 과거로 — 0.0 이면
+        # monotonic(=부팅 후 초)이 COOLDOWN 보다 작은 동안(부팅/CI 러너 초반 10분)
+        # 가드가 절대 발화하지 못한다 (CI 플래키 실측 2026-11-02).
+        self._last_fire = time.monotonic() - self.COOLDOWN_S
 
     def check(self, frame, n_dets: int, now_kst: datetime | None = None) -> str | None:
         """프레임마다 호출 — 손상 판정 시 사유 문자열(재협상 요구), 정상이면 None."""
