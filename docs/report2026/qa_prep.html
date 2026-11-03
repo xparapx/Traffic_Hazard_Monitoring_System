@@ -1,0 +1,347 @@
+<title>질의응답 대비 답변집</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --fg:#1c2430; --muted:#5b6678; --line:#e3e7ee;
+    --accent:#2563eb; --accent-soft:#eaf0fe;
+    --ok:#15803d; --ok-soft:#e8f6ec;
+    --warn:#b45309; --warn-soft:#fdf3e3;
+    --bad:#b91c1c; --bad-soft:#fdeaea;
+    --chip:#eef1f6; --answer:#f3f7ff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12161d; --card:#1a2029; --fg:#e8ecf3; --muted:#9aa5b5; --line:#2a3240;
+      --accent:#6ea0ff; --accent-soft:#1d2a44;
+      --ok:#4ade80; --ok-soft:#15301f;
+      --warn:#fbbf24; --warn-soft:#38290f;
+      --bad:#f87171; --bad-soft:#3a1717;
+      --chip:#232b37; --answer:#1b2536;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12161d; --card:#1a2029; --fg:#e8ecf3; --muted:#9aa5b5; --line:#2a3240;
+    --accent:#6ea0ff; --accent-soft:#1d2a44;
+    --ok:#4ade80; --ok-soft:#15301f;
+    --warn:#fbbf24; --warn-soft:#38290f;
+    --bad:#f87171; --bad-soft:#3a1717;
+    --chip:#232b37; --answer:#1b2536;
+    color-scheme: dark;
+  }
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:"Noto Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+    line-height:1.65; margin:0;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));
+    padding-right:max(16px, env(safe-area-inset-right, 0px));
+    padding-block:0 60px;
+  }
+  .wrap{max-width:860px; margin:0 auto;}
+  header{padding:40px 0 8px;}
+  h1{font-size:1.7rem; margin:0 0 6px; text-wrap:balance;}
+  .sub{color:var(--muted); font-size:.95rem; margin:0;}
+  .principles{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:22px 0;}
+  .principles h2{font-size:1.02rem; margin:0 0 10px;}
+  .principles ol{margin:0; padding-left:22px;}
+  .principles li{margin:4px 0;}
+  .alert{background:var(--bad-soft); border:1px solid var(--bad); border-radius:12px; padding:14px 18px; margin:0 0 22px; font-size:.93rem;}
+  .alert b{color:var(--bad);}
+  h2.sec{font-size:1.2rem; margin:38px 0 4px; padding-top:10px; border-top:3px solid var(--accent);}
+  .sec-note{color:var(--muted); font-size:.9rem; margin:0 0 14px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:0 0 16px;}
+  .qhead{display:flex; gap:10px; align-items:flex-start;}
+  .qno{flex:none; background:var(--accent); color:#fff; border-radius:8px; font-weight:700; font-size:.85rem; padding:2px 9px; margin-top:3px;}
+  .q{font-weight:600; margin:0; min-width:0;}
+  .oneline{background:var(--answer); border-left:4px solid var(--accent); border-radius:0 8px 8px 0; padding:10px 14px; margin:12px 0 10px; font-weight:600;}
+  .oneline .lbl{display:block; font-size:.72rem; letter-spacing:.08em; color:var(--accent); font-weight:700; margin-bottom:2px;}
+  ul.why{margin:6px 0 0; padding-left:20px; font-size:.93rem;}
+  ul.why li{margin:5px 0;}
+  .draft{border-radius:8px; padding:9px 13px; margin:12px 0 0; font-size:.88rem;}
+  .draft .tag{font-weight:700; margin-right:6px;}
+  .draft.ok{background:var(--ok-soft);} .draft.ok .tag{color:var(--ok);}
+  .draft.fix{background:var(--warn-soft);} .draft.fix .tag{color:var(--warn);}
+  .draft.wrong{background:var(--bad-soft);} .draft.wrong .tag{color:var(--bad);}
+  .term{background:var(--chip); border-radius:8px; padding:10px 14px; margin:12px 0 0; font-size:.88rem;}
+  .term b{color:var(--accent);}
+  code{background:var(--chip); border-radius:4px; padding:1px 5px; font-size:.86em;}
+  footer{color:var(--muted); font-size:.82rem; margin-top:44px; border-top:1px solid var(--line); padding-top:14px;}
+  .num{font-variant-numeric:tabular-nums;}
+</style>
+<div class="wrap">
+<header>
+  <h1>질의응답 대비 답변집</h1>
+  <p class="sub">2026 융합형 연구과제 성과발표회 — 예상 질문 25건 · 모범 답변 · 발표 초안 교정 | Traffic 팀 | 수치 출처: 연구보고서(stats.json 정본)</p>
+</header>
+
+<div class="principles">
+  <h2>답변 공통 원칙 — 세 가지만 기억하기</h2>
+  <ol>
+    <li><b>숫자로 먼저 답한다.</b> 모든 질문에 보고서의 실측치가 하나씩 대응된다.</li>
+    <li><b>한계는 부정하지 않고 "알고 관리하는 한계"로 답한다.</b> 버전 스탬프·하한값 표기·후속 과제 — 한계의 인정이 이 연구의 방법론이다.</li>
+    <li><b>모르는 것은 "실측·실험으로 확인하겠다"가 모범 답이다.</b> 근거 없는 단정("가능성 없음", "~일 것임")이 가장 큰 감점 요인.</li>
+  </ol>
+</div>
+
+<div class="alert">
+  <b>발표 전 꼭 고칠 초안 3건</b> — Q3("돌진은 잔상이 보여 미탐 확률 낮음"), Q5("GPTQ에서 GGUF로 바꿔 대응"), Q9("건물 내부 촬영과 조명 설치로 대변 가능")는 사실과 다르거나 바로 반박당하는 답변입니다. 아래 해당 카드의 정정 메모를 반드시 확인하세요.
+</div>
+
+<h2 class="sec">A. 모델과 판정 규칙</h2>
+<p class="sec-note">Fast(YOLO)·Slow(VLM)·결합 규칙(h)의 설계 의도를 묻는 질문 — "모델은 교체 가능한 부품, 규칙은 버전으로 관리"가 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q1</span><p class="q">사유 판독 일치율 4.7% — 전·후 프레임을 줘도 소형 모델의 근본 한계를 극복할 수 있나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>도움이 될 근거는 있지만 "극복"을 장담하지 않습니다 — 그래서 주장이 아니라 다음 실험(pv3, 2프레임)으로 설계해 두었습니다.</div>
+  <ul class="why">
+    <li>오류의 구조가 단서입니다: 불일치 <span class="num">86건 중 80건</span>이 '대기(waiting)'를 '승하차(boarding)'로 읽은 오판 — 정지 사진 1장에는 "문이 열리는 중인가, 사람이 다가오는가" 같은 <b>시간 정보가 없기 때문</b>입니다. 전·후 프레임은 정확히 이 결손을 보충합니다.</li>
+    <li>다만 소형 모델의 추론 용량 한계는 남습니다. 효과가 있는지는 같은 이벤트 3중 기록(Fast·Slow·Hybrid) 체계가 자동으로 채점하므로, 결과를 보고 채택 여부를 결정합니다 — 9B 후보 벤치와 같은 절차입니다.</li>
+  </ul>
+  <div class="draft fix"><span class="tag">△ 초안 보완</span>"여러 장이면 추론 가능 → 효과적 결과 도출 가능"은 방향은 맞지만 단정이 약점. "오판 80건의 원인이 시간 정보 결손이므로 2프레임이 그 결손을 보충한다, 효과는 실측으로 확인한다"로 바꾸면 훨씬 강한 답이 됩니다.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q2</span><p class="q">Fast 모델 단독 오탐 94% — 보행자가 상시 있는 특수 환경 탓인가, 객체 탐지 모델의 맥락 인지 한계 탓인가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>둘의 결합이지만 본질은 후자입니다 — YOLO는 "무엇이 어디 있다"까지만 알고 "왜 서 있는가"를 모릅니다.</div>
+  <ul class="why">
+    <li>Fast 단독 규칙은 "금지구역에 N초 정차"라는 기하 조건만 판정합니다. 승하차·신호 대기 같은 <b>사유를 구분할 능력 자체가 없고</b>(정밀도 <span class="num">0.061</span>, 라벨 404건 채점), 이것이 모델 구조의 한계입니다.</li>
+    <li>교문 앞은 "서 있는 차의 대부분이 위험이 아닌" 환경이라 이 한계가 94%라는 숫자로 <b>증폭</b>된 것입니다. 같은 모델이라도 정차 자체가 위반인 도로라면 오탐률은 낮았을 것입니다 — 환경은 한계를 드러낸 조건이고, 한계는 모델에 있습니다.</li>
+  </ul>
+  <div class="draft fix"><span class="tag">△ 초안 보완</span>"YOLO는 움직임만 파악" → 부정확한 표현. YOLO는 움직임이 아니라 <b>위치와 종류</b>를 파악하며, 못 하는 것은 "맥락(사유) 판단"입니다. 용어를 바꿔 말하세요.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q3</span><p class="q">실측 2.0m 결합(h3)으로 오탐 0건 — 거꾸로 "거리는 멀지만 차량이 돌진하는" 맥락상 위험을 미탐할 우려는?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>h3는 "정차 위험" 전용 규칙이고, 움직이는 차량의 위험은 별도 지표 — 속도(K1)와 근접(K3) — 가 독립적으로 포착합니다.</div>
+  <ul class="why">
+    <li>지표 분리가 설계의 핵심입니다: K2(정차)·K3(이동 중 보행자 근접 2.0m)·K1(속도)은 서로 독립 산출되며, h3는 그중 K2의 오탐을 줄이는 규칙일 뿐 전체 위험 판정의 단일 관문이 아닙니다. 돌진 차량은 K1·K3 쪽에 잡힙니다.</li>
+    <li>다만 "놓치지 않는가(재현율)"는 양성 라벨 0건으로 아직 미채점 — 이 한계를 보고서에 명시했고, 장기 수집·라벨링이 검증 계획입니다.</li>
+  </ul>
+  <div class="draft wrong"><span class="tag">✕ 초안 정정</span>"돌진은 잔상 같은 더 극적인 모습 → 미탐 확률 더 낮음"은 근거 없는 추측으로, 심사에서 바로 반박당합니다. "지표 분리 설계 + 재현율 미채점은 인정"으로 답하세요.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q4</span><p class="q">VLM '생각 모드'가 토큰을 소진하는 문제 — 구체적으로 어떤 제약으로 무한 루프를 원천 차단했나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>루프를 "끊은" 것이 아니라 생각 블록이 "시작되지 못하게" 모델의 대화 템플릿 스위치로 껐습니다 — 세 겹 방어입니다.</div>
+  <ul class="why">
+    <li>① 요청마다 <code>chat_template_kwargs.enable_thinking=false</code> — Qwen 계열이 공식 지원하는 템플릿 수준 스위치로, 생각 블록 생성 자체를 비활성화합니다.</li>
+    <li>② 프롬프트에 <code>/no_think</code> 지시 병행(모델이 인식하는 소프트 스위치) — 하나가 새 모델에서 무시돼도 다른 겹이 막도록.</li>
+    <li>③ 응답은 enum JSON 형식 강제 + 최대 토큰 상한 — 설령 새면 빈 답으로 끝나고, 빈 답은 운영에 영향이 없습니다(Slow가 죽어도 K1~K3는 나오는 독립 설계).</li>
+    <li>이 함정은 "새 모델 후보 벤치 때마다 재확인" 항목으로 함정 목록에 등재해 두었습니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q5</span><p class="q">상주 메모리 여유가 약 1.1GB — 9B 모델로 교체하면 스왑·지연 한계(4초) 초과를 어떻게 해결하나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>모델이 기준을 통과해야지, 기준이 모델에 맞추지 않습니다 — 스왑 0·지연 p95 4초를 못 지키면 채택하지 않습니다.</div>
+  <ul class="why">
+    <li>현재 4B도 이미 GGUF 4비트 양자화로 상주 <span class="num">5.3GB</span>(전체 7.5GB 중)입니다. 9B는 ① 더 낮은 비트의 양자화 ② 컨텍스트(KV 캐시) 축소를 시도하고, ③ 그래도 기준 미달이면 불채택 — 이 판단 자체가 계획된 실험("후보 B 스왑 벤치")입니다.</li>
+    <li>Slow 층은 교체 가능한 부품으로 설계되어 있어, 모델 교체·불채택 어느 쪽이든 운영 지표(K1~K3)에는 영향이 없습니다.</li>
+  </ul>
+  <div class="draft wrong"><span class="tag">✕ 초안 정정</span>"기존 GPTQ → GGUF로 바꿔 대응"은 사실과 다릅니다. <b>지금 이미 GGUF 4비트</b>를 쓰고 있습니다. 이렇게 답하면 자기 시스템을 모른다는 인상을 줍니다 — "이미 4비트 GGUF, 9B는 기준 통과 여부를 벤치로 판정"으로 답하세요.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q8</span><p class="q">'이동 게이트'와 '승계 규칙(v3)' — 극심한 체증으로 완전히 정지한 정상 차량이 오히려 카운트에서 누락될 가능성은?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>이동 게이트는 "빠르기"가 아니라 "누적 이동량"(몸길이 1.5배) 조건이라, 가다 서다 하는 차도 결국 통과하며 카운트됩니다 — 늦어질 뿐 누락되지 않습니다.</div>
+  <ul class="why">
+    <li>체증 중 추적이 끊겨도 승계 규칙이 카운트 상태를 이어받습니다(v3의 두 번째 축). 영구히 움직이지 않는 차는 "통행"이 아니라 주차이므로 세지 않는 것이 지표 정의에 맞습니다.</li>
+    <li>검증: 수동 대조 <span class="num">16클립·596대, −7.4%</span>(±10% 통과)가 등·하교 혼잡 시간대를 포함해 수행되었습니다.</li>
+  </ul>
+  <div class="term"><b>용어 정리(초안의 "pv랑 v가 뭔지" 질문에 대한 답)</b> — 측정 규칙에는 전부 버전이 붙습니다: <b>v</b> = 카운트 규칙 버전(v1→v3), <b>pv</b> = Slow 모델 프롬프트 버전(pv1→pv2), <b>h</b> = Fast·Slow 결합 규칙 버전(h1→h3). 모든 지표에 산출 당시 버전이 스탬프되어 "어떤 규칙으로 잰 숫자인지" 추적할 수 있습니다. <b>enum</b>(이늄) = enumeration(열거형)의 약자 — 미리 정한 목록 중 하나만 고를 수 있는 형식으로, VLM이 자유 문장 대신 enum만 출력하게 해 프라이버시를 지킵니다.</div>
+</div>
+
+<h2 class="sec">B. 검증과 신뢰도</h2>
+<p class="sec-note">"그 숫자를 어떻게 믿나"를 묻는 질문 — "사람의 대조가 정답지, 한계는 하한값·후속 과제로 정직하게"가 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q6</span><p class="q">사람이 직접 발견한 근접 미탐 2건 — 시스템이 인지조차 못 한 '완전 미탐'의 전체 규모(재현율)는 어떻게 추정하나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>사람이 영상 구간을 "전수" 검토한 표본에서 시스템 기록과 대조하는 방식입니다 — 그 방법으로 이미 미탐 2건을 찾았고, 그래서 655건을 '하한값'으로 보고했습니다.</div>
+  <ul class="why">
+    <li>통제 세션 녹화(15분 상한) 구간은 사람이 처음부터 끝까지 봅니다. 그 구간의 "사람이 본 사건 수" 대비 "시스템이 기록한 사건 수"가 곧 표본 재현율이 됩니다.</li>
+    <li>현재 표본은 주간·일부 시간대에 몰려 있어 전체 재현율로 일반화할 수 없습니다 — 시간대·날씨를 나눠 표본을 확대하는 것이 후속 과제이고, 이 한계를 보고서에 명시했습니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q7</span><p class="q">80km/h 초과(0.2%)가 추적 결함 추정 — 이런 이상치를 지표 산출 전에 실시간 자동 필터링하는 로직은 없나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>핵심 지표가 평균이 아닌 p85(상위 85% 지점)라 0.2%의 극단값에 둔감하고 — 제외해도 지표 변동 0.1%p 이내 — 물리 상한 필터는 좋은 제안으로 받아 반영하겠습니다.</div>
+  <ul class="why">
+    <li>자동 삭제를 안 둔 이유도 있습니다: 이상치를 지우면 "추적 결함이 있다"는 고장 신호까지 사라집니다. 기록은 남기고 지표 계산에서 플래그하는 방식(QC 철학과 동일)으로 반영할 계획입니다.</li>
+  </ul>
+  <div class="draft ok"><span class="tag">✓ 초안 유지</span>"좋은 아이디어, 반영하겠다"는 태도는 좋습니다. 다만 수용 전에 "p85라 영향이 작고 제외 시 변동 0.1%p 이내"라는 수치 방어를 먼저 말하세요.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q9</span><p class="q">녹화 세션이 '관리자가 켠 동안, 15분 상한'으로 통제 — 이 샘플링이 야간·악천후 환경의 신뢰도까지 대변할 수 있나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>아니요, 대변하지 못합니다 — 그래서 검증 결과를 "검증한 조건의 범위 안"으로 한정해 보고했습니다. 조건별 표본 확대가 후속 과제입니다.</div>
+  <ul class="why">
+    <li>수동 대조 −7.4%는 검증한 클립의 조건(주로 주간·등하교)에서의 수치입니다. 결과를 조건 밖으로 일반화하지 않는 것이 이 연구의 보고 원칙입니다.</li>
+    <li>야간·악천후에는 1차 방어가 따로 있습니다: 5분 QC 버킷이 fps·탐지 공백·신호 품질 기준 미달 구간을 지표 계산에서 제외 표시합니다 — "모르는 구간의 숫자를 아는 척하지 않는" 장치입니다.</li>
+  </ul>
+  <div class="draft wrong"><span class="tag">✕ 초안 정정</span>"건물 내부에서 촬영 + 조명 설치로 대변 가능"은 틀린 답입니다. 카메라가 실내(창가)에 있어도 <b>찍는 대상인 도로의 조도·날씨 영향은 그대로</b> 받고, 도로에 조명을 설치하는 것은 저희 권한 밖입니다. "한계 인정 + QC 제외 + 표본 확대 계획"으로 답하세요.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q21</span><p class="q">실가동 23일간 진짜 위험 엣지 사례 0건 — 희귀한 치명 사고를 감지할 수 있음을 증명하려면 어떤 추가 검증이 필요한가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>세 단계로 계획합니다 — ① 합성 궤적 시험(이미 운용 중) ② 안전하게 통제된 모의 상황 연출 ③ 장기 수집. 드문 사례의 검증은 장기 누적만이 해결하며, 그래서 시스템을 상시 운영 상태로 남깁니다.</div>
+  <ul class="why">
+    <li>① 합성 궤적: 위험 조건을 수학적으로 만든 가상 궤적을 판정 규칙에 통과시키는 자동 시험(pytest)이 이미 있어, "그 상황이 오면 규칙이 반응한다"는 논리 검증은 완료 상태입니다.</li>
+    <li>② 통제 연출: 성인이 차량·보행자 역할을 맡아 안전 속도로 연출한 상황을 통제 세션 녹화 하에 측정 — 실물 센서·추적 경로까지 포함한 종단 검증이 됩니다.</li>
+    <li>③ 보고서의 결론이기도 합니다: 수집·라벨·채점 체계를 남기는 이유가 바로 이 질문에 답하기 위해서입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q22</span><p class="q">금지구역 기준이 10월 20일 재설정돼 전후 비교 불가 — 측정 중 기준이 바뀌는 애자일 방식이 장기 통계 일관성을 훼손하지 않나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>기준 변경은 하되 "변경 = 새 데이터 시리즈의 시작"으로 선언하고 전후 혼합을 금지하는 것으로 일관성을 지킵니다 — 애자일과 일관성은 버전 관리로 양립합니다.</div>
+  <ul class="why">
+    <li>모든 지표에 산출 규칙의 버전(v·pv·h)과 기준 변경일이 스탬프됩니다. 10월 20일 재설정도 "K2 전후 비교 금지"로 명문화했습니다 — 섞어 쓰는 것이 훼손이지, 바꾸는 것 자체가 훼손이 아닙니다.</li>
+    <li>장기 비교가 필요한 통계(기준선, baseline)는 기준을 동결한 뒤에 시작합니다. 초기의 빠른 보정은 오히려 기준선의 품질을 높이는 과정입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q23</span><p class="q">공개 대시보드에 '±7.4% 오차'를 공개 — 오히려 "측정값이 틀릴 수 있다"는 인식을 주어 건의 설득력을 떨어뜨리지 않나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>반대라고 생각합니다 — 오차를 모르는 숫자는 행정 근거로 쓸 수 없고, 오차를 아는 숫자만 쓸 수 있습니다.</div>
+  <ul class="why">
+    <li>과학·공학에서 측정값은 오차와 함께 제시하는 것이 표준입니다. ±7.4%는 "틀릴 수 있다"가 아니라 <b>"얼마나 틀리는지 사람이 재서 안다"</b>는 뜻입니다.</li>
+    <li>기존 민원과의 차별점이 정확히 이것입니다 — 체감은 오차를 잴 수 없지만 이 수치는 잴 수 있습니다. 검토하는 쪽(심사위원·공무원)일수록 오차 표기를 신뢰의 신호로 읽습니다.</li>
+  </ul>
+</div>
+
+<h2 class="sec">C. 보안·프라이버시·데이터 거버넌스</h2>
+<p class="sec-note">"저장하지 않는다"는 원칙의 경계를 묻는 질문 — "완벽 주장 대신 위협 모델과 잔여 위험"이 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q10</span><p class="q">저장 함수는 차단했지만, RAM의 프레임이 악의적 메모리 덤프로 유출될 가능성에 대한 하드웨어 단 대책은?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>원격 경로는 닫혀 있고(테일넷 전용 SSH·공개키 인증), 남는 벡터는 물리 탈취인데 — 전원이 끊기는 순간 RAM의 프레임은 소멸하므로 "저장하지 않음" 설계 자체가 최후 방어선입니다.</div>
+  <ul class="why">
+    <li>프레임은 디스크에 닿지 않고 RAM에서 수 초 안에 덮어써집니다. 덤프하려면 <b>가동 중인 보드에 물리 접근과 관리자 권한이 동시에</b> 필요하며, 보드는 교내 실내(창 안쪽)에 있습니다.</li>
+    <li>TEE 같은 하드웨어 격리는 미적용이 사실입니다 — 이것은 "잔여 위험"으로 위협 모델에 기록해 관리하는 항목입니다. 보안에서 "가능성 없음"이라는 답은 없으며, 어떤 위험을 어디까지 줄였고 무엇이 남는지를 아는 것이 대책입니다.</li>
+  </ul>
+  <div class="draft fix"><span class="tag">△ 초안 보완</span>"Tailscale뿐이라 가능성 없음"에서 <b>"가능성 없음" 단정은 피하세요</b> — 보안 질문에 완벽을 주장하면 더 깊은 공격 시나리오로 추궁당합니다. "원격 벡터 차단 + 물리 벡터는 잔여 위험으로 관리"가 강한 답입니다.</div>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q11</span><p class="q">영상이 없어 사후 재채점은 수치와 enum뿐 — enum 분류 체계를 완전히 개편하면 과거 데이터는 재활용 불가 아닌가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>절반만 맞습니다 — 태그의 재분류는 제한되지만, 판정의 원재료인 실측 수치는 전부 남아 있어 "규칙"의 개편은 소급 가능합니다. 실제로 했습니다.</div>
+  <ul class="why">
+    <li>실증 사례: 결합 규칙 h2→h3 개편 때 영상 없이 DB의 실측값(보행자 통행·정차 시간 등)만으로 <b>과거 이벤트 전체를 소급 재채점</b>했습니다(확정 DANGER 89.3%→1.1%). 이벤트마다 enum 외에 실측 변수들이 함께 저장되기 때문입니다.</li>
+    <li>enum 분류 체계 "자체"의 완전 개편 시 재라벨이 불가한 것은 맞습니다 — 영상 비저장과 맞바꾼 의도된 비용입니다. 그래서 enum은 처음부터 "항목 추가는 쉽게, 의미 변경은 새 버전으로"의 원칙으로 운용하며 프롬프트 버전(pv)이 그 이력입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q12</span><p class="q">수치 변조는 검증기로 막지만, LLM이 '상황 문맥'을 교묘하게 환각하면 자동 차단할 장치가 있나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>자동 장치가 못 잡는 것은 사람이 잡습니다 — 초안은 어떤 경우에도 자동 발송되지 않고(초안 상태 발송 0건 원칙), 교사의 검토·승인이 마지막 관문입니다.</div>
+  <ul class="why">
+    <li>방어는 3겹입니다: ① 수치 검증기(원본 대조, 변조 초안 자동 거부) ② 리포트가 참조할 수 있는 입력을 집계 수치로 한정 ③ 사람 승인(승인 로그 보존).</li>
+    <li>문맥 환각의 완전 자동 차단은 현재 기술로 불가능하다는 것이 정직한 전제입니다 — 그래서 설계 원칙이 "자동 생성, 사람 발송"의 2단 분리입니다.</li>
+  </ul>
+</div>
+
+<h2 class="sec">D. 데이터 해석</h2>
+<p class="sec-note">발견한 패턴의 원인을 캐묻는 질문 — "측정이 답할 수 있는 것과 없는 것을 구분"이 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q13</span><p class="q">심야(21~01시) 30km/h 초과율 최고(16.1~18.5%) — 통행량 감소에 따른 자연스러운 속도 증가인가, 배달 이륜차 등 특정 차종이 견인한 것인가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>데이터로 답할 수 있는 질문입니다 — 집계가 4륜(veh4)과 이륜(two_wheel)을 분리 저장하므로, 차종별 속도 분포 분해가 가능하고 다음 분석 과제로 추가하겠습니다.</div>
+  <ul class="why">
+    <li>보고한 초과율은 4륜 기준입니다. 통행량 감소 → 속도 상승은 교통공학의 일반적 현상이지만, 어느 쪽이 견인하는지는 두 집계의 시간대별 분해로 확인할 수 있습니다.</li>
+    <li>어느 쪽이든 처방은 같은 방향입니다(심야 단속·시설) — 다만 차종이 특정되면 처방을 더 좁힐 수 있어 가치 있는 후속 분석입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q14</span><p class="q">18~20시 근접(K3) 37.7% 집중 — 하교 인원 때문인지 퇴근 보행 증가 때문인지 식별할 수 있나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>식별하지 않습니다 — 보행자가 누구인지 구분하지 않는 것이 이 시스템의 의도된 설계이기 때문입니다.</div>
+  <ul class="why">
+    <li>시스템은 "보행자 수"만 셉니다. 신원·연령·성별을 판별하지 않는 것은 기능 부족이 아니라 프라이버시 제1조건의 결과입니다.</li>
+    <li>그리고 개선 조치에는 주체 식별이 필요 없습니다 — 그 시간·그 장소의 조명·시인성 개선은 누가 걷든 효과가 있습니다. 꼭 필요하다면 학사 일정이 다른 날짜 간 비교 같은 간접 추정은 가능합니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q15</span><p class="q">정차가 정문 앞 15~55m 금지구역 띠에 쌓이는 패턴 — 실은 그 구역에 승하차가 편한 물리적 인프라(넓은 갓길)가 있기 때문 아닌가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>그럴 가능성이 높다고 봅니다 — 그리고 그 가설은 결론을 흔드는 게 아니라 개선안의 방향을 정해줍니다.</div>
+  <ul class="why">
+    <li>측정의 역할은 "어디서, 얼마나, 왜(enum 사유) 서는가"까지입니다. 실제로 사유 태그의 다수가 승하차(boarding)로, 그 자리에 승하차 수요가 있다는 방증입니다.</li>
+    <li>물리 조건이 원인이라면 처방은 "단속"이 아니라 "합법 승하차 공간의 재배치"가 됩니다 — 인프라 가설은 현장 관찰로 교차 확인할 계획이며, 패턴 발견(측정)과 원인 규명(현장)의 역할 분담이 저희 방법입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q16</span><p class="q">등교 피크(08:10~08:25)에 과속 비율이 오히려 낮다면 — 이 시간대의 진짜 위협은 '과속'이 아니라 '통행량 자체'나 '시야 가림'으로 봐야 하나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>예, 정확히 그것이 저희 결론입니다 — 피크의 위협은 속도가 아니라 양과 밀도이고, 그래서 처방도 시간대별로 다르게 제안했습니다.</div>
+  <ul class="why">
+    <li>등교 피크는 시간당 <span class="num">650대</span>(평시 1.38배)인데 30km/h 초과율은 <span class="num">9.5~10.9%</span>로 낮습니다 — 밀려서 빨리 달릴 수 없는 시간입니다.</li>
+    <li>따라서 피크 15분에는 통행·횡단 관리(안내 집중), 과속 대응은 심야로 — "언제, 무엇이 위험한가"를 분리한 것이 이 연구의 핵심 발견이며, 질문 그대로가 저희 요지입니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q20</span><p class="q">23일 관측·결측 3일 — 계절 요인(겨울 일몰로 인한 조도 저하 등)이 Fast 탐지율이나 Slow 판단에 미치는 영향은 통제되었나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>통제되지 않았습니다 — 가을 한 철 23일 관측이라는 한계를 보고서에 명시했고, 장기 수집이 답입니다.</div>
+  <ul class="why">
+    <li>다만 사후 분해가 가능하도록 수집 구조를 설계했습니다: 5분 QC 버킷이 fps·탐지 품질을 함께 기록하므로, 계절이 바뀌면 "조도 조건이 비슷한 구간끼리" 비교할 수 있습니다.</li>
+    <li>겨울 일몰 당김은 특히 하교 창(16:30~17:30)의 조도를 바꾸므로, 계절 간 비교는 조건 일치 구간으로 한정하는 것이 원칙입니다 — 기준 변경(Q22)과 같은 "혼합 금지" 철학입니다.</li>
+  </ul>
+</div>
+
+<h2 class="sec">E. 시스템 운영</h2>
+<p class="sec-note">무인 운영의 지속 가능성을 묻는 질문 — "사람 없이 복구되는 것을 이미 실측했다"가 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q17</span><p class="q">워치독 리셋을 겪었는데, 한여름 외부 환경에서 현재 발열(50°C)이 스로틀링·셧다운을 유발할 위험은?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>기기는 외부가 아니라 실내 창가 설치가 설계입니다 — 현재 50°C·6.3W로 여유가 있지만, 한여름 실측은 아직 없으므로 온도를 상시 기록해 관찰하는 것이 저희 답입니다.</div>
+  <ul class="why">
+    <li>50°C는 가을·실내 기준 실측값입니다. Jetson은 임계 온도에서 성능을 자동으로 낮추는 보호 단계(스로틀링)가 셧다운보다 먼저 작동하고, 저희는 자원 모니터링으로 온도·fps를 함께 기록하므로 스로틀링이 시작되면 데이터로 보입니다.</li>
+    <li>여름에 fps 저하가 관측되면 방열판·팬 보강으로 대응합니다. 참고로 과거 워치독 리셋의 원인은 발열이 아니라 Wi-Fi 모듈·연산 충돌이었고, 원인을 기록(리셋 레지스터)으로 특정해 해소했습니다 — 고장은 추측이 아니라 기록으로 다룹니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q18</span><p class="q">5분 주기 자동 배포 — 자동 시험은 통과했지만 논리 오류로 시스템이 먹통이 되면, 물리 접근 없이 자동 롤백이 가능한가?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>가능합니다 — 배포기는 설치 후 자기 점검(헬스체크)에 실패하면 직전 버전으로 자동 롤백하며, 이 전체가 물리 접근 없이 도는 것을 실가동으로 검증했습니다.</div>
+  <ul class="why">
+    <li>배포 경로: 자동 시험 통과 → 보드가 5분 주기로 수거·설치 → 헬스체크 → <b>실패 시 자동 롤백</b>(모든 단계 로그 보존).</li>
+    <li>헬스체크는 통과하지만 지표가 이상해지는 "조용한 오류"는 QC·대시보드 감시로 발견하고, 어떤 버전이든 재배포로 원복합니다. 최후 수단으로 원격 재부팅 권한도 등록되어 있습니다.</li>
+    <li>정직한 잔여 위험: 부팅 자체가 불가능한 수준의 고장은 사람이 가야 합니다 — 그래서 전원·네트워크 등 부팅 경로는 보수적으로 관리합니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q19</span><p class="q">색 신호 감시자가 야간 저조도나 짙은 안개를 센서 고장으로 오인해 불필요한 재부팅을 반복할 가능성은?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>판정 신호를 그렇게 고르지 않았습니다 — 깨진 압축 영상 특유의 "고채도 녹·마젠타" 픽셀을 보는데, 야간·안개는 정반대인 저채도 회색이라 겹치지 않습니다.</div>
+  <ul class="why">
+    <li>4중 안전장치: ① 연속 5샘플(약 10초) 유지돼야 발화 — 순간 노이즈 배제 ② 복구 동작이 재부팅이 아니라 <b>카메라 재협상</b>(연결만 다시 맺기, 수 초)이라 오발 비용 자체가 작음 ③ 발화 간 10분 쿨다운으로 반복 폭주 방지 ④ 보조 신호(장시간 무탐지)는 주간(06:30~20:00)에만 적용해 야간 오발을 차단.</li>
+    <li>모든 발화가 사유와 함께 로그에 남아 오발 여부를 사후 추적할 수 있습니다. 이 감시자 자체가 나흘의 수집 공백(프레임 손상을 QC가 못 잡음)을 겪고 재발 방지로 추가한 것입니다.</li>
+  </ul>
+</div>
+
+<h2 class="sec">F. 확산·정책·공유</h2>
+<p class="sec-note">연구 바깥으로의 영향력을 묻는 질문 — "검증 가능한 제안, 체계의 이식"이 공통 축.</p>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q24</span><p class="q">기존 민원과 달리 '실측 데이터'가 실제 예산 집행·시설 개선으로 이어지게 할 구체적 정책 설득 전략은?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>"요구"가 아니라 "검증 가능한 제안"으로 갑니다 — 시간대별 구체 처방, 저비용 개입 먼저, 그리고 개입 전후를 같은 시스템으로 재서 효과를 공개(효과 없음까지 포함)하는 전략입니다.</div>
+  <ul class="why">
+    <li>행정이 움직이기 어려운 이유는 근거와 우선순위의 부재입니다. 이 데이터는 "언제·어디서·무엇을"을 좁혀줍니다 — 심야 과속에는 단속·시설, 저녁 근접에는 조명·시인성, 등교 피크에는 15분 안내 집중. 예산 규모가 다른 처방을 분리해 제시하면 작은 것부터 실행될 수 있습니다.</li>
+    <li>공개 대시보드로 담당자가 직접 상시 확인할 수 있고, 개입 전후 비교 1건 공개가 로드맵에 들어 있습니다 — "효과가 없으면 없다고 공개한다"는 약속이 제안의 신뢰를 만듭니다.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="qhead"><span class="qno">Q25</span><p class="q">코드를 오픈소스로 공개해도, 기술 배경이 없는 타 학교가 AI 코딩 에이전트에만 의존해 복잡한 유지보수를 감당할 수 있겠나?</p></div>
+  <div class="oneline"><span class="lbl">한 줄 답</span>사람의 실력에 기대지 않고 "체계"에 태웠습니다 — 프라이버시 규칙은 자동 점검이 위반 코드의 반영을 차단하고, 배포·복구·고장 감지는 자동화가 맡으며, 실제로 이 보드는 원격·무인으로 운영 중입니다.</div>
+  <ul class="why">
+    <li>유지보수의 대부분(배포, 롤백, 카메라 복구, 네트워크 복구)은 이미 자동입니다. 남는 것은 초기 설치와 하드웨어 고장인데, 설치 체크리스트·자가 진단 스크립트·<b>실패 기록까지 포함한 함정 목록</b>을 확산 패키지로 문서화합니다 — 저희가 겪은 시행착오가 다음 학교의 지도입니다.</li>
+    <li>AI 에이전트 의존의 진짜 위험은 "검증 없는 수용"입니다. 그래서 코드만이 아니라 <b>검증 루프</b>(수동 대조·라벨 피드백·자동 시험)를 함께 이식하는 것이 전제입니다 — 판단과 기준은 사람이 갖는다는 분업 원칙이 보고서의 웹앱 구축 과정 절에 그대로 있습니다.</li>
+  </ul>
+</div>
+
+<footer>
+  Traffic_Hazard_Monitoring_System — 성과발표회 질의응답 대비 자료 · 2026-11-03 생성 · 수치는 연구보고서(분석 창 2026-10-08~10-31, stats.json)와 일치 · 질문 번호는 예상 질문 목록 원문 순서
+</footer>
+</div>
