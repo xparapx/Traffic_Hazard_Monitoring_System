@@ -188,6 +188,9 @@ export default function Metrics() {
     const hi = Math.ceil(Math.max(...xs, lo + FIVE) / FIVE) * FIVE;
     const ticks: number[] = [];
     for (let t = lo; t <= hi && ticks.length < 400; t += FIVE) ticks.push(t);
+    // 라벨 간격은 범위에 맞춰 승급 (30분 고정이면 범위가 길 때 글자가 겹침 — 2026-11-08)
+    const STEPS = [30, 60, 120, 180, 360, 720].map((m) => m * 60 * 1000);
+    const labelStep = STEPS.find((s) => (hi - lo) / s <= 12) ?? STEPS[STEPS.length - 1];
     return {
       danger: pts.filter((p) => p.risk === "DANGER"),
       warn: pts.filter((p) => p.risk === "WARNING"),
@@ -196,6 +199,7 @@ export default function Metrics() {
       posN: pts.filter((p) => p.px != null).length,   // 좌표 축적 수 — 지도 카드 안내용
       domain: [lo, hi] as [number, number],
       ticks,
+      labelStep,
     };
   }, [dwell]);
 
@@ -373,9 +377,13 @@ export default function Metrics() {
                     <CartesianGrid stroke={GRID} horizontal={false} />
                     <XAxis dataKey="x" type="number"
                       domain={dwellPts.domain} ticks={dwellPts.ticks} interval={0}
-                      tickFormatter={(v) =>   /* 격자는 5분마다, 라벨은 30분 눈금에만 */
-                        new Date(v).getMinutes() % 30 === 0
-                          ? kst(new Date(v).toISOString()).slice(0, 5) : ""}
+                      tickFormatter={(v) => {  /* 격자는 5분마다, 라벨은 범위에 맞춘 간격(KST 정렬)에만 */
+                        const k = v + 9 * 3600 * 1000;
+                        if (k % dwellPts.labelStep !== 0) return "";
+                        const d = new Date(k);
+                        const mm = d.getUTCMinutes();
+                        return `${d.getUTCHours()}시${mm ? ` ${mm}분` : ""}`;
+                      }}
                       tick={{ fontSize: 10, fill: "#6E7780" }} tickLine={false} axisLine={{ stroke: GRID }} />
                     <YAxis dataKey="band" type="number" domain={[-0.55, 1.55]}
                       ticks={[0, 1]} tickFormatter={(v) => (v === 1 ? "금지구역" : "기타구역")}
