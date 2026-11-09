@@ -55,6 +55,8 @@ const loc = window.location;
 // (admin.* / tr-admin.* 등)는 관리 앱(8601)이 통째로 서빙하며 공개 API 도
 // 동봉하므로(api.py build_public_router) 전부 상대 경로면 된다.
 const TUNNEL_ADMIN = loc.hostname.split(".")[0].endsWith("admin");
+/** 키오스크 전용 호스트(tr-kiosk.* 등) — 공개 앱이 대문 대신 키오스크를 렌더 */
+export const IS_KIOSK_HOST = loc.hostname.split(".")[0].endsWith("kiosk");
 const PUB_BASE = loc.port === "8601" ? `${loc.protocol}//${loc.hostname}:8600` : "";
 export const ADM_BASE = loc.port === "8600" ? `${loc.protocol}//${loc.hostname}:8601` : "";
 /** 관리 화면 노출 여부 — 관리 포트(:8601)·개발 서버(:5173)·관리 터널 호스트(admin.*).
