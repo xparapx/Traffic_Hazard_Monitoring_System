@@ -1,11 +1,45 @@
 <!doctype html>
-<html lang="ko" data-kind="r" data-w="159" data-h="56">
+<html lang="ko" data-kind="r" data-w="159" data-h="92">
 <head><meta charset="utf-8"><title>r_triple</title>
 <link rel="stylesheet" href="../design/base.css">
-<style>html,body{height:100%} body{word-break:keep-all} .fill svg{width:100%;height:100%}</style>
+<style>html,body{height:100%} body{word-break:keep-all} .fill svg{width:100%;height:100%}
+.evo{display:flex;gap:1.2mm;align-items:stretch;flex:none}
+.evo .panel{flex:1;min-width:0;display:flex;flex-direction:column;gap:.7mm;padding:1.4mm 1.8mm}
+.evo .panel.now{border-color:var(--hyb);border-width:.45mm}
+.evo .hd{display:flex;align-items:center;justify-content:space-between;gap:1mm}
+.evo .q{font-weight:700}
+.evo .res{margin-top:auto;font-weight:700} .evo .res span{display:block} .nw{white-space:nowrap}
+.evo .arrow{font-size:var(--fs-t)}
+.bad{color:var(--danger)} .good{color:var(--hyb)}
+</style>
 </head>
 <body><div class="fig">
-<div class="t">실측을 결합하자 오탐이 0이 됐다 <span class="sub">3중 기록 같은 이벤트 비교 · h3 = person_near 실측 교정(11-02)</span></div>
+<div class="t">같은 질문을 '실측'에게 묻자 오탐이 0이 됐다 <span class="sub">Hybrid 결합 규칙(hybrid_rule) v1 → v2 → v3</span></div>
+<div class="evo">
+ <div class="panel">
+  <div class="hd"><span class="chip c-yolo">hybrid_rule v1</span><span class="dim nw">9/15</span></div>
+  <div class="q">"왜 서 있는가?"</div>
+  <div><span class="dim">묻는 곳</span> Slow의 사유 태그</div>
+  <div class="dim">승하차·60초 미만만 완화</div>
+  <div class="res bad">정밀도 0.10 <span class="dim" style="font-weight:400">정상의 84%가 '대기'</span></div>
+ </div>
+ <div class="arrow">→</div>
+ <div class="panel">
+  <div class="hd"><span class="chip c-vlm">hybrid_rule v2</span><span class="dim nw">10/16</span></div>
+  <div class="q">"곁에 보행자가 지나가는가?"</div>
+  <div><span class="dim">묻는 곳</span> Slow의 사진 판독</div>
+  <div class="dim">보행자 없으면 완화</div>
+  <div class="res bad">오탐 85/89 <span class="dim" style="font-weight:400">89%를 '있음'이라 답함</span></div>
+ </div>
+ <div class="arrow">→</div>
+ <div class="panel now">
+  <div class="hd"><span class="chip c-hyb">hybrid_rule v3</span><span class="dim nw">11/2</span></div>
+  <div class="q">"곁에 보행자가 지나가는가?"</div>
+  <div><span class="dim">묻는 곳</span> 추적기 실측 2.0 m</div>
+  <div class="dim">질문은 같고 답의 출처만 교체</div>
+  <div class="res good">오탐 0/89 <span class="dim" style="font-weight:400">실측 근접 1.1% · 현재 운용</span></div>
+ </div>
+</div>
 <div class="fill" data-fit="plot"><svg class="main" width="100%" height="100%"></svg></div>
 </div>
 <script>
@@ -48,10 +82,10 @@ function barset(g,x,y,Wp,Hp,vals,names,colf,yTitle,sub,labf,yt,ymax){
 function draw(svg){const W=svg.clientWidth,H=svg.clientHeight,g=E('g',{},svg);
  const lw=W*0.54;
  // 왼쪽: 확정 비위험 89건 중 잘못된 DANGER
- barset(g,0,0,lw,H,[89,89,85,0],['Fast','Slow',['Hybrid','h2'],['Hybrid','h3']],
+ barset(g,0,0,lw,H,[89,89,85,0],['Fast','Slow',['Hybrid','rule v2'],['Hybrid','rule v3']],
   i=>[[K.yolo,1],[K.vlm,1],[K.hyb,0.45],[K.hyb,1]][i],'잘못된 DANGER (건)','확정 비위험 89건 (Slow 가동 시기 라벨)');
  // 오른쪽: 실가동 정차 5,541건 DANGER 비중
- barset(g,lw+FS*0.8,0,W-lw-FS*0.8,H,[100,89.3,1.1],['Fast','h2','h3'],
+ barset(g,lw+FS*0.8,0,W-lw-FS*0.8,H,[100,89.3,1.1],['Fast',['Hybrid','rule v2'],['Hybrid','rule v3']],
   i=>[[K.yolo,1],[K.hyb,0.45],[K.hyb,1]][i],'DANGER 비중 (%)','실가동 정차 5,541건',v=>v+'%',[0,50,100],112);
 }
 function run(fn){const svg=document.querySelector('svg.main');const go=()=>{while(svg.firstChild)svg.removeChild(svg.firstChild);fn(svg);};go();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);}

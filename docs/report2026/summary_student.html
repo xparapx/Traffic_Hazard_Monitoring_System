@@ -221,8 +221,9 @@ footer{ margin-top:48px; padding-top:16px; border-top:2px solid var(--ink); font
       <b>결합 규칙의 질문은 하나 — "정차한 차 곁에, 지금 보행자가 지나가는가?"</b>
       <p style="margin:.6em 0 0">핵심은 같은 질문을 <strong>누구에게 묻느냐</strong>였다.</p>
       <ul>
-        <li><b>h2</b> — <span class="chip c-slow">Slow</span>에게 물었다(사진 보고 "사람 있어?"). 교문 앞 사진엔 인도 보행자가 거의 항상 찍혀 89%가 "있음" → 헛경보 89건 중 4건만 줄었다.</li>
-        <li><b>h3</b> — 추적기의 <strong>실측 거리</strong>(2 m 자)에게 물었다. 실측 근접은 1.1%뿐 → <strong>헛경보 0건.</strong></li>
+        <li><b>hybrid_rule v1</b> — 처음엔 질문이 달랐다: "왜 서 있는가?"(승하차면 봐주기). 라벨 153건으로 채점하니 정밀도 0.10 — 멀쩡한 정차의 84%가 '대기'라 걸러지지 않았다 → 질문 자체를 바꿨다.</li>
+        <li><b>hybrid_rule v2</b> — <span class="chip c-slow">Slow</span>에게 물었다(사진 보고 "사람 있어?"). 교문 앞 사진엔 인도 보행자가 거의 항상 찍혀 89%가 "있음" → 헛경보 89건 중 4건만 줄었다.</li>
+        <li><b>hybrid_rule v3</b> — 추적기의 <strong>실측 거리</strong>(2 m 자)에게 물었다. 실측 근접은 1.1%뿐 → <strong>헛경보 0건.</strong></li>
       </ul>
       <p class="fine">이 결함은 수동 라벨의 분석이 두 수치의 모순(실측 1.1% vs 판정 89%)으로 찾아냈고, 당일 코드가 고쳐졌다.
       영상이 없어도 DB의 기록만으로 과거 5,541건을 다시 채점할 수 있었다.</p>
@@ -232,8 +233,8 @@ footer{ margin-top:48px; padding-top:16px; border-top:2px solid var(--ink); font
       <g font-size="13">
         <rect x="150" y="30"  width="445" height="22" fill="var(--dim)"/><text x="40" y="46" fill="var(--ink)">Fast 단독</text><text x="605" y="46" fill="var(--ink)" font-weight="700">89</text>
         <rect x="150" y="60"  width="445" height="22" fill="var(--slow)"/><text x="40" y="76" fill="var(--ink)">Slow 단독</text><text x="605" y="76" fill="var(--ink)" font-weight="700">89</text>
-        <rect x="150" y="90"  width="425" height="22" fill="var(--acc)" opacity="0.45"/><text x="40" y="106" fill="var(--ink)">Hybrid h2</text><text x="585" y="106" fill="var(--ink)" font-weight="700">85</text>
-        <rect x="150" y="120" width="3"   height="22" fill="var(--acc)"/><text x="40" y="136" fill="var(--ink)">Hybrid h3</text><text x="162" y="136" fill="var(--acc)" font-weight="700">0</text>
+        <rect x="150" y="90"  width="425" height="22" fill="var(--acc)" opacity="0.45"/><text x="40" y="106" fill="var(--ink)">Hybrid rule v2</text><text x="585" y="106" fill="var(--ink)" font-weight="700">85</text>
+        <rect x="150" y="120" width="3"   height="22" fill="var(--acc)"/><text x="40" y="136" fill="var(--ink)">Hybrid rule v3</text><text x="162" y="136" fill="var(--acc)" font-weight="700">0</text>
       </g>
     </svg>
     <p><strong>정직한 성적표</strong> — Slow의 "정차 사유" 판독도 채점했더니 사람과 일치 <b class="num-font">4.7%</b>

@@ -13,7 +13,7 @@ aside .lab{color:var(--dim)}
 <div class="fill" data-fit="plot"><svg class="main"></svg>
 <aside>
  <div class="kpi" style="color:var(--hyb)">0건</div>
- <div class="lab">h3 오탐 · 비위험 89건 중</div>
+ <div class="lab">hybrid_rule v3<br>89건 중 오탐</div>
  <div class="kpi">0.061</div>
  <div class="lab">Fast 정밀도 · 라벨 404건</div>
 </aside>
@@ -32,7 +32,7 @@ function T(p,x,y,s,o={}){const e=E('text',{x,y,'text-anchor':o.a||'start','domin
 let _m;function tw(s,w){if(!_m)_m=E('svg',{width:10,height:10,style:'position:absolute;left:-9999px;top:0'},document.body);const t=E('text',{'font-weight':w||400},_m);t.textContent=s;const l=t.getComputedTextLength();_m.removeChild(t);return l;}
 const lin=(d0,d1,r0,r1)=>v=>r0+(v-d0)/(d1-d0)*(r1-r0);
 function draw(svg){const W=svg.clientWidth,H=svg.clientHeight,g=E('g',{},svg);
- const vals=[89,85,0], names=[['Fast','단독'],['Hybrid','h2'],['Hybrid','h3 실측']], cols=[[K.yolo,1],[K.hyb,0.45],[K.hyb,1]];
+ const vals=[89,85,0], names=[['Fast','단독'],['rule v2','사진 추측'],['rule v3','실측']], cols=[[K.yolo,1],[K.hyb,0.45],[K.hyb,1]];
  const yt=[0,30,60,90], ylab=tw('90')+FS*0.5;
  const x0=ylab, x1=W-FS*0.3, y0=FS*1.85, y1=H-FS*2.6;
  const sx=lin(-0.5,2.5,x0,x1), sy=lin(0,97,y1,y0), bw=(x1-x0)/3*0.56;

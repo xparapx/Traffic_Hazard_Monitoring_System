@@ -1,0 +1,203 @@
+<title>10분 발표 스크립트</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --fg:#1c2430; --muted:#5b6678; --line:#e3e7ee;
+    --accent:#2563eb; --accent-soft:#eaf0fe;
+    --hot:#c2410c; --hot-soft:#fff1e8;
+    --ok:#15803d; --ok-soft:#e8f6ec;
+    --chip:#eef1f6; --cue:#f3f7ff;
+    --a:#2563eb; --b:#7c3aed; --c:#0f766e; --who-fg:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12161d; --card:#1a2029; --fg:#e8ecf3; --muted:#9aa5b5; --line:#2a3240;
+      --accent:#6ea0ff; --accent-soft:#1d2a44;
+      --hot:#fb923c; --hot-soft:#3a2415;
+      --ok:#4ade80; --ok-soft:#15301f;
+      --chip:#232b37; --cue:#1b2536;
+      --a:#6ea0ff; --b:#b79cff; --c:#4fd1c5; --who-fg:#10151c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12161d; --card:#1a2029; --fg:#e8ecf3; --muted:#9aa5b5; --line:#2a3240;
+    --accent:#6ea0ff; --accent-soft:#1d2a44;
+    --hot:#fb923c; --hot-soft:#3a2415;
+    --ok:#4ade80; --ok-soft:#15301f;
+    --chip:#232b37; --cue:#1b2536;
+    --a:#6ea0ff; --b:#b79cff; --c:#4fd1c5; --who-fg:#10151c;
+    color-scheme: dark;
+  }
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:"Noto Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+    line-height:1.7; margin:0;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));
+    padding-right:max(16px, env(safe-area-inset-right, 0px));
+    padding-block:0 60px;
+  }
+  .wrap{max-width:820px; margin:0 auto;}
+  header{padding:40px 0 8px;}
+  h1{font-size:1.7rem; margin:0 0 6px; text-wrap:balance;}
+  .sub{color:var(--muted); font-size:.95rem; margin:0;}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin:20px 0;}
+  .box h2{font-size:1.02rem; margin:0 0 8px;}
+  .box ul{margin:0; padding-left:20px; font-size:.93rem;}
+  .box li{margin:4px 0;}
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; font-size:.9rem; min-width:520px;}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{color:var(--muted); font-weight:600; font-size:.8rem; letter-spacing:.04em;}
+  td.t{font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .who{display:inline-block; border-radius:6px; padding:0 8px; font-weight:700; font-size:.8rem; color:var(--who-fg); white-space:nowrap;}
+  .who.a{background:var(--a);} .who.b{background:var(--b);} .who.c{background:var(--c);}
+  section.part{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:0 0 16px;}
+  section.part.core{border-color:var(--hot); border-width:2px;}
+  .phead{display:flex; flex-wrap:wrap; gap:8px 12px; align-items:baseline; margin-bottom:8px;}
+  .phead h2{font-size:1.12rem; margin:0; min-width:0;}
+  .time{font-variant-numeric:tabular-nums; color:var(--muted); font-size:.88rem; white-space:nowrap;}
+  .cue{background:var(--cue); border-left:4px solid var(--accent); border-radius:0 8px 8px 0; padding:7px 12px; margin:8px 0 12px; font-size:.86rem; color:var(--muted);}
+  .cue b{color:var(--accent);}
+  p.say{font-size:1.06rem; margin:0 0 12px;}
+  p.say:last-of-type{margin-bottom:0;}
+  p.say strong{color:var(--hot);}
+  .step{display:inline-block; background:var(--hot-soft); color:var(--hot); border-radius:6px; padding:0 8px; font-weight:700; font-size:.82rem; margin-right:6px; white-space:nowrap;}
+  .nums{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;}
+  .nums span{background:var(--chip); border-radius:6px; padding:1px 9px; font-size:.82rem; font-variant-numeric:tabular-nums;}
+  .handoff{color:var(--muted); font-size:.85rem; font-style:italic; margin:10px 0 0;}
+  code{background:var(--chip); border-radius:4px; padding:1px 5px; font-size:.88em;}
+  footer{color:var(--muted); font-size:.82rem; margin-top:40px; border-top:1px solid var(--line); padding-top:14px;}
+</style>
+<div class="wrap">
+<header>
+  <h1>10분 발표 스크립트</h1>
+  <p class="sub">2026 융합형 연구과제 성과발표회 | Traffic 팀 | 보고서·포스터 최종본(규칙 표기 <code>hybrid_rule v1~v3</code>)과 같은 서사 · 수치 출처: 연구보고서</p>
+</header>
+
+<div class="box">
+  <h2>이 발표의 한 줄</h2>
+  <p style="margin:0">"언제 위험한지 재었더니 통념과 달랐고, 그 숫자를 믿을 수 있게 만들려고 판정 규칙을 세 번 고쳤다." — 전반(①~⑤)은 <b>무엇을 발견했나</b>, 후반(⑥)은 <b>가설이 어떻게 수정되었나</b>가 중심입니다.</p>
+</div>
+
+<div class="box">
+  <h2>시간 배분 (말하는 분량 약 9분 35초 + 여유 25초)</h2>
+  <div class="scroll">
+  <table>
+    <tr><th>구간</th><th>시간</th><th>발표자</th><th>가리킬 곳 (포스터)</th></tr>
+    <tr><td>① 여는 질문</td><td class="t">0:00–0:35</td><td><span class="who a">발표자 A</span></td><td>제목</td></tr>
+    <tr><td>② 문제와 설계 조건</td><td class="t">0:35–1:30</td><td><span class="who a">발표자 A</span></td><td>연구 배경 및 목적</td></tr>
+    <tr><td>③ 시스템 — 보는 AI와 판단하는 AI</td><td class="t">1:30–2:40</td><td><span class="who b">발표자 B</span></td><td>"영상은 저장하지 않는다" 흐름도 · 패널 ②</td></tr>
+    <tr><td>④ 결과 1 — 통념이 수정되다</td><td class="t">2:40–3:45</td><td><span class="who b">발표자 B</span></td><td>패널 ③ 통행의 피크 · ④ 위험의 시간표</td></tr>
+    <tr><td>⑤ 결과 2 — 이 숫자를 믿어도 되는가</td><td class="t">3:45–4:35</td><td><span class="who c">발표자 C</span></td><td>패널 ⑤ 신뢰도의 수렴</td></tr>
+    <tr><td><b>⑥ 결과 3 — 판정 규칙을 세 번 고치다</b></td><td class="t">4:35–7:35</td><td><span class="who c">발표자 C</span></td><td>패널 ⑥ 보는 AI vs 판단 AI · "89 → 0" 카드</td></tr>
+    <tr><td>⑦ 한계와 다음 단계</td><td class="t">7:35–8:22</td><td><span class="who a">발표자 A</span></td><td>한계 및 후속 연구</td></tr>
+    <tr><td>⑧ 제안과 맺음</td><td class="t">8:22–9:35</td><td><span class="who a">발표자 A</span></td><td>기대효과 · 패널 ⑦ 위험 지도 · ⑧ QR</td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="box">
+  <h2>말하기 약속 — 헷갈리는 이름 세 가지</h2>
+  <ul>
+    <li><b>가설</b>은 "가설 1, 가설 3"으로 부른다(문서 표기 H1~H4). <b>판정 규칙</b>은 "하이브리드 룰 버전 1·2·3"으로 부른다(문서 표기 <code>hybrid_rule v1~v3</code>). 두 가지를 섞어 "에이치 쓰리"라고 말하지 않는다.</li>
+    <li><b>Fast</b>는 "보는 AI", <b>Slow</b>는 "판단하는 AI"라는 별명을 처음 한 번 붙여 주고, 그다음부터 Fast·Slow로 부른다.</li>
+    <li>숫자는 반올림해서 말한다 — +393.8% → "약 394퍼센트", 37.7% → "38퍼센트". 정확한 값은 포스터에 있다.</li>
+  </ul>
+</div>
+
+<section class="part">
+  <div class="phead"><h2>① 여는 질문</h2><span class="time">0:00–0:35</span><span class="who a">발표자 A</span></div>
+  <div class="cue"><b>가리킬 곳</b> 포스터 제목. 질문을 던진 뒤 2초 쉰다.</div>
+  <p class="say">안녕하십니까. 공주고등학교 (팀명) 팀입니다. 질문 하나로 시작하겠습니다. 학교 앞 도로는 언제 가장 위험할까요?</p>
+  <p class="say">저희도 처음에는 당연히 등교 시간이라고 생각했습니다. 그런데 23일 동안 실제로 재어 보니 답이 달랐습니다. 오늘은 그 숫자를 어떻게 얻었는지, 그리고 그 숫자를 믿을 수 있게 만들려고 무엇을 고쳤는지 말씀드리겠습니다.</p>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>② 문제와 설계 조건</h2><span class="time">0:35–1:30</span><span class="who a">발표자 A</span></div>
+  <div class="cue"><b>가리킬 곳</b> "연구 배경 및 목적" 칸.</div>
+  <p class="say">교문 앞의 과속, 금지구역 정차, 보행자와 차량의 근접은 누구나 체감하고 민원도 반복되지만, 숫자로 확인한 자료는 없었습니다. 사람이 서서 세는 방식은 매일 계속할 수 없습니다. 그래서 자동으로 재는 시스템을 만들기로 했습니다.</p>
+  <p class="say">다만 조건이 하나 있었습니다. 통학로 영상은 저장하는 것 자체가 민감한 문제입니다. 그래서 <strong>"영상을 저장하지 않고도 믿을 수 있는 측정이 가능한가"</strong>를 설계 제1조건으로 삼았습니다. 저희 코드에는 이미지를 저장하는 함수가 한 줄도 없고, 데이터베이스에는 숫자와 미리 정해 둔 선택지 태그만 남습니다.</p>
+  <p class="handoff">→ "시스템은 B가 설명드리겠습니다."</p>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>③ 시스템 — 보는 AI와 판단하는 AI</h2><span class="time">1:30–2:40</span><span class="who b">발표자 B</span></div>
+  <div class="cue"><b>가리킬 곳</b> "영상은 저장하지 않는다 — 세고, 위험 순간만 판단한다" 흐름도를 왼쪽에서 오른쪽으로 손으로 따라간다.</div>
+  <p class="say">시스템은 창가에 둔 손바닥만 한 엣지 보드 한 대입니다. 이 안에서 두 개의 AI가 역할을 나눕니다.</p>
+  <p class="say">먼저 '보는 AI', Fast 모델입니다. 초당 15장 이상으로 차량과 보행자를 찾아 추적하고, 화면 좌표를 도로의 실제 미터 좌표로 바꿉니다. 여기서 세 가지 지표가 나옵니다. 차량 속도, 금지구역 정차, 그리고 차량과 보행자의 2미터 이내 근접입니다.</p>
+  <p class="say">다음은 '판단하는 AI', Slow 모델입니다. 사진을 보고 글로 답하는 시각언어모델인데, 위험 후보 순간에만 호출되어 "왜 서 있는지"를 정해진 선택지 중 하나로 답합니다.</p>
+  <p class="say">그리고 같은 사건마다 Fast 단독, Slow 단독, 둘을 결합한 Hybrid, 이 세 가지 판정을 모두 기록해 두고, 사람이 만든 정답지로 채점했습니다.</p>
+  <div class="nums"><span>Jetson Orin Nano 8GB</span><span>Fast ≥ 15 fps</span><span>K1 속도 · K2 정차 · K3 근접 2 m</span><span>3중 기록</span></div>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>④ 결과 1 — 통념이 수정되다</h2><span class="time">2:40–3:45</span><span class="who b">발표자 B</span></div>
+  <div class="cue"><b>가리킬 곳</b> 패널 ③(통행의 피크) → 패널 ④(위험의 시간표). "그런데"에서 ④로 손을 옮긴다.</div>
+  <p class="say">첫 번째 결과입니다. 차량 통행 9만 2천 건을 분석했습니다. 통행량은 예상대로 등교 시간에 몰렸습니다. 시간당 650대로 평소의 1.4배이고, 가장 붐비는 때는 8시 10분부터 25분까지 15분입니다.</p>
+  <p class="say">그런데 위험은 달랐습니다. 제한속도 30킬로미터를 넘는 비율은 통학 시간에는 10퍼센트 안팎인데, <strong>밤 9시부터 새벽 1시 사이가 16에서 19퍼센트</strong>로 가장 높았습니다. 차량과 보행자의 근접 655건도 <strong>38퍼센트가 저녁 6시에서 8시</strong>에 일어났습니다.</p>
+  <p class="say">붐비는 것은 등교 시간, 과속은 심야, 근접은 저녁입니다. 위험의 시간대가 서로 다르니, 개선 수단도 시간대별로 달라야 합니다.</p>
+  <div class="nums"><span>통행 92,188건</span><span>등교 650대/h · 평시 1.38배</span><span>심야 초과율 16.1–18.5%</span><span>근접 655건 중 37.7%가 18–20시</span></div>
+  <p class="handoff">→ "그런데 이 숫자를 믿어도 될까요? C가 이어가겠습니다."</p>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>⑤ 결과 2 — 이 숫자를 믿어도 되는가</h2><span class="time">3:45–4:35</span><span class="who c">발표자 C</span></div>
+  <div class="cue"><b>가리킬 곳</b> 패널 ⑤(신뢰도의 수렴)와 "−7.4%" 카드.</div>
+  <p class="say">저희는 사람이 직접 센 값과 시스템의 값을 대조했습니다. 처음 결과는 충격적이었습니다. 자동 카운트가 사람보다 최대 394퍼센트나 더 많이 세고 있었습니다. 주차된 차가 화면에서 깜빡일 때마다 새 차로 센 것입니다. 그때 화면에는 아무 오류도 없었습니다.</p>
+  <p class="say">세는 규칙을 두 번 고친 뒤 오차는 <strong>마이너스 7.4퍼센트</strong>로 기준인 10퍼센트 안에 들어왔고, 속도 오차도 평균 2.55킬로미터로 기준 3킬로미터 이내입니다. 이 검증 수치는 공개 대시보드에 측정값과 함께 항상 게시합니다.</p>
+  <div class="nums"><span>+393.8% → −7.4% (기준 ±10%)</span><span>16클립 · 596대</span><span>속도 2.55 km/h (기준 ±3)</span></div>
+</section>
+
+<section class="part core">
+  <div class="phead"><h2>⑥ 결과 3 — 판정 규칙을 세 번 고치다</h2><span class="time">4:35–7:35</span><span class="who c">발표자 C</span></div>
+  <div class="cue"><b>가리킬 곳</b> 패널 ⑥(보는 AI vs 판단 AI)의 막대 89 → 85 → 0. <b>이 발표의 중심</b>이므로 가장 천천히, 버전이 바뀔 때마다 한 박자 쉰다.</div>
+  <p class="say">이제 이 연구의 핵심인 '판단' 이야기입니다. 보는 AI만으로 위험을 판정하면 금지구역에 선 차를 전부 위험이라고 외칩니다. 사람 라벨 404건으로 채점하니 정밀도가 0.061, 경보 100번 중 94번이 헛경보였습니다. 그래서 Fast가 본 사실과 Slow의 판단을 합치는 규칙이 필요했습니다. 저희는 이것을 '하이브리드 룰'이라 부르고, 지금까지 세 번 고쳤습니다.</p>
+  <p class="say"><span class="step">가설 → 버전 1</span>처음 가설은 이랬습니다. "Slow가 왜 서 있는지를 읽어 주면 정상적인 정차를 걸러낼 수 있다." 그래서 버전 1은 '승하차 중인 짧은 정차만 봐준다'였습니다. 그런데 사람 라벨 153건으로 미리 채점해 보니 정밀도가 0.10에 그쳤습니다. 위험하지 않은 정차의 84퍼센트가 승하차가 아니라 그냥 '대기'였기 때문입니다. 가설의 전제가 틀렸습니다. 위험을 가르는 것은 <strong>'왜 서 있는가'가 아니라 '그 곁을 누가 지나가는가'</strong>였습니다.</p>
+  <p class="say"><span class="step">버전 2</span>그래서 질문을 바꿨습니다. "정차한 차 곁에 지금 보행자가 지나가는가?" 지나가면 위험, 아니면 주의입니다. 이 답을 Slow에게 사진을 보여 주고 물었습니다. 그런데 헛경보 89건 중 4건만 줄었습니다. 교문 앞 사진에는 인도를 걷는 사람이 거의 항상 찍혀 있어서 Slow가 89퍼센트를 '사람 있음'이라 답했기 때문입니다. 실제로 자로 잰 근접은 1.1퍼센트뿐이었습니다. 이 모순을 찾아낸 것은 사람 라벨의 분석이었습니다.</p>
+  <p class="say"><span class="step">버전 3</span>버전 3은 질문은 그대로 두고 답하는 쪽만 바꿨습니다. AI의 추측 대신, 추적기가 실제로 잰 2미터 거리에게 묻습니다. <strong>헛경보는 89건에서 0건이 됐습니다.</strong></p>
+  <p class="say"><span class="step">현재 운용</span>그래서 지금 시스템은 이렇게 돌아갑니다. Fast가 정차를 찾아 후보로 올리고, 하이브리드 룰 버전 3이 실측 거리로 위험 여부를 결정하고, Slow는 '왜 서 있었는지'를 기록으로 남깁니다. 저희는 모델을 다시 학습시킨 것이 아닙니다. 사람이 채점한 결과를 근거로 규칙의 버전을 올렸고, 모든 판정에는 어떤 버전으로 판정했는지가 남아 있습니다. 이 판단에 드는 비용도 재었습니다. 판정 지연은 3초, 8기가 보드에서 초당 15장 처리를 그대로 유지했습니다.</p>
+  <div class="nums"><span>Fast 정밀도 0.061 (라벨 404건)</span><span>v1 정밀도 0.10 (라벨 153건 · 대기 84%)</span><span>v2 오탐 85/89 (Slow '있음' 89%)</span><span>v3 오탐 0/89 (실측 근접 1.1%)</span><span>지연 p95 3.0 s · 스왑 0</span></div>
+  <p class="handoff">→ "한계와 제안은 A가 말씀드리겠습니다."</p>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>⑦ 한계와 다음 단계</h2><span class="time">7:35–8:22</span><span class="who a">발표자 A</span></div>
+  <div class="cue"><b>가리킬 곳</b> "한계 및 후속 연구" 칸. 한계는 숨기지 않고 숫자로 — 질의응답의 방어선이 된다.</div>
+  <p class="say">한계도 숫자로 말씀드리겠습니다. 첫째, 헛경보를 내지 않는다는 것은 입증했지만 <strong>진짜 위험을 놓치지 않는다는 것은 아직 채점하지 못했습니다.</strong> 진짜 위험은 다행히 드물어서 23일의 라벨에 한 건도 없었기 때문입니다. 버전 3이 위험으로 남긴 61건을 라벨링하는 것이 다음 단계입니다.</p>
+  <p class="say">둘째, Slow의 사유 판독은 사람과 4.7퍼센트만 일치했습니다. 사진 한 장으로는 승하차와 대기를 구분하기 어렵기 때문이고, 앞뒤 두 장을 보여 주는 실험을 준비하고 있습니다. 셋째, 한 지점에서 23일 동안 잰 결과입니다.</p>
+  <div class="nums"><span>양성 라벨 0건 — 재현율 미채점</span><span>잔존 위험 후보 61건</span><span>Slow 사유 일치 4.7%</span></div>
+</section>
+
+<section class="part">
+  <div class="phead"><h2>⑧ 제안과 맺음</h2><span class="time">8:22–9:35</span><span class="who a">발표자 A</span></div>
+  <div class="cue"><b>가리킬 곳</b> "기대효과" 칸 → 패널 ⑦(위험 지도) → 패널 ⑧(QR). 마지막 문단은 포스터가 아니라 청중을 본다.</div>
+  <p class="say">이 결과로 시간대별로 다른 개선안을 제안합니다. 등교 피크 15분에는 교통 안내를 집중하고, 심야 과속에는 단속과 과속 방지 시설을, 저녁 6시에서 8시에는 횡단 구간의 조명과 시인성 개선을 건의합니다. 어디에 필요한지는 실측 지도에 좌표로 표시되어 있습니다.</p>
+  <p class="say">결과는 큐알 코드로 누구나 여는 공개 대시보드에 올려 두었고, 코드와 설계 원칙도 모두 공개했습니다. 카메라와 소형 보드만 있으면 다른 학교에서도 재현할 수 있습니다.</p>
+  <p class="say">이 연구에서 배운 것은 하나입니다. <strong>AI의 판정을 믿게 해 준 것은 AI가 아니라 사람의 검증이었습니다.</strong> 직접 세고 라벨을 붙이지 않았다면 394퍼센트의 오차도, 94퍼센트의 헛경보도, 규칙의 결함도 몰랐을 것입니다. 데이터는 "등교 시간이 가장 위험하다"는 저희의 통념을 고쳤고, 저희는 그 데이터를 만드는 시스템을 고쳤습니다. 감사합니다.</p>
+</section>
+
+<div class="box">
+  <h2>시간이 모자랄 때 — 줄이는 순서</h2>
+  <ul>
+    <li>③의 세 번째 문단(Slow 모델 소개)을 한 문장으로: "판단하는 AI인 Slow 모델은 위험 후보 순간에만 호출됩니다."</li>
+    <li>⑤의 두 번째 문단에서 속도 오차 문장을 뺀다(포스터에 있음).</li>
+    <li>⑧의 두 번째 문단(공개·재현)을 뺀다.</li>
+    <li><b>⑥의 가설 → 버전 1 → 2 → 3 → 현재 운용은 줄이지 않는다.</b> 심사에서 가장 차별되는 부분이다.</li>
+  </ul>
+</div>
+
+<div class="box">
+  <h2>이 발표 뒤에 나올 가능성이 높은 질문</h2>
+  <ul>
+    <li>"오탐을 줄인 것은 모델에게 가이드라인을 준 것인가?" — 아니다. 모델·프롬프트는 그대로이고, 판정 조건에 들어가는 '보행자가 지나갔는가'를 AI의 추측에서 추적기 실측으로 바꾼 것이다(하이브리드 룰 버전 2 → 3).</li>
+    <li>"그러면 Slow 모델은 왜 필요한가?" — 실측 거리로는 답할 수 없는 "왜 서 있는가"의 기록을 맡고, 영상을 저장하지 않는 설계에서 장면의 요약을 남기는 유일한 수단이다. 실측이 불가능할 때의 예비 입력이기도 하다.</li>
+    <li>"근접(K3) 판정에도 Slow가 관여하나?" — 아니다. 근접은 실측 거리만으로 판정하며, 사람 라벨은 그 기준(2 m)과 미탐을 검증하는 데 쓴다.</li>
+    <li>더 많은 질문과 모범 답은 「질의응답 대비 답변집」(qa_prep.html) 참조.</li>
+  </ul>
+</div>
+
+<footer>
+  발표자 A·B·C는 역할 표시입니다(이름은 팀에서 배정). 말하는 분량은 2,471자(공백 제외), 분당 약 260자의 여유 있는 속도 기준입니다 — 리허설에서 초시계로 재고, 9분 45초를 넘으면 위 "줄이는 순서"대로 줄이세요.
+</footer>
+</div>
