@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko" data-kind="p" data-w="143" data-h="85">
+<head><meta charset="utf-8"><title>p_tradeoff</title>
+<link rel="stylesheet" href="../design/base.css">
+<!-- 포스터판 그림 12 (2026-11-23): 가설 H4 의 결과 — Fast·Slow·Hybrid 의 자원–품질 득실.
+     '기대효과' 칸의 중복 위험 지도(p_map31) 자리를 대체. 수치 근거·환산식은 figs/r_resource.html 주석과 동일 -->
+<style>html,body{height:100%} body{word-break:keep-all}
+.grid{display:grid;grid-template-columns:21mm 1fr 1fr 1fr;column-gap:1.6mm;flex:1;min-height:0;align-content:stretch}
+.grid>div{padding:.5mm 1.8mm;display:flex;flex-direction:column;justify-content:center;border-bottom:.4mm solid var(--rowline)}
+.grid>.rl{padding-left:0;color:var(--dim);font-weight:600}
+.grid>.hd{border-bottom:.7mm solid var(--grid);align-items:flex-start}
+.grid>.last{border-bottom:none}
+.col-h{background:color-mix(in srgb,var(--hyb) 8%,transparent)}
+.hd.col-h{border-radius:3mm 3mm 0 0;border-bottom-color:var(--hyb)} .last.col-h{border-radius:0 0 3mm 3mm}
+.big{font-size:var(--fs-t);font-weight:700;line-height:1.1;white-space:nowrap}
+.bad{color:var(--danger)} .good{color:var(--hyb)}
+.foot{flex:none;font-weight:600}
+</style>
+</head>
+<body><div class="fig">
+<div class="t">판단의 값 <span class="sub">세 방식의 득실 · 가설 H4</span></div>
+<div class="grid" data-fit="plot">
+ <div class="rl hd"></div>
+ <div class="hd"><span class="chip c-yolo">Fast</span></div>
+ <div class="hd"><span class="chip c-vlm">Slow</span></div>
+ <div class="hd col-h"><span class="chip c-hyb">Hybrid</span></div>
+
+ <div class="rl">메모리</div>
+ <div><span class="big">0.6 GB</span></div>
+ <div><span class="big bad">5.3 GB</span></div>
+ <div class="col-h"><span class="big">5.9 GB</span></div>
+
+ <div class="rl">속도</div>
+ <div><span class="big">0.06초/장</span><span class="dim">상시 감시</span></div>
+ <div><span class="big bad">2.9초/장</span><span class="dim">48배 느림</span></div>
+ <div class="col-h"><span class="big">16.7장/초</span><span class="dim">Slow 1.3%</span></div>
+
+ <div class="rl last">오탐</div>
+ <div class="last"><span class="big bad">89건</span></div>
+ <div class="last"><span class="big bad">89건</span></div>
+ <div class="last col-h"><span class="big good">0건</span></div>
+</div>
+<div class="foot">값싼 Fast가 늘 보고, 비싼 Slow는 위험 순간에만 부른다</div>
+</div>
+</body></html>
